@@ -66,3 +66,9 @@ app.post('/main-ready', async (req, res) => {
 });
 
 app.listen(3000, () => console.log('TablePulse running on port 3000'));
+
+app.post('/review', async (req, res) => {
+  const { phone, orderName } = req.body;
+  res.json({ status: 'ok' });
+  await sendMessage(phone, 'Thank you for dining with us ' + orderName + ' ji! 😊\nWe hope you enjoyed your meal.\nIf you had a great experience, we\'d love your feedback:\nhttps://maps.app.goo.gl/hdNkuW779XsbGRh68?g_st=aw\n— TablePulse ❤️');
+});
