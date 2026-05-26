@@ -3,7 +3,7 @@ const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const { MongoClient } = require('mongodb');
-
+const { Restaurant, generateToken, verifyToken, requireAuth } = require('./middleware/auth');
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -79,6 +79,29 @@ app.get('/orders', async (req, res) => {
   if (!db) return res.json([]);
   const orders = await db.collection('orders').find({}).sort({ createdAt: -1 }).limit(50).toArray();
   res.json(orders);
+});
+
+app.post('/login', async (req, res) => {
+  const { pin } = req.body;
+  if (!pin) return res.status(400).json({ error: 'PIN required' });
+  const restaurant = await Restaurant.findOne({ pin: pin.trim() });
+  if (!restaurant) return res.status(401).json({ error: 'Wrong PIN. Try again.' });
+  const token = generateToken(pin);
+  res.json({
+    token,
+    restaurantName: restaurant.name,
+    googleReviewLink: restaurant.googleReviewLink,
+    avgDrinkMins: restaurant.avgDrinkMins,
+    avgStarterMins: restaurant.avgStarterMins,
+    avgMainMins: restaurant.avgMainMins
+  });
+});
+
+app.get('/verify', async (req, res) => {
+  const token = req.headers['x-auth-token'];
+  const restaurant = await verifyToken(token);
+  if (!restaurant) return res.status(401).json({ error: 'Session expired' });
+  res.json({ restaurantName: restaurant.name });
 });
 
 app.listen(3000, () => console.log('TablePulse running on port 3000'));
