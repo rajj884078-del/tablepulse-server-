@@ -62,13 +62,11 @@ input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-
 <span id="status" class="status-bar loading">Connecting...</span>
 </div>
 <div class="sub">Live — WhatsApp connected</div>
-
 <div class="role-grid">
 <button class="role-btn active" onclick="setRole('waiter',this)">👤<br>Waiter</button>
 <button class="role-btn" onclick="setRole('kitchen',this)">🔥<br>Kitchen</button>
 <button class="role-btn" onclick="setRole('barman',this)" style="grid-column:span 2;">🍹<br>Barman</button>
 </div>
-
 <div id="waiter-screen" class="screen active">
 <div id="w-toast" class="toast green"></div>
 <div class="section-title">New order</div>
@@ -92,23 +90,19 @@ input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-
 <div class="section-title">Active tables</div>
 <div id="waiter-orders"></div>
 </div>
-
 <div id="kitchen-screen" class="screen">
 <div id="k-toast" class="toast orange"></div>
 <div class="section-title">🔥 Kitchen — active orders</div>
 <div id="kitchen-orders"></div>
 </div>
-
 <div id="barman-screen" class="screen">
 <div id="b-toast" class="toast blue"></div>
 <div class="section-title">🍹 Bar — drink orders</div>
 <div id="bar-orders"></div>
 </div>
-
 <script>
 const SERVER='';
 let orders=[],dK=true,dB=true,sync=false;
-
 async function ping(){
   try{await fetch(SERVER+'/webhook?hub.verify_token=tablepulse123&hub.challenge=1&hub.mode=subscribe');
   document.getElementById('status').className='status-bar ok';
@@ -116,19 +110,16 @@ async function ping(){
   catch(e){document.getElementById('status').className='status-bar loading';
   document.getElementById('status').textContent='Reconnecting...';}
 }
-
 async function post(ep,body){
   try{const r=await fetch(SERVER+ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return await r.json();}
   catch(e){return null;}
 }
-
 function toast(id,msg,cls){const el=document.getElementById(id);el.className='toast '+cls;el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',4000);}
 function toggleSync(){sync=!sync;document.getElementById('sync-chk').checked=sync;}
 function toggleDest(d,e){e.stopPropagation();if(d==='k'){dK=!dK;document.getElementById('dest-k').classList.toggle('on',dK);}else{dB=!dB;document.getElementById('dest-b').classList.toggle('on',dB);}}
 function setRole(r,btn){document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(r+'-screen').classList.add('active');if(r==='kitchen')rK();if(r==='barman')rB();if(r==='waiter')rW();}
 function gc(o,t){return o.courses.find(c=>c.type===t);}
 function ta(d){const m=Math.floor((new Date()-d)/60000);return m<1?'just now':m+'m ago';}
-
 async function placeOrder(){
   const name=document.getElementById('w-name').value.trim();
   const phone=document.getElementById('w-phone').value.trim();
@@ -150,7 +141,6 @@ async function placeOrder(){
   else toast('w-toast','⚠️ Server busy — try again','orange');
   rW();
 }
-
 function rW(){
   const el=document.getElementById('waiter-orders');
   if(!orders.length){el.innerHTML='<div class="empty">No active tables</div>';return;}
@@ -164,10 +154,9 @@ function rW(){
     }).join('');
     const main=gc(o,'main');const st=gc(o,'starters');
     const showStart=st&&st.status==='ready'&&main&&main.status==='waiting';
-    return `<div class="card"><div class="order-top"><div><div class="table-name">Table ${o.table}</div><div class="meta">${o.name} · ${o.phone}</div>${o.sameTime?'<span class="sync-tag">⏱ Same-time</span>':''}</div><div style="font-size:12px;color:#aaa;">${ta(o.placedAt)}</div></div>${rows}<div class="actions">${showStart?`<button class="act-btn orange" onclick="startMain(${i})">▶ Start main course</button>`:''}<button class="act-btn yellow" onclick="alert('Review sent to ${o.name} ji!')">⭐ Review</button></div></div>`;
+    return `<div class="card"><div class="order-top"><div><div class="table-name">Table ${o.table}</div><div class="meta">${o.name} · ${o.phone}</div>${o.sameTime?'<span class="sync-tag">⏱ Same-time</span>':''}</div><div style="font-size:12px;color:#aaa;">${ta(o.placedAt)}</div></div>${rows}<div class="actions">${showStart?`<button class="act-btn orange" onclick="startMain(${i})">▶ Start main course</button>`:''}<button class="act-btn yellow" onclick="sendReview(${i})">⭐ Request review</button></div></div>`;
   }).join('');
 }
-
 function rK(){
   const el=document.getElementById('kitchen-orders');
   const list=orders.filter(o=>o.toK);
@@ -178,7 +167,6 @@ function rK(){
     return `<div class="card"><div class="order-top"><div><div class="table-name">Table ${o.table}</div><div class="meta">${o.name} · ${ta(o.placedAt)}</div>${o.sameTime?'<span class="sync-tag">⏱ Same-time</span>':''}</div>${o.mStarted?`<div style="font-size:12px;color:#E65100;">⏱ ${Math.floor((new Date()-o.mStarted)/60000)}m</div>`:''}</div><div class="actions">${sn?`<button class="act-btn blue" onclick="notifyBar(${i})">🔔 Notify barman</button>`:''}${st&&st.status==='waiting'?`<button class="act-btn green" onclick="markReady(${i},'starters')">✅ Starters ready</button>`:''}${st&&st.status==='ready'?`<span style="font-size:12px;color:#2E7D32;padding:6px 0;display:block;">✅ Starters done</span>`:''}${main&&main.status==='started'?`<button class="act-btn green" onclick="markReady(${i},'main')">✅ Main ready</button>`:''}${main&&main.status==='ready'?`<span style="font-size:12px;color:#2E7D32;padding:6px 0;display:block;">✅ Main done</span>`:''}${main&&main.status==='waiting'&&st&&st.status==='ready'?`<span style="font-size:12px;color:#aaa;padding:6px 0;display:block;">Waiting for waiter</span>`:''}</div></div>`;
   }).join('');
 }
-
 function rB(){
   const el=document.getElementById('bar-orders');
   const list=orders.filter(o=>o.toB&&gc(o,'drinks'));
@@ -188,27 +176,27 @@ function rB(){
     return `<div class="card"><div class="order-top"><div><div class="table-name">Table ${o.table}</div><div class="meta">${o.name} · Drinks x${d.qty}</div></div><div style="font-size:12px;color:#aaa;">${ta(o.placedAt)}</div></div>${o.sameTime&&o.bNotified?'<div style="font-size:12px;padding:8px;background:#E3F2FD;color:#1565C0;border-radius:8px;margin-bottom:8px;">⏱ Coordinate with kitchen — serve together</div>':''}<div class="actions">${d.status==='waiting'?`<button class="act-btn green" onclick="markReady(${i},'drinks')">✅ Drinks ready</button>`:`<span style="font-size:12px;color:#2E7D32;">✅ Drinks ready</span>`}</div></div>`;
   }).join('');
 }
-
 async function markReady(i,type){
   const c=gc(orders[i],type);if(c){c.status='ready';if(type==='main')orders[i].mStarted=null;}
   if(type==='starters'){await post('/starters-ready',{phone:orders[i].phone,orderName:orders[i].name});toast('k-toast','✅ WhatsApp sent — starters on the way','green');}
   if(type==='main'){await post('/main-ready',{phone:orders[i].phone,orderName:orders[i].name,table:orders[i].table});toast('k-toast','✅ WhatsApp sent — main on the way','green');}
   rW();rK();rB();
 }
-
 async function startMain(i){
   const m=gc(orders[i],'main');if(m){m.status='started';orders[i].mStarted=new Date();}
   await post('/main-started',{phone:orders[i].phone,orderName:orders[i].name});
   toast('k-toast','🔔 Table '+orders[i].table+' — Start main! WhatsApp sent','orange');
   rW();rK();
 }
-
 function notifyBar(i){
   orders[i].bNotified=true;
   toast('b-toast','🔔 Table '+orders[i].table+' — Starters almost ready! Prepare drinks','blue');
   rK();rB();
 }
-
+async function sendReview(i){
+  await post('/review',{phone:orders[i].phone,orderName:orders[i].name});
+  toast('w-toast','⭐ Review request sent to '+orders[i].name+' ji!','green');
+}
 ping();
 setInterval(ping,4*60*1000);
 setInterval(()=>{rW();rK();},30000);
