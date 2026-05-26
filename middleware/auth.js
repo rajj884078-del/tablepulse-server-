@@ -1,15 +1,14 @@
-const mongoose = require('mongoose');
+const { MongoClient } = require('mongodb');
 
-const restaurantSchema = new mongoose.Schema({
-  name: String,
-  pin: { type: String, unique: true },
-  googleReviewLink: String,
-  avgDrinkMins: { type: Number, default: 10 },
-  avgStarterMins: { type: Number, default: 20 },
-  avgMainMins: { type: Number, default: 35 }
-});
+const MONGODB_URI = process.env.MONGODB_URI;
+let db;
 
-const Restaurant = mongoose.models.Restaurant || mongoose.model('Restaurant', restaurantSchema);
+async function getDb() {
+  if (db) return db;
+  const client = await MongoClient.connect(MONGODB_URI);
+  db = client.db('tablepulse');
+  return db;
+}
 
 function generateToken(pin) {
   const payload = `${pin}:${Date.now()}:${process.env.WEBHOOK_VERIFY_TOKEN}`;
@@ -20,7 +19,8 @@ async function verifyToken(token) {
   try {
     const decoded = Buffer.from(token, 'base64').toString('utf8');
     const [pin] = decoded.split(':');
-    const restaurant = await Restaurant.findOne({ pin });
+    const db = await getDb();
+    const restaurant = await db.collection('restaurants').findOne({ pin });
     return restaurant || null;
   } catch {
     return null;
@@ -36,4 +36,9 @@ async function requireAuth(req, res, next) {
   next();
 }
 
-module.exports = { Restaurant, generateToken, verifyToken, requireAuth };
+async function findRestaurantByPin(pin) {
+  const db = await getDb();
+  return db.collection('restaurants').findOne({ pin: pin.trim() });
+}
+
+module.exports = { generateToken, verifyToken, requireAuth, findRestaurantByPin };
