@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TablePulse</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,sans-serif;background:#f5f5f5;padding:1rem;}
+.card{background:#fff;border-radius:12px;padding:1rem;margin-bottom:10px;border:1px solid #eee;}
+h1{font-size:18px;font-weight:600;margin-bottom:2px;}
+.sub{font-size:12px;color:#888;margin-bottom:1rem;}
+.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:1.5rem;}
+.role-btn{padding:14px 8px;border:1px solid #ddd;border-radius:12px;background:#fff;font-size:13px;cursor:pointer;text-align:center;}
+.role-btn.active{border:2px solid #007AFF;background:#EFF6FF;color:#007AFF;}
+.screen{display:none;}
+.screen.active{display:block;}
+label{display:block;font-size:12px;color:#888;margin-bottom:5px;}
+input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:12px;}
+.course-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #f0f0f0;}
+.course-label{flex:1;font-size:14px;}
+.qty{width:55px;padding:6px 8px;border:1px solid #ddd;border-radius:8px;font-size:13px;margin:0;}
+.toggle-row{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #FF9500;border-radius:8px;background:#FFF8EE;margin:12px 0;cursor:pointer;}
+.toggle-label{font-size:13px;color:#CC7700;flex:1;}
+.dest-row{display:flex;gap:8px;margin:8px 0 12px;}
+.chip{padding:5px 12px;border:1px solid #ddd;border-radius:20px;font-size:12px;color:#888;cursor:pointer;}
+.chip.on{background:#E8F5E9;color:#2E7D32;border-color:#A5D6A7;}
+.btn{width:100%;padding:13px;background:#000;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-top:4px;}
+.btn:disabled{opacity:0.5;}
+.section-title{font-size:13px;font-weight:600;margin:1.25rem 0 10px;}
+.tl-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f5f5f5;}
+.tl-label{flex:1;font-size:13px;color:#888;}
+.tl-label.ready{color:#2E7D32;font-weight:600;}
+.tl-label.started{color:#E65100;font-weight:600;}
+.pill{font-size:11px;padding:2px 8px;border-radius:10px;}
+.pill-wait{background:#f5f5f5;color:#888;}
+.pill-ready{background:#E8F5E9;color:#2E7D32;}
+.pill-started{background:#FFF3E0;color:#E65100;}
+.act-btn{flex:1;padding:9px 6px;border:1px solid #ddd;border-radius:8px;background:#f9f9f9;font-size:12px;cursor:pointer;text-align:center;}
+.act-btn.green{border-color:#A5D6A7;color:#2E7D32;background:#E8F5E9;}
+.act-btn.orange{border-color:#FFCC80;color:#E65100;background:#FFF3E0;}
+.act-btn.blue{border-color:#90CAF9;color:#1565C0;background:#E3F2FD;}
+.act-btn.yellow{border-color:#FFE082;color:#F57F17;}
+.toast{padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:10px;display:none;}
+.toast.green{background:#E8F5E9;color:#2E7D32;}
+.toast.orange{background:#FFF3E0;color:#E65100;}
+.toast.blue{background:#E3F2FD;color:#1565C0;}
+.empty{text-align:center;padding:2rem;color:#bbb;font-size:14px;}
+.sync-tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:#FFF3E0;color:#E65100;margin-top:3px;}
+.status-bar{font-size:11px;padding:4px 10px;border-radius:10px;display:inline-flex;align-items:center;gap:4px;}
+.status-bar.ok{background:#E8F5E9;color:#2E7D32;}
+.status-bar.loading{background:#FFF3E0;color:#E65100;}
+.actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+.meta{font-size:12px;color:#aaa;margin-top:2px;}
+.table-name{font-size:15px;font-weight:600;}
+.order-top{display:flex;justify-content:space-between;margin-bottom:10px;}
+</style>
+</head>
+<body>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+<h1>TablePulse</h1>
+<span id="status" class="status-bar loading">Connecting...</span>
+</div>
+<div class="sub">Live — WhatsApp connected</div>
+
+<div class="role-grid">
+<button class="role-btn active" onclick="setRole('waiter',this)">👤<br>Waiter</button>
+<button class="role-btn" onclick="setRole('kitchen',this)">🔥<br>Kitchen</button>
+<button class="role-btn" onclick="setRole('barman',this)" style="grid-column:span 2;">🍹<br>Barman</button>
+</div>
+
+<div id="waiter-screen" class="screen active">
+<div id="w-toast" class="toast green"></div>
+<div class="section-title">New order</div>
+<label>Customer name</label><input id="w-name" placeholder="Enter name"/>
+<label>WhatsApp number</label><input id="w-phone" type="tel" placeholder="91XXXXXXXXXX"/>
+<label>Table number</label><input id="w-table" type="number" placeholder="e.g. 5"/>
+<div style="font-size:12px;color:#888;margin-bottom:8px;">Courses ordered</div>
+<div class="course-row"><input type="checkbox" id="chk-d" checked/><label class="course-label" for="chk-d">🍹 Drinks</label><input class="qty" id="qty-d" type="number" value="1" min="1"/></div>
+<div class="course-row"><input type="checkbox" id="chk-s" checked/><label class="course-label" for="chk-s">🥗 Starters</label><input class="qty" id="qty-s" type="number" value="1" min="1"/></div>
+<div class="course-row"><input type="checkbox" id="chk-m" checked/><label class="course-label" for="chk-m">🍛 Main course</label><input class="qty" id="qty-m" type="number" value="1" min="1"/></div>
+<div class="toggle-row" onclick="toggleSync()">
+<input type="checkbox" id="sync-chk"/>
+<span class="toggle-label">⏱ Customer wants drinks + starters together</span>
+</div>
+<div style="font-size:12px;color:#888;margin-bottom:6px;">Send to</div>
+<div class="dest-row">
+<div class="chip on" id="dest-k" onclick="toggleDest('k',event)">🔥 Kitchen</div>
+<div class="chip on" id="dest-b" onclick="toggleDest('b',event)">🍹 Bar</div>
+</div>
+<button class="btn" id="place-btn" onclick="placeOrder()">Send to kitchen</button>
+<div class="section-title">Active tables</div>
+<div id="waiter-orders"></div>
+</div>
+
+<div id="kitchen-screen" class="screen">
+<div id="k-toast" class="toast orange"></div>
+<div class="section-title">🔥 Kitchen — active orders</div>
+<div id="kitchen-orders"></div>
+</div>
+
+<div id="barman-screen" class="screen">
+<div id="b-toast" class="toast blue"></div>
+<div class="section-title">🍹 Bar — drink orders</div>
+<div id="bar-orders"></div>
+</div>
+
+<script>
+const SERVER='';
+let orders=[],dK=true,dB=true,sync=false;
+
+async function ping(){
+  try{await fetch(SERVER+'/webhook?hub.verify_token=tablepulse123&hub.challenge=1&hub.mode=subscribe');
+  document.getElementById('status').className='status-bar ok';
+  document.getElementById('status').textContent='Server ready';}
+  catch(e){document.getElementById('status').className='status-bar loading';
+  document.getElementById('status').textContent='Reconnecting...';}
+}
+
+async function post(ep,body){
+  try{const r=await fetch(SERVER+ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return await r.json();}
+  catch(e){return null;}
+}
+
+function toast(id,msg,cls){const el=document.getElementById(id);el.className='toast '+cls;el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',4000);}
+function toggleSync(){sync=!sync;document.getElementById('sync-chk').checked=sync;}
+function toggleDest(d,e){e.stopPropagation();if(d==='k'){dK=!dK;document.getElementById('dest-k').classList.toggle('on',dK);}else{dB=!dB;document.getElementById('dest-b').classList.toggle('on',dB);}}
+function setRole(r,btn){document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(r+'-screen').classList.add('active');if(r==='kitchen')rK();if(r==='barman')rB();if(r==='waiter')rW();}
+function gc(o,t){return o.courses.find(c=>c.type===t);}
+function ta(d){const m=Math.floor((new Date()-d)/60000);return m<1?'just now':m+'m ago';}
+
+async function placeOrder(){
+  const name=document.getElementById('w-name').value.trim();
+  const phone=document.getElementById('w-phone').value.trim();
+  const table=document.getElementById('w-table').value.trim();
+  if(!name||!phone||!table){alert('Fill all details');return;}
+  const courses=[];
+  if(document.getElementById('chk-d').checked)courses.push({type:'drinks',qty:parseInt(document.getElementById('qty-d').value)||1,status:'waiting'});
+  if(document.getElementById('chk-s').checked)courses.push({type:'starters',qty:parseInt(document.getElementById('qty-s').value)||1,status:'waiting'});
+  if(document.getElementById('chk-m').checked)courses.push({type:'main',qty:parseInt(document.getElementById('qty-m').value)||1,status:'waiting'});
+  if(!courses.length){alert('Select a course');return;}
+  const btn=document.getElementById('place-btn');btn.disabled=true;btn.textContent='Sending...';
+  const hb=courses.find(c=>c.type==='drinks')&&courses.find(c=>c.type==='starters');
+  orders.push({id:Date.now(),name,phone,table,courses,placedAt:new Date(),sameTime:sync&&hb,toK:dK,toB:dB,mStarted:null,bNotified:false});
+  const res=await post('/order',{phone,orderName:name,table});
+  btn.disabled=false;btn.textContent='Send to kitchen';
+  document.getElementById('w-name').value='';document.getElementById('w-phone').value='';document.getElementById('w-table').value='';
+  sync=false;document.getElementById('sync-chk').checked=false;
+  if(res)toast('w-toast','✅ WhatsApp sent to '+name+' ji!','green');
+  else toast('w-toast','⚠️ Server busy — try again','orange');
+  rW();
+}
+
+function rW(){
+  const el=document.getElementById('waiter-orders');
+  if(!orders.length){el.innerHTML='<div class="empty">No active tables</div>';return;}
+  el.innerHTML=orders.map((o,i)=>{
+    const rows=o.courses.map(c=>{
+      const lbl=c.type==='drinks'?'🍹 Drinks':c.type==='starters'?'🥗 Starters':'🍛 Main course';
+      const cls=c.status==='ready'?'ready':c.status==='started'?'started':'';
+      const pill=c.status==='ready'?'pill-ready':c.status==='started'?'pill-started':'pill-wait';
+      const plbl=c.status==='ready'?'Ready':c.status==='started'?'Preparing':'Waiting';
+      return `<div class="tl-row"><span class="tl-label ${cls}">${lbl} x${c.qty}</span><span class="pill ${pill}">${plbl}</span></div>`;
+    }).join('');
+    const main=gc(o,'main');const st=gc(o,'starters');
+    const showStart=st&&st.status==='ready'&&main&&main.status==='waiting';
+    return `<div class="card"><div class="order-top"><div><div class="table-name">Table ${o.table}</div><div class="meta">${o.name} · ${o.phone}</div>${o.sameTime?'<span class="sync-tag">⏱ Same-time</span>':''}</div><div style="font-size:12px;color:#aaa;">${ta(o.placedAt)}</div></div>${rows}<div class="actions">${showStart?`<button class="act-btn orange" onclick="startMain(${i})">▶ Start main course</button>`:''}<button class="act-btn yellow" onclick="alert('Review sent to ${o.name} ji!')">⭐ Review</button></div></div>`;
+  }).join('');
+}
+
+function rK(){
+  const el=document.getElementById('kitchen-orders');
+  const list=orders.filter(o=>o.toK);
+  if(!list.length){el.innerHTML='<div class="empty">No orders yet</div>';return;}
+  el.innerHTML=list.map(o=>{
+    const i=orders.indexOf(o);const st=gc(o,'starters');const main=gc(o,'main');
+    const sn=o.sameTime&&st&&st.status==='waiting'&&!o.bNotified;
+    return `<div class="card"><div class="order-top"><div><div class="table-name">Table ${o.table}</div><div class="meta">${o.name} · ${ta(o.placedAt)}</div>${o.sameTime?'<span class="sync-tag">⏱ Same-time</span>':''}</div>${o.mStarted?`<div style="font-size:12px;color:#E65100;">⏱ ${Math.floor((new Date()-o.mStarted)/60000)}m</div>`:''}</div><div class="actions">${sn?`<button class="act-btn blue" onclick="notifyBar(${i})">🔔 Notify barman</button>`:''}${st&&st.status==='waiting'?`<button class="act-btn green" onclick="markReady(${i},'starters')">✅ Starters ready</button>`:''}${st&&st.status==='ready'?`<span style="font-size:12px;color:#2E7D32;padding:6px 0;display:block;">✅ Starters done</span>`:''}${main&&main.status==='started'?`<button class="act-btn green" onclick="markReady(${i},'main')">✅ Main ready</button>`:''}${main&&main.status==='ready'?`<span style="font-size:12px;color:#2E7D32;padding:6px 0;display:block;">✅ Main done</span>`:''}${main&&main.status==='waiting'&&st&&st.status==='ready'?`<span style="font-size:12px;color:#aaa;padding:6px 0;display:block;">Waiting for waiter</span>`:''}</div></div>`;
+  }).join('');
+}
+
+function rB(){
+  const el=document.getElementById('bar-orders');
+  const list=orders.filter(o=>o.toB&&gc(o,'drinks'));
+  if(!list.length){el.innerHTML='<div class="empty">No drink orders</div>';return;}
+  el.innerHTML=list.map(o=>{
+    const i=orders.indexOf(o);const d=gc(o,'drinks');
+    return `<div class="card"><div class="order-top"><div><div class="table-name">Table ${o.table}</div><div class="meta">${o.name} · Drinks x${d.qty}</div></div><div style="font-size:12px;color:#aaa;">${ta(o.placedAt)}</div></div>${o.sameTime&&o.bNotified?'<div style="font-size:12px;padding:8px;background:#E3F2FD;color:#1565C0;border-radius:8px;margin-bottom:8px;">⏱ Coordinate with kitchen — serve together</div>':''}<div class="actions">${d.status==='waiting'?`<button class="act-btn green" onclick="markReady(${i},'drinks')">✅ Drinks ready</button>`:`<span style="font-size:12px;color:#2E7D32;">✅ Drinks ready</span>`}</div></div>`;
+  }).join('');
+}
+
+async function markReady(i,type){
+  const c=gc(orders[i],type);if(c){c.status='ready';if(type==='main')orders[i].mStarted=null;}
+  if(type==='starters'){await post('/starters-ready',{phone:orders[i].phone,orderName:orders[i].name});toast('k-toast','✅ WhatsApp sent — starters on the way','green');}
+  if(type==='main'){await post('/main-ready',{phone:orders[i].phone,orderName:orders[i].name,table:orders[i].table});toast('k-toast','✅ WhatsApp sent — main on the way','green');}
+  rW();rK();rB();
+}
+
+async function startMain(i){
+  const m=gc(orders[i],'main');if(m){m.status='started';orders[i].mStarted=new Date();}
+  await post('/main-started',{phone:orders[i].phone,orderName:orders[i].name});
+  toast('k-toast','🔔 Table '+orders[i].table+' — Start main! WhatsApp sent','orange');
+  rW();rK();
+}
+
+function notifyBar(i){
+  orders[i].bNotified=true;
+  toast('b-toast','🔔 Table '+orders[i].table+' — Starters almost ready! Prepare drinks','blue');
+  rK();rB();
+}
+
+ping();
+setInterval(ping,4*60*1000);
+setInterval(()=>{rW();rK();},30000);
+</script>
+</body>
+</html>
