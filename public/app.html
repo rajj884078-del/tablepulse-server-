@@ -212,8 +212,6 @@ async function sendReview(i){
 ping();
 setInterval(ping,4*60*1000);
 setInterval(()=>{rW();rK();},30000);
-  </div>
-<script>
 (async function(){
   const token=localStorage.getItem('tp_token');
   if(!token)return;
@@ -245,7 +243,7 @@ function showApp(){
 document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('pinInput')?.addEventListener('keypress',e=>{if(e.key==='Enter')doLogin();});
 });
-</script>
+</div>
 </script>
 </body>
 </html>
