@@ -103,5 +103,24 @@ app.get('/verify', async (req, res) => {
   if (!restaurant) return res.status(401).json({ error: 'Session expired' });
   res.json({ restaurantName: restaurant.name });
 });
-
+app.get('/register-number', async (req, res) => {
+  try {
+    const response = await axios.post(
+      `https://graph.facebook.com/v18.0/${PHONE_ID}/register`,
+      {
+        messaging_product: 'whatsapp',
+        pin: '123456'
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    res.json({ success: true, data: response.data });
+  } catch (error) {
+    res.json({ success: false, error: error.response?.data || error.message });
+  }
+});
 app.listen(3000, () => console.log('TablePulse running on port 3000'));
