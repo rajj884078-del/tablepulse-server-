@@ -70,11 +70,11 @@ app.post('/main-ready', async (req, res) => {
 });
 
 app.post('/review', async (req, res) => {
-  const { phone, orderName } = req.body;
+  const { phone, orderName, reviewLink } = req.body;
+  const link = reviewLink || process.env.DEFAULT_REVIEW_LINK || 'https://maps.app.goo.gl/QarAVmX5x1hiJ4DM9';
   res.json({ status: 'ok' });
-  await sendMessage(phone, 'Thank you for dining with us ' + orderName + ' ji! 😊\nWe hope you enjoyed your meal.\nIf you had a great experience, we\'d love your feedback:\nhttps://maps.app.goo.gl/hdNkuW779XsbGRh68?g_st=aw\n— TablePulse ❤️');
+  await sendMessage(phone, 'Thank you for dining with us ' + orderName + ' ji! 😊\nWe hope you enjoyed your meal.\nIf you did, please leave us a review: ' + link);
 });
-
 app.get('/orders', async (req, res) => {
   if (!db) return res.json([]);
   const orders = await db.collection('orders').find({}).sort({ createdAt: -1 }).limit(50).toArray();
