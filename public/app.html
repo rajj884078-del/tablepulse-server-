@@ -57,6 +57,18 @@ input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-
 </style>
 </head>
 <body>
+  <div id="loginScreen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0f0f0f;font-family:sans-serif;">
+  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px;padding:40px 32px;width:300px;text-align:center;">
+    <div style="font-size:32px;margin-bottom:8px;">🍽</div>
+    <h2 style="color:#fff;margin:0 0 4px;font-size:20px;">TablePulse</h2>
+    <p style="color:#666;font-size:13px;margin:0 0 24px;">Enter your restaurant PIN</p>
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="••••" style="width:100%;padding:14px;font-size:22px;text-align:center;background:#111;border:1px solid #333;border-radius:10px;color:#fff;letter-spacing:8px;box-sizing:border-box;"/>
+    <button onclick="doLogin()" style="width:100%;margin-top:16px;padding:14px;background:#25D366;border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;">Enter</button>
+    <p id="loginError" style="color:#ff5555;font-size:13px;margin:12px 0 0;display:none;"></p>
+  </div>
+</div>
+
+<div id="mainApp" style="display:none;">
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
 <h1>TablePulse</h1>
 <span id="status" class="status-bar loading">Connecting...</span>
@@ -200,6 +212,40 @@ async function sendReview(i){
 ping();
 setInterval(ping,4*60*1000);
 setInterval(()=>{rW();rK();},30000);
+  </div>
+<script>
+(async function(){
+  const token=localStorage.getItem('tp_token');
+  if(!token)return;
+  try{
+    const r=await fetch('/verify',{headers:{'x-auth-token':token}});
+    if(r.ok)showApp();
+    else{localStorage.removeItem('tp_token');localStorage.removeItem('tp_restaurant_name');}
+  }catch(e){}
+})();
+async function doLogin(){
+  const pin=document.getElementById('pinInput').value.trim();
+  const err=document.getElementById('loginError');
+  err.style.display='none';
+  if(!pin)return;
+  try{
+    const r=await fetch('/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});
+    const d=await r.json();
+    if(!r.ok){err.textContent=d.error||'Wrong PIN';err.style.display='block';return;}
+    localStorage.setItem('tp_token',d.token);
+    localStorage.setItem('tp_restaurant_name',d.restaurantName);
+    localStorage.setItem('tp_review_link',d.googleReviewLink);
+    showApp();
+  }catch(e){err.textContent='Server error. Try again.';err.style.display='block';}
+}
+function showApp(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('mainApp').style.display='block';
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('pinInput')?.addEventListener('keypress',e=>{if(e.key==='Enter')doLogin();});
+});
+</script>
 </script>
 </body>
 </html>
