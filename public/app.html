@@ -57,7 +57,8 @@ input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-
 </style>
 </head>
 <body>
-  <div id="loginScreen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0f0f0f;font-family:sans-serif;">
+
+<div id="loginScreen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0f0f0f;font-family:sans-serif;">
   <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px;padding:40px 32px;width:300px;text-align:center;">
     <div style="font-size:32px;margin-bottom:8px;">🍽</div>
     <h2 style="color:#fff;margin:0 0 4px;font-size:20px;">TablePulse</h2>
@@ -112,9 +113,48 @@ input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-
 <div class="section-title">🍹 Bar — drink orders</div>
 <div id="bar-orders"></div>
 </div>
+</div>
+
 <script>
+(async function(){
+  const token=localStorage.getItem('tp_token');
+  if(!token)return;
+  try{
+    const r=await fetch('/verify',{headers:{'x-auth-token':token}});
+    if(r.ok)showApp();
+    else{localStorage.removeItem('tp_token');localStorage.removeItem('tp_restaurant_name');}
+  }catch(e){}
+})();
+
+async function doLogin(){
+  const pin=document.getElementById('pinInput').value.trim();
+  const err=document.getElementById('loginError');
+  err.style.display='none';
+  if(!pin)return;
+  try{
+    const r=await fetch('/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});
+    const d=await r.json();
+    if(!r.ok){err.textContent=d.error||'Wrong PIN';err.style.display='block';return;}
+    localStorage.setItem('tp_token',d.token);
+    localStorage.setItem('tp_restaurant_name',d.restaurantName);
+    localStorage.setItem('tp_review_link',d.googleReviewLink);
+    showApp();
+  }catch(e){err.textContent='Server error. Try again.';err.style.display='block';}
+}
+
+function showApp(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('mainApp').style.display='block';
+  ping();
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('pinInput').addEventListener('keypress',e=>{if(e.key==='Enter')doLogin();});
+});
+
 const SERVER='';
 let orders=[],dK=true,dB=true,sync=false;
+
 async function ping(){
   try{await fetch(SERVER+'/webhook?hub.verify_token=tablepulse123&hub.challenge=1&hub.mode=subscribe');
   document.getElementById('status').className='status-bar ok';
@@ -209,44 +249,7 @@ async function sendReview(i){
   await post('/review',{phone:orders[i].phone,orderName:orders[i].name});
   toast('w-toast','⭐ Review request sent to '+orders[i].name+' ji!','green');
 }
-ping();
-setInterval(ping,4*60*1000);
 setInterval(()=>{rW();rK();},30000);
 </script>
-<script>
-(async function(){
-  const token=localStorage.getItem('tp_token');
-  if(!token)return;
-  try{
-    const r=await fetch('/verify',{headers:{'x-auth-token':token}});
-    if(r.ok)showApp();
-    else{localStorage.removeItem('tp_token');localStorage.removeItem('tp_restaurant_name');}
-  }catch(e){}
-})();
-async function doLogin(){
-  const pin=document.getElementById('pinInput').value.trim();
-  const err=document.getElementById('loginError');
-  err.style.display='none';
-  if(!pin)return;
-  try{
-    const r=await fetch('/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});
-    const d=await r.json();
-    if(!r.ok){err.textContent=d.error||'Wrong PIN';err.style.display='block';return;}
-    localStorage.setItem('tp_token',d.token);
-    localStorage.setItem('tp_restaurant_name',d.restaurantName);
-    localStorage.setItem('tp_review_link',d.googleReviewLink);
-    showApp();
-  }catch(e){err.textContent='Server error. Try again.';err.style.display='block';}
-}
-function showApp(){
-  document.getElementById('loginScreen').style.display='none';
-  document.getElementById('mainApp').style.display='block';
-}
-document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('pinInput')?.addEventListener('keypress',e=>{if(e.key==='Enter')doLogin();});
-});
-</div>     
-</script>
-
 </body>
 </html>
