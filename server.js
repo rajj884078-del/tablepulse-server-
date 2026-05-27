@@ -3,7 +3,7 @@ const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const { MongoClient } = require('mongodb');
-const { Restaurant, generateToken, verifyToken, requireAuth } = require('./middleware/auth');
+const { generateToken, verifyToken, requireAuth, findRestaurantByPin } = require('./middleware/auth');
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -84,7 +84,7 @@ app.get('/orders', async (req, res) => {
 app.post('/login', async (req, res) => {
   const { pin } = req.body;
   if (!pin) return res.status(400).json({ error: 'PIN required' });
-  const restaurant = await Restaurant.findOne({ pin: pin.trim() });
+  const restaurant = await findRestaurantByPin(pin);
   if (!restaurant) return res.status(401).json({ error: 'Wrong PIN. Try again.' });
   const token = generateToken(pin);
   res.json({
