@@ -246,7 +246,8 @@ function notifyBar(i){
   rK();rB();
 }
 async function sendReview(i){
-  await post('/review',{phone:orders[i].phone,orderName:orders[i].name});
+  const reviewLink=localStorage.getItem('tp_review_link')||'https://maps.app.goo.gl/QarAVmX5x1hiJ4DM9';
+  await post('/review',{phone:orders[i].phone,orderName:orders[i].name,reviewLink});
   toast('w-toast','⭐ Review request sent to '+orders[i].name+' ji!','green');
 }
 setInterval(()=>{rW();rK();},30000);
