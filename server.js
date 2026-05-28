@@ -62,7 +62,7 @@ function getParams(stage, name, extras) {
   if (stage === 'order_preparing') return [name];
   if (stage === 'order_arriving')  return [name];
   if (stage === 'order_delay')     return [name];
-  if (stage === 'review_request')  return [name, extras.reviewLink || 'https://g.page/r/test'];
+  if (stage === 'review_request')  return [name, extras.reviewLink || 'https://maps.app.goo.gl/56Aj2XfVbofEtmN47?g_st=ac'];
   return [name];
 }
 
