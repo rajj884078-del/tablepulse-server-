@@ -10,24 +10,18 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// ── Meta vars (kept only for /register-number — remove that route later) ──
 const TOKEN        = process.env.WHATSAPP_ACCESS_TOKEN;
 const PHONE_ID     = process.env.WHATSAPP_PHONE_NUMBER_ID;
 const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN;
 const MONGODB_URI  = process.env.MONGODB_URI;
-
-// ── AiSensy ────────────────────────────────────────────────────────────────
 const AISENSY_API_KEY = process.env.AISENSY_API_KEY;
 
-// ── MongoDB ────────────────────────────────────────────────────────────────
 let db;
 MongoClient.connect(MONGODB_URI).then(client => {
   db = client.db('tablepulse');
   console.log('MongoDB connected');
 });
 
-// ── Phone formatter ────────────────────────────────────────────────────────
-// AiSensy needs full number with country code e.g. "+919876543210"
 function formatPhone(raw) {
   const d = String(raw).replace(/\D/g, '');
   if (d.length === 10)                       return `+91${d}`;
@@ -36,20 +30,9 @@ function formatPhone(raw) {
   return `+${d}`;
 }
 
-// ── AiSensy send ───────────────────────────────────────────────────────────
-// campaignName   = must EXACTLY match the API Campaign name in AiSensy dashboard
-// phone          = customer number (any Indian format)
-// orderName      = customer name
-// templateParams = string array — length must equal number of {{vars}} in template
-//
-// If you get a 400 error → templateParams count doesn't match template variables.
-//   Fix: open template in AiSensy, count {{1}} {{2}} etc., adjust array here.
-// If you get 404 → campaign name doesn't exist. Create it in AiSensy → Campaigns.
-// If you get 401 → wrong AISENSY_API_KEY in Render env.
-
 async function sendWhatsApp(campaignName, phone, orderName, templateParams) {
   if (!AISENSY_API_KEY) {
-    console.error('[aisensy] AISENSY_API_KEY not set in Render env — skipping send');
+    console.error('[aisensy] AISENSY_API_KEY not set');
     return;
   }
   try {
@@ -67,7 +50,26 @@ async function sendWhatsApp(campaignName, phone, orderName, templateParams) {
   }
 }
 
-// ── Webhook (Meta verification — kept as-is) ────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// TEMPLATE PARAMS — update these as you confirm each template's variable count.
+// Open each template in AiSensy, count {{1}} {{2}} etc., add matching values here.
+//
+// order_received  → 3 vars confirmed: name, restaurant, est. time
+// others          → 1 var assumed (name only) — will update after testing
+// ─────────────────────────────────────────────────────────────────────────────
+const RESTAURANT_NAME = 'Gravity';
+
+function paramsFor(stage, name, table) {
+  switch (stage) {
+    case 'order_received':  return [name, RESTAURANT_NAME, '20'];  // {{1}} {{2}} {{3}}
+    case 'order_preparing': return [name];                          // update after testing
+    case 'order_arriving':  return [name];                          // update after testing
+    case 'order_delay':     return [name];                          // update after testing
+    case 'review_request':  return [name];                          // update after testing
+    default:                return [name];
+  }
+}
+
 app.get('/webhook', (req, res) => {
   if (req.query['hub.verify_token'] === VERIFY_TOKEN) {
     res.send(req.query['hub.challenge']);
@@ -76,23 +78,17 @@ app.get('/webhook', (req, res) => {
   }
 });
 
-// ── ORDER CREATED — Waiter screen ──────────────────────────────────────────
-// Fires: order_received template
-// Trigger: waiter submits customer name + phone + table
+// ORDER CREATED — Waiter screen
 app.post('/order', async (req, res) => {
   const { phone, orderName, table } = req.body;
   res.json({ status: 'ok' });
   if (db) await db.collection('orders').insertOne({
     phone, orderName, table, status: 'received', createdAt: new Date()
   });
-  await sendWhatsApp('table_order_received', phone, orderName, [orderName]);
+  await sendWhatsApp('table_order_received', phone, orderName, paramsFor('order_received', orderName, table));
 });
 
-// ── STARTERS READY — Kitchen screen ────────────────────────────────────────
-// DB update only — no WhatsApp message.
-// No matching approved template exists yet.
-// TODO later: create 'table_starters_ready' campaign + template, then add:
-//   await sendWhatsApp('table_starters_ready', phone, orderName, [orderName]);
+// STARTERS READY — Kitchen screen (DB only, no WhatsApp — no template for this yet)
 app.post('/starters-ready', async (req, res) => {
   const { phone, orderName } = req.body;
   res.json({ status: 'ok' });
@@ -102,9 +98,7 @@ app.post('/starters-ready', async (req, res) => {
   );
 });
 
-// ── MAIN COURSE STARTED — Kitchen screen ───────────────────────────────────
-// Fires: order_preparing template
-// Trigger: kitchen marks main course as being prepared
+// MAIN COURSE STARTED — Kitchen screen
 app.post('/main-started', async (req, res) => {
   const { phone, orderName } = req.body;
   res.json({ status: 'ok' });
@@ -112,12 +106,10 @@ app.post('/main-started', async (req, res) => {
     { phone, orderName },
     { $set: { status: 'main-started' } }
   );
-  await sendWhatsApp('table_order_preparing', phone, orderName, [orderName]);
+  await sendWhatsApp('table_order_preparing', phone, orderName, paramsFor('order_preparing', orderName));
 });
 
-// ── MAIN COURSE READY — Kitchen screen ─────────────────────────────────────
-// Fires: order_arriving template
-// Trigger: kitchen marks main course ready / runner picks up
+// MAIN COURSE READY — Kitchen screen
 app.post('/main-ready', async (req, res) => {
   const { phone, orderName, table } = req.body;
   res.json({ status: 'ok' });
@@ -125,63 +117,49 @@ app.post('/main-ready', async (req, res) => {
     { phone, orderName },
     { $set: { status: 'main-ready', completedAt: new Date() } }
   );
-  await sendWhatsApp('table_order_arriving', phone, orderName, [orderName]);
+  await sendWhatsApp('table_order_arriving', phone, orderName, paramsFor('order_arriving', orderName, table));
 });
 
-// ── REVIEW REQUEST — Supervisor / Waiter screen ─────────────────────────────
-// Fires: review_request template (manually triggered by staff)
-// Note: Google review link is currently hardcoded in the template text.
-//       To make it per-restaurant, update template to use {{2}} for the link,
-//       then change templateParams to [orderName, restaurant.googleReviewLink]
+// REVIEW REQUEST — Supervisor / Waiter screen
 app.post('/review', async (req, res) => {
   const { phone, orderName } = req.body;
   res.json({ status: 'ok' });
-  await sendWhatsApp('table_review_request', phone, orderName, [orderName]);
+  await sendWhatsApp('table_review_request', phone, orderName, paramsFor('review_request', orderName));
 });
 
-// ── TEST ENDPOINT — dev only ────────────────────────────────────────────────
-// Use this to test each WhatsApp trigger without going through the full UI.
-// Hit from browser or curl:
-//   https://tablepulse-server.onrender.com/test-whatsapp?stage=order_received&phone=91XXXXXXXXXX&name=Raj
-//
-// Valid stages: order_received, order_preparing, order_arriving, order_delay, review_request
-// Remove this route before going live with real customers.
-
+// TEST ENDPOINT — hit from browser to test any stage without going through the UI
+// https://tablepulse-server.onrender.com/test-whatsapp?stage=order_received&phone=918840782539&name=Raj
 app.get('/test-whatsapp', async (req, res) => {
   const { phone, name, stage } = req.query;
   if (!phone || !name || !stage) {
     return res.status(400).json({ error: 'Required: phone, name, stage' });
   }
-  const stageMap = {
+  const campaigns = {
     order_received:  'table_order_received',
     order_preparing: 'table_order_preparing',
     order_arriving:  'table_order_arriving',
     order_delay:     'table_order_delay',
     review_request:  'table_review_request',
   };
-  const campaignName = stageMap[stage];
+  const campaignName = campaigns[stage];
   if (!campaignName) {
-    return res.status(400).json({
-      error: `Unknown stage "${stage}"`,
-      valid: Object.keys(stageMap)
-    });
+    return res.status(400).json({ error: `Unknown stage "${stage}"`, valid: Object.keys(campaigns) });
   }
   try {
-    await sendWhatsApp(campaignName, phone, name, [name]);
-    res.json({ ok: true, campaign: campaignName, destination: formatPhone(phone) });
+    const params = paramsFor(stage, name);
+    await sendWhatsApp(campaignName, phone, name, params);
+    res.json({ ok: true, campaign: campaignName, destination: formatPhone(phone), params });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
 });
 
-// ── ORDERS LIST ─────────────────────────────────────────────────────────────
 app.get('/orders', async (req, res) => {
   if (!db) return res.json([]);
   const orders = await db.collection('orders').find({}).sort({ createdAt: -1 }).limit(50).toArray();
   res.json(orders);
 });
 
-// ── AUTH ─────────────────────────────────────────────────────────────────────
 app.post('/login', async (req, res) => {
   const { pin } = req.body;
   if (!pin) return res.status(400).json({ error: 'PIN required' });
@@ -205,7 +183,6 @@ app.get('/verify', async (req, res) => {
   res.json({ restaurantName: restaurant.name });
 });
 
-// ── META REGISTER (kept for now — remove once fully off Meta) ───────────────
 app.get('/register-number', async (req, res) => {
   try {
     const response = await axios.post(
