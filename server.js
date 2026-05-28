@@ -140,7 +140,7 @@ app.get('/test-whatsapp', async function(req, res) {
   if (!campaignName) {
     return res.status(400).json({ error: 'Unknown stage: ' + stage, valid: Object.keys(campaigns) });
   }
-  var params = getParams(stage, name, { reviewLink: 'https://g.page/r/test' });
+  var params = getParams(stage, name, { reviewLink: 'https://maps.app.goo.gl/56Aj2XfVbofEtmN47?g_st=ac' });
   await sendWhatsApp(campaignName, phone, name, params);
   res.json({ ok: true, campaign: campaignName, destination: formatPhone(phone), params: params });
 });
