@@ -124,9 +124,7 @@ app.post('/main-ready', async (req, res) => {
 app.post('/review', async (req, res) => {
   const { phone, orderName } = req.body;
   res.json({ status: 'ok' });
-  await sendWhatsApp('table_review_request', phone, orderName, paramsFor('review_request', orderName));
-});
-
+  await sendWhatsApp('table_review_request', phone, orderName, [orderName, reviewLink || 'https://g.page/r/test']);
 // TEST ENDPOINT — hit from browser to test any stage without going through the UI
 // https://tablepulse-server.onrender.com/test-whatsapp?stage=order_received&phone=918840782539&name=Raj
 app.get('/test-whatsapp', async (req, res) => {
@@ -147,7 +145,10 @@ app.get('/test-whatsapp', async (req, res) => {
   }
   try {
     const params = paramsFor(stage, name);
-    await sendWhatsApp(campaignName, phone, name, [name, 'Gravity', '20']);
+    const params = stage === 'order_received'  ? [name, 'Gravity', '20'] :
+               stage === 'review_request'  ? [name, 'https://g.page/r/test'] :
+                                             [name];
+await sendWhatsApp(campaignName, phone, name, params);
     res.json({ ok: true, campaign: campaignName, destination: formatPhone(phone), params });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
