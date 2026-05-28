@@ -147,7 +147,7 @@ app.get('/test-whatsapp', async (req, res) => {
   }
   try {
     const params = paramsFor(stage, name);
-    await sendWhatsApp(campaignName, phone, name, params);
+    await sendWhatsApp(campaignName, phone, name, [name, 'Gravity', '20']);
     res.json({ ok: true, campaign: campaignName, destination: formatPhone(phone), params });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
