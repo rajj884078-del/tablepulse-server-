@@ -43,13 +43,19 @@ async function sendWhatsApp(campaignName, phone, orderName, templateParams) {
   }
 }
 
+// v2 templates — variable order:
+// order_received:  {{1}}=name, {{2}}=table, {{3}}=restaurant name
+// order_preparing: {{1}}=name
+// order_arriving:  {{1}}=name
+// order_delay:     {{1}}=name
+// review_request:  {{1}}=name, {{2}}=review link
 function getParams(stage, name, extras) {
   extras = extras || {};
-  if (stage === 'order_received')  return [name, extras.restaurant || 'Gravity', extras.time || '20'];
+  if (stage === 'order_received')  return [name, extras.table || '', 'Gravity Family Dine and Bar'];
   if (stage === 'order_preparing') return [name];
   if (stage === 'order_arriving')  return [name];
   if (stage === 'order_delay')     return [name];
-  if (stage === 'review_request')  return [name, extras.reviewLink || 'https://maps.app.goo.gl/56Aj2XfVbofEtmN47'];
+  if (stage === 'review_request')  return [name, extras.reviewLink || 'https://maps.app.goo.gl/QarAVmX5x1hiJ4DM9'];
   return [name];
 }
 
@@ -69,7 +75,7 @@ app.post('/order', async function(req, res) {
     phone, orderName, table, courses, sameTime, toK, toB,
     bNotified: false, status: 'active', createdAt: new Date()
   });
-  await sendWhatsApp('table_order_received', phone, orderName, getParams('order_received', orderName));
+  await sendWhatsApp('table_order_received_v2', phone, orderName, getParams('order_received', orderName, { table: table }));
 });
 
 app.get('/active-orders', async function(req, res) {
@@ -97,9 +103,9 @@ app.post('/update-course', async function(req, res) {
     const order = await db.collection('orders').findOne({ _id: new ObjectId(orderId) });
     if (order) {
       if (courseType === 'main' && status === 'started')
-        await sendWhatsApp('table_order_preparing', order.phone, order.orderName, getParams('order_preparing', order.orderName));
+        await sendWhatsApp('table_order_preparing_v2', order.phone, order.orderName, getParams('order_preparing', order.orderName));
       if (courseType === 'main' && status === 'ready')
-        await sendWhatsApp('table_order_arriving', order.phone, order.orderName, getParams('order_arriving', order.orderName));
+        await sendWhatsApp('table_order_arriving_v2', order.phone, order.orderName, getParams('order_arriving', order.orderName));
     }
   } catch(e) { console.error('update-course error:', e.message); }
 });
@@ -127,7 +133,7 @@ app.post('/review', async function(req, res) {
     } catch(e) {}
   }
   res.json({ status: 'ok' });
-  await sendWhatsApp('table_review_request', phone, orderName, getParams('review_request', orderName, { reviewLink }));
+  await sendWhatsApp('table_review_request_v2', phone, orderName, getParams('review_request', orderName, { reviewLink }));
 });
 
 app.post('/order-delay', async function(req, res) {
@@ -139,17 +145,22 @@ app.post('/order-delay', async function(req, res) {
     } catch(e) {}
   }
   res.json({ status: 'ok' });
-  await sendWhatsApp('table_order_delay', phone, orderName, getParams('order_delay', orderName));
+  await sendWhatsApp('table_order_delay_v2', phone, orderName, getParams('order_delay', orderName));
 });
 
 app.get('/test-whatsapp', async function(req, res) {
   const { phone, name, stage } = req.query;
   if (!phone || !name || !stage) return res.status(400).json({ error: 'Required: phone, name, stage' });
-  const campaigns = { order_received:'table_order_received', order_preparing:'table_order_preparing',
-    order_arriving:'table_order_arriving', order_delay:'table_order_delay', review_request:'table_review_request' };
+  const campaigns = {
+    order_received:  'table_order_received_v2',
+    order_preparing: 'table_order_preparing_v2',
+    order_arriving:  'table_order_arriving_v2',
+    order_delay:     'table_order_delay_v2',
+    review_request:  'table_review_request_v2'
+  };
   const campaignName = campaigns[stage];
   if (!campaignName) return res.status(400).json({ error: 'Unknown stage: ' + stage });
-  const params = getParams(stage, name, { reviewLink: 'https://maps.app.goo.gl/56Aj2XfVbofEtmN47' });
+  const params = getParams(stage, name, { table: '7', reviewLink: 'https://maps.app.goo.gl/QarAVmX5x1hiJ4DM9' });
   await sendWhatsApp(campaignName, phone, name, params);
   res.json({ ok: true, campaign: campaignName, destination: formatPhone(phone), params });
 });
