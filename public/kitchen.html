@@ -1,1 +1,145 @@
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TablePulse — Kitchen</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,sans-serif;background:#f5f5f5;padding:1rem;}
+.card{background:#fff;border-radius:12px;padding:1rem;margin-bottom:10px;border:1px solid #eee;}
+.card.fire{border:2px solid #FF6B35;background:#FFF8F5;animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,107,53,0.3);}50%{box-shadow:0 0 0 6px rgba(255,107,53,0);}}
+.fire-banner{background:#FF6B35;color:#fff;font-size:13px;font-weight:700;padding:8px 12px;border-radius:8px;margin-bottom:10px;text-align:center;letter-spacing:0.5px;}
+h1{font-size:18px;font-weight:600;margin-bottom:2px;}
+.sub{font-size:12px;color:#888;margin-bottom:1rem;}
+input[type=password]{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;}
+.section-title{font-size:13px;font-weight:600;margin:1.25rem 0 10px;}
+.toast{padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:10px;display:none;}
+.toast.green{background:#E8F5E9;color:#2E7D32;}
+.toast.orange{background:#FFF3E0;color:#E65100;}
+.toast.blue{background:#E3F2FD;color:#1565C0;}
+.empty{text-align:center;padding:2rem;color:#bbb;font-size:14px;}
+.sync-tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:#FFF3E0;color:#E65100;margin-top:3px;}
+.status-bar{font-size:11px;padding:4px 10px;border-radius:10px;}
+.status-bar.ok{background:#E8F5E9;color:#2E7D32;}
+.actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+.meta{font-size:12px;color:#aaa;margin-top:2px;}
+.table-name{font-size:15px;font-weight:600;}
+.order-top{display:flex;justify-content:space-between;margin-bottom:10px;}
+.act-btn{padding:9px 10px;border:1px solid #ddd;border-radius:8px;background:#f9f9f9;font-size:12px;cursor:pointer;}
+.act-btn.green{border-color:#A5D6A7;color:#2E7D32;background:#E8F5E9;}
+.act-btn.blue{border-color:#90CAF9;color:#1565C0;background:#E3F2FD;}
+.done-line{font-size:12px;color:#2E7D32;padding:4px 0;}
+.wait-line{font-size:12px;color:#aaa;padding:4px 0;}
+.timer-tag{font-size:12px;color:#E65100;padding:4px 0;}
+</style>
+</head>
+<body>
+<div id="loginScreen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0f0f0f;">
+  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px;padding:40px 32px;width:300px;text-align:center;">
+    <div style="font-size:32px;margin-bottom:8px;">🔥</div>
+    <h2 style="color:#fff;margin:0 0 4px;font-size:20px;">Kitchen</h2>
+    <p style="color:#666;font-size:13px;margin:0 0 24px;">Enter restaurant PIN</p>
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="••••" style="width:100%;padding:14px;font-size:22px;text-align:center;background:#111;border:1px solid #333;border-radius:10px;color:#fff;letter-spacing:8px;box-sizing:border-box;"/>
+    <button onclick="doLogin()" style="width:100%;margin-top:16px;padding:14px;background:#FF6B35;border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;">Enter</button>
+    <p id="loginError" style="color:#ff5555;font-size:13px;margin:12px 0 0;display:none;"></p>
+  </div>
+</div>
+<div id="mainApp" style="display:none;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+    <h1>TablePulse <span style="font-size:13px;font-weight:400;color:#888;">Kitchen</span></h1>
+    <span id="status" class="status-bar ok">Live</span>
+  </div>
+  <div class="sub" id="restName">Kitchen orders</div>
+  <div id="k-toast" class="toast orange"></div>
+  <div class="section-title">🔥 Active food orders</div>
+  <div id="kitchen-orders"></div>
+</div>
+<script>
+(async function(){
+  var token=localStorage.getItem('tp_token');
+  if(!token)return;
+  try{var r=await fetch('/verify',{headers:{'x-auth-token':token}});
+  if(r.ok){var d=await r.json();showApp(d.restaurantName);}
+  else localStorage.removeItem('tp_token');}catch(e){}
+})();
+async function doLogin(){
+  var pin=document.getElementById('pinInput').value.trim();
+  var err=document.getElementById('loginError');err.style.display='none';
+  if(!pin)return;
+  try{var r=await fetch('/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin})});
+  var d=await r.json();
+  if(!r.ok){err.textContent=d.error||'Wrong PIN';err.style.display='block';return;}
+  localStorage.setItem('tp_token',d.token);showApp(d.restaurantName);}
+  catch(e){err.textContent='Server error.';err.style.display='block';}
+}
+document.addEventListener('DOMContentLoaded',function(){
+  document.getElementById('pinInput').addEventListener('keypress',function(e){if(e.key==='Enter')doLogin();});
+});
+function showApp(name){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('mainApp').style.display='block';
+  if(name)document.getElementById('restName').textContent=name+' — Kitchen';
+  loadOrders();setInterval(loadOrders,5000);
+}
+async function post(ep,body){
+  try{var r=await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return await r.json();}catch(e){return null;}
+}
+function toast(msg,cls){
+  var el=document.getElementById('k-toast');el.className='toast '+(cls||'orange');
+  el.textContent=msg;el.style.display='block';setTimeout(function(){el.style.display='none';},4000);
+}
+function ta(d){var m=Math.floor((new Date()-new Date(d))/60000);return m<1?'just now':m+'m ago';}
+function elapsed(d){if(!d)return '';var m=Math.floor((new Date()-new Date(d))/60000);return '⏱ '+m+'m on fire';}
+async function loadOrders(){
+  try{var r=await fetch('/active-orders');var all=await r.json();
+  var orders=all.filter(function(o){
+    if(!o.toK)return false;
+    return (o.courses||[]).some(function(c){return c.type==='starters'||c.type==='main';});
+  });
+  renderOrders(orders);}catch(e){}
+}
+function gc(o,type){return (o.courses||[]).find(function(c){return c.type===type;});}
+function renderOrders(orders){
+  var el=document.getElementById('kitchen-orders');
+  if(!orders.length){el.innerHTML='<div class="empty">No food orders 🎉</div>';return;}
+  el.innerHTML=orders.map(function(o){
+    var st=gc(o,'starters');var main=gc(o,'main');
+    var isOnFire=main&&main.status==='started';
+    var sameTimeNotify=o.sameTime&&st&&st.status==='waiting'&&!o.bNotified;
+    var actions='';
+    // Notify barman for same-time orders
+    if(sameTimeNotify) actions+='<button class="act-btn blue" onclick="notifyBar(\''+o._id+'\')">🔔 Notify barman</button>';
+    // Starters flow
+    if(st&&st.status==='waiting') actions+='<button class="act-btn green" onclick="updateCourse(\''+o._id+'\',\'starters\',\'ready\')">✅ Starters ready</button>';
+    if(st&&st.status==='ready') actions+='<span class="done-line">✅ Starters done</span>';
+    // Main flow — waiter starts it, kitchen only marks ready
+    if(main&&main.status==='waiting') actions+='<span class="wait-line">Main: waiting for waiter</span>';
+    if(main&&main.status==='started') actions+='<button class="act-btn green" onclick="updateCourse(\''+o._id+'\',\'main\',\'ready\')">✅ Main ready — serve now</button>';
+    if(main&&main.status==='ready') actions+='<span class="done-line">✅ Main done</span>';
+    return '<div class="card'+(isOnFire?' fire':'')+'">'+
+      (isOnFire?'<div class="fire-banner">🔥 START MAIN NOW — Table '+o.table+'</div>':'')+
+      '<div class="order-top"><div>'+
+      '<div class="table-name">Table '+o.table+'</div>'+
+      '<div class="meta">'+o.orderName+' · '+ta(o.createdAt)+'</div>'+
+      (o.sameTime?'<span class="sync-tag">⏱ Same-time</span>':'')+
+      '</div>'+
+      (o.mainStartedAt?'<div class="timer-tag">'+elapsed(o.mainStartedAt)+'</div>':'')+
+      '</div>'+
+      '<div class="actions">'+actions+'</div></div>';
+  }).join('');
+}
+async function updateCourse(id,type,status){
+  await post('/update-course',{orderId:id,courseType:type,status:status});
+  if(type==='main'&&status==='ready')toast('✅ Main ready — WhatsApp sent','green');
+  if(type==='starters'&&status==='ready')toast('✅ Starters ready','green');
+  loadOrders();
+}
+async function notifyBar(id){
+  await post('/notify-bar',{orderId:id});
+  toast('🔔 Barman notified','blue');loadOrders();
+}
+</script>
+</body>
+</html>
