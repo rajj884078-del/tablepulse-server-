@@ -5,58 +5,83 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TablePulse — Kitchen</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:-apple-system,sans-serif;background:#f5f5f5;padding:1rem;}
-.card{background:#fff;border-radius:12px;padding:1rem;margin-bottom:10px;border:1px solid #eee;}
-.card.fire{border:2px solid #FF6B35;background:#FFF8F5;animation:pulse 1.5s infinite;}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,107,53,0.3);}50%{box-shadow:0 0 0 6px rgba(255,107,53,0);}}
-.fire-banner{background:#FF6B35;color:#fff;font-size:13px;font-weight:700;padding:8px 12px;border-radius:8px;margin-bottom:10px;text-align:center;letter-spacing:0.5px;}
-h1{font-size:18px;font-weight:600;margin-bottom:2px;}
-.sub{font-size:12px;color:#888;margin-bottom:1rem;}
-input[type=password]{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;}
-.section-title{font-size:13px;font-weight:600;margin:1.25rem 0 10px;}
-.toast{padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:10px;display:none;}
-.toast.green{background:#E8F5E9;color:#2E7D32;}
-.toast.orange{background:#FFF3E0;color:#E65100;}
-.toast.blue{background:#E3F2FD;color:#1565C0;}
-.empty{text-align:center;padding:2rem;color:#bbb;font-size:14px;}
-.sync-tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:#FFF3E0;color:#E65100;margin-top:3px;}
-.status-bar{font-size:11px;padding:4px 10px;border-radius:10px;}
-.status-bar.ok{background:#E8F5E9;color:#2E7D32;}
-.actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
-.meta{font-size:12px;color:#aaa;margin-top:2px;}
-.table-name{font-size:15px;font-weight:600;}
-.order-top{display:flex;justify-content:space-between;margin-bottom:10px;}
-.act-btn{padding:9px 10px;border:1px solid #ddd;border-radius:8px;background:#f9f9f9;font-size:12px;cursor:pointer;}
-.act-btn.green{border-color:#A5D6A7;color:#2E7D32;background:#E8F5E9;}
-.act-btn.blue{border-color:#90CAF9;color:#1565C0;background:#E3F2FD;}
-.done-line{font-size:12px;color:#2E7D32;padding:4px 0;}
-.wait-line{font-size:12px;color:#aaa;padding:4px 0;}
-.timer-tag{font-size:12px;color:#E65100;padding:4px 0;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0d1117;color:#e6edf3;padding:14px;padding-bottom:40px;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+h1{font-size:20px;font-weight:700;letter-spacing:-0.3px;}
+h1 span{font-size:13px;font-weight:500;color:#7d8590;}
+.live{font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;background:#13261a;color:#3fb950;display:inline-flex;align-items:center;gap:5px;}
+.live::before{content:'';width:6px;height:6px;border-radius:50%;background:#3fb950;}
+.rest{font-size:13px;color:#7d8590;margin-bottom:14px;}
+.sound-bar{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#161b22;border:1px solid #21262d;border-radius:12px;margin-bottom:14px;cursor:pointer;}
+.sound-box{width:24px;height:24px;border-radius:7px;border:2px solid #30363d;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.sound-box.on{background:#238636;border-color:#238636;color:#fff;}
+.sound-label{flex:1;font-size:14px;font-weight:500;}
+.sound-hint{font-size:12px;color:#7d8590;}
+.card{background:#161b22;border:1px solid #21262d;border-radius:16px;padding:16px;margin-bottom:12px;}
+.card.fire{border:2px solid #ff9f43;background:#1a1206;}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,159,67,0.4);}50%{box-shadow:0 0 0 8px rgba(255,159,67,0);}}
+.card.fire{animation:pulse 1.6s infinite;}
+.fire-banner{background:#ff9f43;color:#1a1206;font-size:14px;font-weight:800;padding:10px;border-radius:10px;margin-bottom:12px;text-align:center;letter-spacing:0.5px;}
+.section-title{font-size:12px;font-weight:700;color:#7d8590;text-transform:uppercase;letter-spacing:1px;margin:18px 4px 10px;}
+.toast{padding:14px;border-radius:12px;font-size:14px;font-weight:500;margin-bottom:12px;display:none;}
+.toast.green{background:#13261a;color:#3fb950;border:1px solid #1f3a2a;}
+.toast.orange{background:#1f1206;color:#ff9f43;border:1px solid #5a2c0a;}
+.toast.blue{background:#0c1d2e;color:#58a6ff;border:1px solid #1f3a5a;}
+.empty{text-align:center;padding:3rem 1rem;color:#484f58;font-size:15px;}
+.sync-tag{display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;background:#1c1607;color:#e3b341;margin-top:5px;}
+.order-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;}
+.table-name{font-size:22px;font-weight:800;}
+.meta{font-size:13px;color:#7d8590;margin-top:3px;}
+.timer-tag{font-size:13px;font-weight:700;color:#ff9f43;}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+.act-btn{flex:1;min-width:130px;padding:15px 12px;border:1px solid #30363d;border-radius:12px;background:#21262d;color:#e6edf3;font-size:15px;font-weight:700;cursor:pointer;text-align:center;}
+.act-btn:active{opacity:.7;}
+.act-btn.green{border-color:#1f3a2a;color:#3fb950;background:#0f1a13;}
+.act-btn.blue{border-color:#1f3a5a;color:#58a6ff;background:#0c1d2e;}
+.done-line{font-size:14px;font-weight:600;color:#3fb950;padding:6px 0;}
+.wait-line{font-size:13px;color:#7d8590;padding:6px 0;}
 </style>
 </head>
 <body>
-<div id="loginScreen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0f0f0f;">
-  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px;padding:40px 32px;width:300px;text-align:center;">
-    <div style="font-size:32px;margin-bottom:8px;">🔥</div>
-    <h2 style="color:#fff;margin:0 0 4px;font-size:20px;">Kitchen</h2>
-    <p style="color:#666;font-size:13px;margin:0 0 24px;">Enter restaurant PIN</p>
-    <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="••••" style="width:100%;padding:14px;font-size:22px;text-align:center;background:#111;border:1px solid #333;border-radius:10px;color:#fff;letter-spacing:8px;box-sizing:border-box;"/>
-    <button onclick="doLogin()" style="width:100%;margin-top:16px;padding:14px;background:#FF6B35;border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;">Enter</button>
-    <p id="loginError" style="color:#ff5555;font-size:13px;margin:12px 0 0;display:none;"></p>
+<div id="loginScreen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0d1117;">
+  <div style="background:#161b22;border:1px solid #21262d;border-radius:20px;padding:44px 32px;width:320px;text-align:center;">
+    <div style="font-size:38px;margin-bottom:10px;">🔥</div>
+    <h2 style="color:#e6edf3;margin:0 0 4px;font-size:22px;">Kitchen</h2>
+    <p style="color:#7d8590;font-size:13px;margin:0 0 26px;">Enter restaurant PIN</p>
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="••••"
+      style="width:100%;padding:16px;font-size:24px;text-align:center;background:#0d1117;border:1px solid #30363d;border-radius:12px;color:#fff;letter-spacing:10px;box-sizing:border-box;"/>
+    <button onclick="doLogin()" style="width:100%;margin-top:16px;padding:16px;background:#ff6b35;border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;">Enter</button>
+    <p id="loginError" style="color:#f85149;font-size:13px;margin:14px 0 0;display:none;"></p>
   </div>
 </div>
+
 <div id="mainApp" style="display:none;">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-    <h1>TablePulse <span style="font-size:13px;font-weight:400;color:#888;">Kitchen</span></h1>
-    <span id="status" class="status-bar ok">Live</span>
+  <div class="topbar">
+    <h1>TablePulse <span>Kitchen</span></h1>
+    <span class="live">Live</span>
   </div>
-  <div class="sub" id="restName">Kitchen orders</div>
+  <div class="rest" id="restName">Kitchen orders</div>
+
+  <div class="sound-bar" onclick="toggleSound()">
+    <div class="sound-box on" id="sound-box">🔊</div>
+    <div>
+      <div class="sound-label">Voice alerts</div>
+      <div class="sound-hint" id="sound-hint">Tap once to enable sound</div>
+    </div>
+  </div>
+
   <div id="k-toast" class="toast orange"></div>
-  <div class="section-title">🔥 Active food orders</div>
+  <div class="section-title" style="margin-top:0;">🔥 Active food orders</div>
   <div id="kitchen-orders"></div>
 </div>
+
 <script>
+var soundOn=true;
+var announcedNew={};   // ids we've spoken "starter pickup" for
+var announcedMain={};  // ids we've spoken "main pickup" for
+var firstLoad=true;
+
 (async function(){
   var token=localStorage.getItem('tp_token');
   if(!token)return;
@@ -64,6 +89,7 @@ input[type=password]{width:100%;padding:10px 12px;border:1px solid #ddd;border-r
   if(r.ok){var d=await r.json();showApp(d.restaurantName);}
   else localStorage.removeItem('tp_token');}catch(e){}
 })();
+
 async function doLogin(){
   var pin=document.getElementById('pinInput').value.trim();
   var err=document.getElementById('loginError');err.style.display='none';
@@ -83,8 +109,25 @@ function showApp(name){
   if(name)document.getElementById('restName').textContent=name+' — Kitchen';
   loadOrders();setInterval(loadOrders,5000);
 }
+// ── Voice ──
+function toggleSound(){
+  soundOn=!soundOn;
+  document.getElementById('sound-box').classList.toggle('on',soundOn);
+  document.getElementById('sound-box').textContent=soundOn?'🔊':'🔇';
+  document.getElementById('sound-hint').textContent=soundOn?'Voice alerts ON':'Voice alerts OFF';
+  if(soundOn){ speak('Voice alerts on'); } // also unlocks audio on iOS via user tap
+}
+function speak(text){
+  if(!soundOn)return;
+  try{
+    var u=new SpeechSynthesisUtterance(text);
+    u.lang='en-IN'; u.rate=0.95; u.pitch=1;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
 async function post(ep,body){
-  try{var r=await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return await r.json();}catch(e){return null;}
+  try{var t=localStorage.getItem('tp_token');var r=await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json','x-auth-token':t},body:JSON.stringify(body)});return await r.json();}catch(e){return null;}
 }
 function toast(msg,cls){
   var el=document.getElementById('k-toast');el.className='toast '+(cls||'orange');
@@ -92,15 +135,34 @@ function toast(msg,cls){
 }
 function ta(d){var m=Math.floor((new Date()-new Date(d))/60000);return m<1?'just now':m+'m ago';}
 function elapsed(d){if(!d)return '';var m=Math.floor((new Date()-new Date(d))/60000);return '⏱ '+m+'m on fire';}
+function gc(o,type){return (o.courses||[]).find(function(c){return c.type===type;});}
+
 async function loadOrders(){
-  try{var r=await fetch('/active-orders');var all=await r.json();
+  try{var t=localStorage.getItem('tp_token');var r=await fetch('/active-orders',{headers:{'x-auth-token':t}});if(r.status===401){localStorage.removeItem('tp_token');location.reload();return;}var all=await r.json();
   var orders=all.filter(function(o){
     if(!o.toK)return false;
     return (o.courses||[]).some(function(c){return c.type==='starters'||c.type==='main';});
   });
-  renderOrders(orders);}catch(e){}
+  checkAnnouncements(orders);
+  renderOrders(orders);
+  firstLoad=false;
+  }catch(e){}
 }
-function gc(o,type){return (o.courses||[]).find(function(c){return c.type===type;});}
+function checkAnnouncements(orders){
+  orders.forEach(function(o){
+    var st=gc(o,'starters');var main=gc(o,'main');
+    // New order arriving (starters still waiting) → "starter pickup"
+    if(st&&st.status==='waiting'&&!announcedNew[o._id]){
+      announcedNew[o._id]=true;
+      if(!firstLoad){ speak('Table '+o.table+', starter pickup'); }
+    }
+    // Main ready → "main course pickup"
+    if(main&&main.status==='ready'&&!announcedMain[o._id]){
+      announcedMain[o._id]=true;
+      if(!firstLoad){ speak('Table '+o.table+', main course pickup'); }
+    }
+  });
+}
 function renderOrders(orders){
   var el=document.getElementById('kitchen-orders');
   if(!orders.length){el.innerHTML='<div class="empty">No food orders 🎉</div>';return;}
@@ -109,12 +171,9 @@ function renderOrders(orders){
     var isOnFire=main&&main.status==='started';
     var sameTimeNotify=o.sameTime&&st&&st.status==='waiting'&&!o.bNotified;
     var actions='';
-    // Notify barman for same-time orders
     if(sameTimeNotify) actions+='<button class="act-btn blue" onclick="notifyBar(\''+o._id+'\')">🔔 Notify barman</button>';
-    // Starters flow
     if(st&&st.status==='waiting') actions+='<button class="act-btn green" onclick="updateCourse(\''+o._id+'\',\'starters\',\'ready\')">✅ Starters ready</button>';
     if(st&&st.status==='ready') actions+='<span class="done-line">✅ Starters done</span>';
-    // Main flow — waiter starts it, kitchen only marks ready
     if(main&&main.status==='waiting') actions+='<span class="wait-line">Main: waiting for waiter</span>';
     if(main&&main.status==='started') actions+='<button class="act-btn green" onclick="updateCourse(\''+o._id+'\',\'main\',\'ready\')">✅ Main ready — serve now</button>';
     if(main&&main.status==='ready') actions+='<span class="done-line">✅ Main done</span>';
@@ -127,7 +186,7 @@ function renderOrders(orders){
       '</div>'+
       (o.mainStartedAt?'<div class="timer-tag">'+elapsed(o.mainStartedAt)+'</div>':'')+
       '</div>'+
-      '<div class="actions">'+actions+'</div></div>';
+      '<div class="btn-row">'+actions+'</div></div>';
   }).join('');
 }
 async function updateCourse(id,type,status){
