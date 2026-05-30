@@ -24,6 +24,7 @@ input[type=range]{padding:0;height:6px;}
 .act{flex:1;padding:8px;border:1px solid #333;border-radius:8px;background:#1a1a1a;color:#aaa;font-size:12px;cursor:pointer;text-align:center;}
 .act.red{border-color:#3a1a1a;color:#ff5555;}
 .act.blue{border-color:#1a2a3a;color:#4a9eff;}
+.act.green{border-color:#1a3a2a;color:#3fb950;}
 .toast{padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:10px;display:none;}
 .toast.green{background:#1a3a1a;color:#25D366;}
 .toast.red{background:#3a1a1a;color:#ff5555;}
@@ -204,11 +205,19 @@ async function loadRestaurants() {
     var el = document.getElementById('rest-list');
     if (!list.length) { el.innerHTML = '<div style="color:#444;font-size:13px;text-align:center;padding:2rem;">No restaurants yet</div>'; return; }
     el.innerHTML = list.map(function(r) {
+      var subStatus = r.subscriptionStatus || 'active';
+      var expiry = r.subscriptionExpiry ? new Date(r.subscriptionExpiry).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : 'Not set';
+      var subColor = subStatus==='expired'?'#f85149':subStatus==='warning'?'#e3b341':'#3fb950';
+      var subIcon = subStatus==='expired'?'⛔':subStatus==='warning'?'⚠️':'✅';
+      var subLabel = subIcon + ' ' + (subStatus==='expired'?'Expired':subStatus==='warning'?'Expires '+expiry:'Active until '+expiry);
       return '<div class="rest-card">' +
         '<div class="rest-name">' + r.name + '</div>' +
         '<div class="rest-meta">PIN: ' + r.pin + ' · Drinks: ' + r.avgDrinkMins + 'm · Starters: ' + r.avgStarterMins + 'm · Main: ' + r.avgMainMins + 'm</div>' +
         '<div class="rest-meta" style="color:#25D366;">📱 ' + (r.ownerPhone || 'No owner phone') + '</div>' +
+        '<div class="rest-meta" style="color:' + subColor + ';">📅 ' + subLabel + '</div>' +
         '<div class="rest-actions">' +
+        '<div class="act green" onclick="renewSub(\'' + r.pin + '\',\'monthly\')">🔄 +1 Month</div>' +
+        '<div class="act green" onclick="renewSub(\'' + r.pin + '\',\'yearly\')">⭐ +1 Year</div>' +
         '<div class="act blue" onclick="sendReport(\'' + r.pin + '\')">📊 Report</div>' +
         '<div class="act red" onclick="deleteRestaurant(\'' + r._id + '\',\'' + r.name + '\')">🗑 Delete</div>' +
         '</div></div>';
@@ -247,6 +256,14 @@ async function sendReport(pin) {
   if (!p) { toast('Enter a PIN', 'red'); return; }
   var res = await post('/admin/send-report', { pin: p });
   if (res.ok) toast('📊 Report sent!', 'green');
+  else toast('Failed: ' + (res.error || 'unknown'), 'red');
+}
+
+async function renewSub(pin, plan) {
+  var label = plan === 'yearly' ? '1 year' : '1 month';
+  if (!confirm('Renew PIN ' + pin + ' for ' + label + '?')) return;
+  var res = await post('/admin/renew-subscription', { pin, plan });
+  if (res.ok) { toast('✅ Renewed until ' + new Date(res.newExpiry).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}), 'green'); loadRestaurants(); }
   else toast('Failed: ' + (res.error || 'unknown'), 'red');
 }
 
