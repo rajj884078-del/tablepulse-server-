@@ -10,17 +10,83 @@ const app = express();
 // Render runs behind a proxy; needed for correct client IPs in rate limiting.
 app.set('trust proxy', 1);
 app.use(cors());
-app.use(express.json({ limit: '64kb' }));
 app.use(express.static('public'));
+
+// Razorpay webhook needs raw body BEFORE express.json() parses it.
+// ── RAZORPAY WEBHOOK ──────────────────────────────────────────────────────────
+// Must use raw body for signature verification — mount before express.json().
+// We use a dedicated raw-body parser only on this route.
+app.post('/razorpay-webhook',
+  express.raw({ type: 'application/json' }),
+  async (req, res) => {
+    if (!RAZORPAY_WEBHOOK_SECRET) return res.sendStatus(500);
+    const signature = req.headers['x-razorpay-signature'];
+    if (!signature) return res.sendStatus(400);
+
+    // Verify HMAC-SHA256 signature.
+    const crypto = require('crypto');
+    const expected = crypto.createHmac('sha256', RAZORPAY_WEBHOOK_SECRET)
+      .update(req.body).digest('hex');
+    const a = Buffer.from(signature), b = Buffer.from(expected);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+      console.warn('[razorpay-webhook] invalid signature — rejected');
+      return res.sendStatus(400);
+    }
+
+    let event;
+    try { event = JSON.parse(req.body.toString()); }
+    catch (e) { return res.sendStatus(400); }
+
+    if (event.event !== 'payment.captured') return res.sendStatus(200); // ignore other events
+
+    const payment = event.payload && event.payload.payment && event.payload.payment.entity;
+    if (!payment) return res.sendStatus(400);
+
+    const pin  = payment.notes && cleanStr(String(payment.notes.pin || ''), 6);
+    const plan = payment.notes && payment.notes.plan;
+
+    if (!pin || !PLAN_DAYS[plan]) {
+      console.warn('[razorpay-webhook] missing pin/plan in notes — amount: ' + payment.amount);
+      return res.sendStatus(200); // acknowledge but log — manual admin intervention needed
+    }
+
+    const restaurant = await db.collection('restaurants').findOne({ pin });
+    if (!restaurant) {
+      console.warn('[razorpay-webhook] unknown PIN: ' + pin);
+      return res.sendStatus(200);
+    }
+
+    const { newExpiry } = await renewRestaurant(pin, plan);
+
+    // Send confirmation WhatsApp to owner.
+    if (restaurant.ownerPhone) {
+      const expiryStr = newExpiry.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+      await sendWhatsApp('subscription_confirmed', restaurant.ownerPhone, restaurant.name,
+        [restaurant.name, plan === 'yearly' ? 'Yearly' : 'Monthly', expiryStr]);
+    }
+
+    res.sendStatus(200);
+  }
+);
+
+app.use(express.json({ limit: '64kb' }));
 
 const TOKEN         = process.env.WHATSAPP_ACCESS_TOKEN;
 const PHONE_ID      = process.env.WHATSAPP_PHONE_NUMBER_ID;
 const VERIFY_TOKEN  = process.env.WEBHOOK_VERIFY_TOKEN;
 const MONGODB_URI   = process.env.MONGODB_URI;
 const AISENSY_API_KEY = process.env.AISENSY_API_KEY;
-const ADMIN_KEY     = process.env.ADMIN_KEY;
+const ADMIN_KEY              = process.env.ADMIN_KEY;
+const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET;
 
-if (!ADMIN_KEY) console.warn('[boot] ADMIN_KEY not set — admin API routes will reject all requests.');
+if (!ADMIN_KEY)               console.warn('[boot] ADMIN_KEY not set — admin API routes will reject all requests.');
+if (!RAZORPAY_WEBHOOK_SECRET) console.warn('[boot] RAZORPAY_WEBHOOK_SECRET not set — payment webhooks will be rejected.');
+
+// Razorpay subscription plans
+const RAZORPAY_ME  = 'https://razorpay.me/@tablepulseserver';
+const PLAN_AMOUNT  = { monthly: 210000, yearly: 2100000 }; // paise
+const PLAN_DAYS    = { monthly: 30, yearly: 365 };
+const WARN_DAYS    = 5; // send reminder this many days before expiry
 
 const DEFAULT_REVIEW_LINK = 'https://maps.app.goo.gl/QarAVmX5x1hiJ4DM9';
 const DEFAULT_RESTAURANT  = 'Gravity Family Dine and Bar';
@@ -33,6 +99,7 @@ MongoClient.connect(MONGODB_URI).then(client => {
   db = client.db('tablepulse');
   console.log('MongoDB connected');
   scheduleWeeklyReports();
+  scheduleSubscriptionChecks();
 }).catch(err => {
   console.error('[boot] MongoDB connection failed:', err.message);
 });
@@ -408,13 +475,125 @@ app.post('/login', loginLimiter, async (req, res) => {
   if (!restaurant) return res.status(401).json({ error: 'Wrong PIN. Try again.' });
   const token = generateToken(pin);
   res.json({
-    token, restaurantName: restaurant.name, googleReviewLink: restaurant.googleReviewLink,
-    avgDrinkMins: restaurant.avgDrinkMins, avgStarterMins: restaurant.avgStarterMins, avgMainMins: restaurant.avgMainMins
+    token,
+    restaurantName: restaurant.name,
+    googleReviewLink: restaurant.googleReviewLink,
+    avgDrinkMins: restaurant.avgDrinkMins,
+    avgStarterMins: restaurant.avgStarterMins,
+    avgMainMins: restaurant.avgMainMins,
+    subscriptionStatus: restaurant.subscriptionStatus || 'active',
+    subscriptionExpiry: restaurant.subscriptionExpiry || null
   });
 });
 
 app.get('/verify', requireAuth, (req, res) => {
-  res.json({ restaurantName: req.restaurant.name });
+  const r = req.restaurant;
+  res.json({
+    restaurantName: r.name,
+    subscriptionStatus: r.subscriptionStatus || 'active',
+    subscriptionExpiry: r.subscriptionExpiry || null
+  });
+});
+
+// ── SUBSCRIPTION HELPERS ─────────────────────────────────────────────────────
+function makePaymentLink(pin, plan) {
+  return RAZORPAY_ME + '?amount=' + PLAN_AMOUNT[plan] + '&notes[pin]=' + pin + '&notes[plan]=' + plan;
+}
+
+async function renewRestaurant(pin, plan) {
+  const days = PLAN_DAYS[plan] || 30;
+  const now  = new Date();
+  // If already has a future expiry, extend from there; else extend from now.
+  const restaurant = await db.collection('restaurants').findOne({ pin });
+  const base = (restaurant && restaurant.subscriptionExpiry && new Date(restaurant.subscriptionExpiry) > now)
+    ? new Date(restaurant.subscriptionExpiry) : now;
+  const newExpiry = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+  await db.collection('restaurants').updateOne({ pin }, {
+    $set: { subscriptionExpiry: newExpiry, subscriptionStatus: 'active', subscriptionPlan: plan }
+  });
+  console.log('[subscription] renewed ' + pin + ' plan=' + plan + ' until ' + newExpiry.toISOString());
+  return { restaurant, newExpiry };
+}
+
+// Recompute and persist subscriptionStatus for all restaurants daily.
+async function syncSubscriptionStatuses() {
+  const now = new Date();
+  const warnThreshold = new Date(now.getTime() + WARN_DAYS * 24 * 60 * 60 * 1000);
+  const restaurants = await db.collection('restaurants').find({}).toArray();
+  for (const r of restaurants) {
+    if (!r.subscriptionExpiry) continue; // no expiry set = legacy, skip
+    const expiry = new Date(r.subscriptionExpiry);
+    let status;
+    if (expiry <= now)             status = 'expired';
+    else if (expiry <= warnThreshold) status = 'warning';
+    else                           status = 'active';
+    if (status !== r.subscriptionStatus) {
+      await db.collection('restaurants').updateOne({ _id: r._id }, { $set: { subscriptionStatus: status } });
+      console.log('[subscription] ' + r.name + ' status -> ' + status);
+    }
+  }
+}
+
+async function sendSubscriptionReminders() {
+  const now = new Date();
+  const warnThreshold = new Date(now.getTime() + WARN_DAYS * 24 * 60 * 60 * 1000);
+  const restaurants = await db.collection('restaurants').find({
+    subscriptionExpiry: { $gt: now, $lte: warnThreshold }
+  }).toArray();
+  for (const r of restaurants) {
+    if (!r.ownerPhone) continue;
+    const expiryStr = new Date(r.subscriptionExpiry).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+    const monthlyLink = makePaymentLink(r.pin, 'monthly');
+    const yearlyLink  = makePaymentLink(r.pin, 'yearly');
+    await sendWhatsApp('subscription_reminder', r.ownerPhone, r.name,
+      [r.name, expiryStr, monthlyLink, yearlyLink]);
+    console.log('[subscription] reminder sent to ' + r.name);
+  }
+}
+
+function scheduleSubscriptionChecks() {
+  async function run() {
+    try {
+      await syncSubscriptionStatuses();
+      await sendSubscriptionReminders();
+    } catch (e) { console.error('[subscription] scheduler error:', e.message); }
+    // Run again in 24 hours.
+    setTimeout(run, 24 * 60 * 60 * 1000);
+  }
+  // First run: wait until 9am IST today/tomorrow (reuse same IST helper logic).
+  const ist = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const msUntil9am = (() => {
+    const target = new Date(ist);
+    target.setHours(9, 0, 0, 0);
+    if (target <= ist) target.setDate(target.getDate() + 1);
+    return target.getTime() - ist.getTime();
+  })();
+  setTimeout(run, msUntil9am);
+  console.log('[subscription] checker scheduled in ' + Math.round(msUntil9am / 60000) + ' min');
+}
+
+
+
+// ── ADMIN SUBSCRIPTION ROUTES ─────────────────────────────────────────────────
+app.post('/admin/renew-subscription', adminLimiter, requireAdmin, async (req, res) => {
+  const pin  = cleanStr(String(req.body.pin || ''), 6);
+  const plan = req.body.plan;
+  if (!pin || !PLAN_DAYS[plan]) return res.status(400).json({ ok: false, error: 'PIN and plan (monthly/yearly) required' });
+  try {
+    const { restaurant, newExpiry } = await renewRestaurant(pin, plan);
+    if (!restaurant) return res.status(404).json({ ok: false, error: 'Restaurant not found' });
+    res.json({ ok: true, newExpiry });
+  } catch (e) { console.error('[admin/renew]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
+});
+
+app.get('/admin/subscription-links/:pin', adminLimiter, requireAdmin, async (req, res) => {
+  const pin = cleanStr(req.params.pin, 6);
+  if (!pin) return res.status(400).json({ ok: false, error: 'PIN required' });
+  res.json({
+    ok: true,
+    monthly: makePaymentLink(pin, 'monthly'),
+    yearly:  makePaymentLink(pin, 'yearly')
+  });
 });
 
 app.listen(3000, () => console.log('TablePulse running on port 3000'));
