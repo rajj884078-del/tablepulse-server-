@@ -61,6 +61,10 @@ h1 span{font-size:13px;font-weight:500;color:#7d8590;}
     <h1>TablePulse <span>Kitchen</span></h1>
     <span class="live">Live</span>
   </div>
+  
+<!-- Subscription warning banner -->
+<div id="sub-banner" style="display:none;padding:12px 14px;border-radius:12px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;"></div>
+
   <div class="rest" id="restName">Kitchen orders</div>
 
   <div class="sound-bar" onclick="toggleSound()">
@@ -86,7 +90,7 @@ var firstLoad=true;
   var token=localStorage.getItem('tp_token');
   if(!token)return;
   try{var r=await fetch('/verify',{headers:{'x-auth-token':token}});
-  if(r.ok){var d=await r.json();showApp(d.restaurantName);}
+  if(r.ok){var d=await r.json();showApp(d.restaurantName,d.subscriptionStatus,d.subscriptionExpiry);}
   else localStorage.removeItem('tp_token');}catch(e){}
 })();
 
@@ -97,15 +101,19 @@ async function doLogin(){
   try{var r=await fetch('/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin})});
   var d=await r.json();
   if(!r.ok){err.textContent=d.error||'Wrong PIN';err.style.display='block';return;}
-  localStorage.setItem('tp_token',d.token);showApp(d.restaurantName);}
+  localStorage.setItem('tp_token',d.token);
+  localStorage.setItem('tp_sub_status',d.subscriptionStatus||'active');
+  localStorage.setItem('tp_sub_expiry',d.subscriptionExpiry||'');
+  showApp(d.restaurantName,d.subscriptionStatus,d.subscriptionExpiry);}
   catch(e){err.textContent='Server error.';err.style.display='block';}
 }
 document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('pinInput').addEventListener('keypress',function(e){if(e.key==='Enter')doLogin();});
 });
-function showApp(name){
+function showApp(name, subStatus, subExpiry){
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('mainApp').style.display='block';
+  showSubBanner(subStatus||'active', subExpiry||null);
   if(name)document.getElementById('restName').textContent=name+' — Kitchen';
   loadOrders();setInterval(loadOrders,5000);
 }
@@ -199,6 +207,26 @@ async function notifyBar(id){
   await post('/notify-bar',{orderId:id});
   toast('🔔 Barman notified','blue');loadOrders();
 }
+
+function showSubBanner(status, expiry) {
+  var el = document.getElementById('sub-banner');
+  if (!el) return;
+  if (status === 'warning' && expiry) {
+    var d = new Date(expiry).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+    el.style.display = 'block';
+    el.style.background = '#1c1607';
+    el.style.border = '1px solid #9e6a03';
+    el.style.color = '#e3b341';
+    el.textContent = '⚠️ Renew before ' + d + ' to continue using TablePulse';
+  } else if (status === 'expired') {
+    el.style.display = 'block';
+    el.style.background = '#1a0f10';
+    el.style.border = '1px solid #6e1a1a';
+    el.style.color = '#f85149';
+    el.textContent = '🔴 Subscription expired — contact restaurant owner to renew';
+  }
+}
+
 </script>
 </body>
 </html>
