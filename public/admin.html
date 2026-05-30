@@ -181,6 +181,11 @@ function calc(){
 ['c-cust','c-cap','c-rev'].forEach(function(id){ document.getElementById(id).addEventListener('input', calc); });
 
 // ── Admin functions ──
+function adminKey() {
+  var k = sessionStorage.getItem('tp_admin_key');
+  if (!k) { k = prompt('Enter admin key'); if (k) sessionStorage.setItem('tp_admin_key', k); }
+  return k || '';
+}
 function toast(msg, cls) {
   var el = document.getElementById('toast');
   el.className = 'toast ' + (cls || 'green');
@@ -188,12 +193,13 @@ function toast(msg, cls) {
   setTimeout(function() { el.style.display = 'none'; }, 4000);
 }
 async function post(ep, body) {
-  var r = await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  var r = await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey() }, body: JSON.stringify(body) });
+  if (r.status === 403) { sessionStorage.removeItem('tp_admin_key'); toast('Wrong admin key', 'red'); }
   return r.json();
 }
 async function loadRestaurants() {
   try {
-    var r = await fetch('/admin/restaurants');
+    var r = await fetch('/admin/restaurants', { headers: { 'x-admin-key': adminKey() } });
     var list = await r.json();
     var el = document.getElementById('rest-list');
     if (!list.length) { el.innerHTML = '<div style="color:#444;font-size:13px;text-align:center;padding:2rem;">No restaurants yet</div>'; return; }
