@@ -64,10 +64,10 @@ h1 span{font-size:13px;font-weight:500;color:#7d8590;}
   <div class="rest" id="restName">Kitchen orders</div>
 
   <div class="sound-bar" onclick="toggleSound()">
-    <div class="sound-box on" id="sound-box">🔊</div>
+    <div class="sound-box" id="sound-box">🔇</div>
     <div>
       <div class="sound-label">Voice alerts</div>
-      <div class="sound-hint" id="sound-hint">Tap once to enable sound</div>
+      <div class="sound-hint" id="sound-hint">Tap to enable voice alerts</div>
     </div>
   </div>
 
@@ -77,7 +77,7 @@ h1 span{font-size:13px;font-weight:500;color:#7d8590;}
 </div>
 
 <script>
-var soundOn=true;
+var soundOn=false;
 var announcedNew={};   // ids we've spoken "starter pickup" for
 var announcedMain={};  // ids we've spoken "main pickup" for
 var firstLoad=true;
@@ -157,7 +157,7 @@ function checkAnnouncements(orders){
       if(!firstLoad){ speak('Table '+o.table+', starter pickup'); }
     }
     // Main ready → "main course pickup"
-    if(main&&main.status==='ready'&&!announcedMain[o._id]){
+    if(main&&main.status==='started'&&!announcedMain[o._id]){
       announcedMain[o._id]=true;
       if(!firstLoad){ speak('Table '+o.table+', main course pickup'); }
     }
