@@ -18,7 +18,7 @@ const PHONE_ID      = process.env.WHATSAPP_PHONE_NUMBER_ID;
 const VERIFY_TOKEN  = process.env.WEBHOOK_VERIFY_TOKEN;
 const MONGODB_URI   = process.env.MONGODB_URI;
 const AISENSY_API_KEY = process.env.AISENSY_API_KEY;
-const ADMIN_KEY     = process.env.ADMIN_KEY; // required header for /admin/* API calls
+const ADMIN_KEY     = process.env.ADMIN_KEY;
 
 if (!ADMIN_KEY) console.warn('[boot] ADMIN_KEY not set — admin API routes will reject all requests.');
 
@@ -39,12 +39,12 @@ MongoClient.connect(MONGODB_URI).then(client => {
 
 // ── Rate limiters ─────────────────────────────────────────────────────────────
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, max: 10,            // 10 PIN attempts per IP / 15 min
+  windowMs: 15 * 60 * 1000, max: 10,
   standardHeaders: true, legacyHeaders: false,
   message: { error: 'Too many login attempts. Try again in a few minutes.' }
 });
 const writeLimiter = rateLimit({
-  windowMs: 60 * 1000, max: 60,                 // 60 writes per IP / min (busy floor headroom)
+  windowMs: 60 * 1000, max: 60,
   standardHeaders: true, legacyHeaders: false,
   message: { error: 'Too many requests. Slow down.' }
 });
@@ -63,19 +63,16 @@ function formatPhone(raw) {
   return '+' + d;
 }
 
-// Validate an Indian mobile (10 digits, or with 91/0 prefix). Returns true/false.
 function isValidPhone(raw) {
   const d = String(raw || '').replace(/\D/g, '');
   return d.length === 10 || (d.length === 12 && d.startsWith('91')) || (d.length === 11 && d.startsWith('0'));
 }
 
-// Safe ObjectId construction. Returns null on invalid input instead of throwing.
 function toObjectId(id) {
   if (typeof id !== 'string' || !ObjectId.isValid(id)) return null;
   return new ObjectId(id);
 }
 
-// Trim + length-cap a string field. Returns null if missing/invalid.
 function cleanStr(v, max) {
   if (typeof v !== 'string') return null;
   const t = v.trim();
@@ -83,7 +80,6 @@ function cleanStr(v, max) {
   return t;
 }
 
-// Admin API guard: constant-time compare of x-admin-key header.
 function requireAdmin(req, res, next) {
   const key = req.headers['x-admin-key'];
   if (!ADMIN_KEY || typeof key !== 'string') return res.status(403).json({ ok: false, error: 'Forbidden' });
@@ -165,6 +161,34 @@ function scheduleWeeklyReports() {
   setTimeout(runReports, msUntilNextMonday9am());
 }
 
+// ── Landing page (for Razorpay and any direct visitors) ───────────────────────
+app.get('/', (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TablePulse — Restaurant Automation</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0d1117;color:#e6edf3;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem;}
+    .card{text-align:center;max-width:480px;}
+    h1{font-size:2rem;font-weight:800;margin-bottom:.5rem;}
+    h1 span{color:#3fb950;}
+    p{color:#7d8590;font-size:1rem;line-height:1.6;margin-bottom:2rem;}
+    .badge{display:inline-block;background:#13261a;color:#3fb950;border:1px solid #238636;border-radius:20px;padding:6px 16px;font-size:13px;font-weight:600;}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Table<span>Pulse</span></h1>
+    <p>WhatsApp automation for dine-in restaurants.<br>Keep customers informed. Get more Google reviews.</p>
+    <span class="badge">🟢 System operational</span>
+  </div>
+</body>
+</html>`);
+});
+
 // ── Webhook (Meta verification) ────────────────────────────────────────────────
 app.get('/webhook', (req, res) => {
   if (req.query['hub.verify_token'] === VERIFY_TOKEN) res.send(req.query['hub.challenge']);
@@ -172,7 +196,6 @@ app.get('/webhook', (req, res) => {
 });
 
 // ── ORDER CREATED ─────────────────────────────────────────────────────────────
-// Auth required: order is bound to the caller's restaurant, not client-supplied data.
 app.post('/order', writeLimiter, requireAuth, async (req, res) => {
   const orderName = cleanStr(req.body.orderName, 60);
   const phone     = req.body.phone;
@@ -181,7 +204,6 @@ app.post('/order', writeLimiter, requireAuth, async (req, res) => {
   if (!isValidPhone(phone)) return res.status(400).json({ error: 'Valid WhatsApp number required' });
   if (!table) return res.status(400).json({ error: 'Table required' });
 
-  // Sanitize courses against an allow-list; never trust shape from client.
   const rawCourses = Array.isArray(req.body.courses) ? req.body.courses : [];
   const courses = rawCourses
     .filter(c => c && COURSE_TYPES.includes(c.type))
@@ -216,7 +238,7 @@ app.post('/order', writeLimiter, requireAuth, async (req, res) => {
     getParams('order_received', orderName, { table, restaurantName }));
 });
 
-// ── ACTIVE ORDERS (scoped to caller's restaurant) ──────────────────────────────
+// ── ACTIVE ORDERS ──────────────────────────────────────────────────────────────
 app.get('/active-orders', requireAuth, async (req, res) => {
   try {
     const orders = await db.collection('orders')
@@ -229,8 +251,6 @@ app.get('/active-orders', requireAuth, async (req, res) => {
   }
 });
 
-// Load an order and assert it belongs to the authenticated restaurant.
-// Returns the order doc, or sends the appropriate error response and returns null.
 async function loadOwnedOrder(req, res) {
   const oid = toObjectId(req.body.orderId);
   if (!oid) { res.status(400).json({ error: 'Invalid order id' }); return null; }
@@ -306,9 +326,6 @@ app.post('/order-delay', writeLimiter, requireAuth, async (req, res) => {
 });
 
 // ── ADMIN ROUTES ──────────────────────────────────────────────────────────────
-// The page itself holds no data — it prompts for the admin key, and every
-// /admin/* API call below is gated by requireAdmin (x-admin-key). Real security
-// is the key, not the URL, so the page lives at a fixed path.
 app.get('/admin', (req, res) => res.sendFile('admin.html', { root: './public' }));
 
 app.get('/admin/restaurants', adminLimiter, requireAdmin, async (req, res) => {
@@ -364,7 +381,7 @@ app.post('/admin/send-report', adminLimiter, requireAdmin, async (req, res) => {
   } catch (e) { console.error('[admin/send-report]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
 });
 
-// ── TEST ENDPOINT (admin-only; kept for debugging) ──────────────────────────────
+// ── TEST ENDPOINT (admin-only) ─────────────────────────────────────────────────
 app.get('/test-whatsapp', adminLimiter, requireAdmin, async (req, res) => {
   const { stage } = req.query;
   const name = cleanStr(String(req.query.name || ''), 60);
