@@ -82,6 +82,10 @@ input:focus{outline:none;border-color:#388bfd;}
     <h1>TablePulse <span>Waiter</span></h1>
     <span class="live">Live</span>
   </div>
+  
+<!-- Subscription warning banner -->
+<div id="sub-banner" style="display:none;padding:12px 14px;border-radius:12px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;"></div>
+
   <div class="rest" id="restName">WhatsApp connected</div>
   <div id="w-toast" class="toast green"></div>
 
@@ -130,7 +134,7 @@ var avgStarter=18, avgMain=30;
   var token=localStorage.getItem('tp_token');
   if(!token)return;
   try{var r=await fetch('/verify',{headers:{'x-auth-token':token}});
-  if(r.ok){var d=await r.json();showApp(d.restaurantName);}
+  if(r.ok){var d=await r.json();showApp(d.restaurantName,d.subscriptionStatus,d.subscriptionExpiry);}
   else localStorage.removeItem('tp_token');}catch(e){}
 })();
 
@@ -151,9 +155,10 @@ async function doLogin(){
 document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('pinInput').addEventListener('keypress',function(e){if(e.key==='Enter')doLogin();});
 });
-function showApp(name){
+function showApp(name, subStatus, subExpiry){
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('mainApp').style.display='block';
+  showSubBanner(subStatus||'active', subExpiry||null);
   if(name)document.getElementById('restName').textContent=name+' — WhatsApp connected';
   avgStarter=parseInt(localStorage.getItem('tp_avg_starter'))||18;
   avgMain=parseInt(localStorage.getItem('tp_avg_main'))||30;
@@ -279,6 +284,26 @@ async function markDone(id){
   if(!confirm('Mark this table as done?'))return;
   await post('/order-done',{orderId:id});toast('Table marked done ✓','green');loadOrders();
 }
+
+function showSubBanner(status, expiry) {
+  var el = document.getElementById('sub-banner');
+  if (!el) return;
+  if (status === 'warning' && expiry) {
+    var d = new Date(expiry).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+    el.style.display = 'block';
+    el.style.background = '#1c1607';
+    el.style.border = '1px solid #9e6a03';
+    el.style.color = '#e3b341';
+    el.textContent = '⚠️ Renew before ' + d + ' to continue using TablePulse';
+  } else if (status === 'expired') {
+    el.style.display = 'block';
+    el.style.background = '#1a0f10';
+    el.style.border = '1px solid #6e1a1a';
+    el.style.color = '#f85149';
+    el.textContent = '🔴 Subscription expired — contact restaurant owner to renew';
+  }
+}
+
 </script>
 </body>
 </html>
