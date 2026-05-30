@@ -5,52 +5,72 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TablePulse — Bar</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:-apple-system,sans-serif;background:#f5f5f5;padding:1rem;}
-.card{background:#fff;border-radius:12px;padding:1rem;margin-bottom:10px;border:1px solid #eee;}
-h1{font-size:18px;font-weight:600;margin-bottom:2px;}
-.sub{font-size:12px;color:#888;margin-bottom:1rem;}
-input[type=password]{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;}
-.section-title{font-size:13px;font-weight:600;margin:1.25rem 0 10px;}
-.toast{padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:10px;display:none;}
-.toast.blue{background:#E3F2FD;color:#1565C0;}
-.toast.green{background:#E8F5E9;color:#2E7D32;}
-.empty{text-align:center;padding:2rem;color:#bbb;font-size:14px;}
-.sync-tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:#FFF3E0;color:#E65100;margin-top:3px;}
-.status-bar{font-size:11px;padding:4px 10px;border-radius:10px;}
-.status-bar.ok{background:#E8F5E9;color:#2E7D32;}
-.actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
-.meta{font-size:12px;color:#aaa;margin-top:2px;}
-.table-name{font-size:15px;font-weight:600;}
-.order-top{display:flex;justify-content:space-between;margin-bottom:10px;}
-.act-btn{padding:9px 10px;border:1px solid #ddd;border-radius:8px;background:#f9f9f9;font-size:12px;cursor:pointer;}
-.act-btn.green{border-color:#A5D6A7;color:#2E7D32;background:#E8F5E9;}
-.done-line{font-size:12px;color:#2E7D32;padding:4px 0;}
-.coord-box{font-size:12px;padding:8px;background:#E3F2FD;color:#1565C0;border-radius:8px;margin-bottom:8px;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0d1117;color:#e6edf3;padding:14px;padding-bottom:40px;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+h1{font-size:20px;font-weight:700;letter-spacing:-0.3px;}
+h1 span{font-size:13px;font-weight:500;color:#7d8590;}
+.live{font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;background:#13261a;color:#3fb950;display:inline-flex;align-items:center;gap:5px;}
+.live::before{content:'';width:6px;height:6px;border-radius:50%;background:#3fb950;}
+.rest{font-size:13px;color:#7d8590;margin-bottom:14px;}
+.sound-bar{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#161b22;border:1px solid #21262d;border-radius:12px;margin-bottom:14px;cursor:pointer;}
+.sound-box{width:24px;height:24px;border-radius:7px;border:2px solid #30363d;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.sound-box.on{background:#238636;border-color:#238636;color:#fff;}
+.sound-label{flex:1;font-size:14px;font-weight:500;}
+.sound-hint{font-size:12px;color:#7d8590;}
+.card{background:#161b22;border:1px solid #21262d;border-radius:16px;padding:16px;margin-bottom:12px;}
+.section-title{font-size:12px;font-weight:700;color:#7d8590;text-transform:uppercase;letter-spacing:1px;margin:18px 4px 10px;}
+.toast{padding:14px;border-radius:12px;font-size:14px;font-weight:500;margin-bottom:12px;display:none;}
+.toast.blue{background:#0c1d2e;color:#58a6ff;border:1px solid #1f3a5a;}
+.toast.green{background:#13261a;color:#3fb950;border:1px solid #1f3a2a;}
+.empty{text-align:center;padding:3rem 1rem;color:#484f58;font-size:15px;}
+.sync-tag{display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;background:#1c1607;color:#e3b341;margin-top:5px;}
+.order-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;}
+.table-name{font-size:22px;font-weight:800;}
+.meta{font-size:13px;color:#7d8590;margin-top:3px;}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+.act-btn{flex:1;min-width:130px;padding:15px 12px;border:1px solid #30363d;border-radius:12px;background:#21262d;color:#e6edf3;font-size:15px;font-weight:700;cursor:pointer;text-align:center;}
+.act-btn:active{opacity:.7;}
+.act-btn.green{border-color:#1f3a2a;color:#3fb950;background:#0f1a13;}
+.done-line{font-size:14px;font-weight:600;color:#3fb950;padding:6px 0;}
+.coord-box{font-size:13px;font-weight:600;padding:10px;background:#0c1d2e;color:#58a6ff;border:1px solid #1f3a5a;border-radius:10px;margin-bottom:10px;}
 </style>
 </head>
 <body>
-<div id="loginScreen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0f0f0f;">
-  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px;padding:40px 32px;width:300px;text-align:center;">
-    <div style="font-size:32px;margin-bottom:8px;">🍹</div>
-    <h2 style="color:#fff;margin:0 0 4px;font-size:20px;">Bar</h2>
-    <p style="color:#666;font-size:13px;margin:0 0 24px;">Enter restaurant PIN</p>
-    <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="••••" style="width:100%;padding:14px;font-size:22px;text-align:center;background:#111;border:1px solid #333;border-radius:10px;color:#fff;letter-spacing:8px;box-sizing:border-box;"/>
-    <button onclick="doLogin()" style="width:100%;margin-top:16px;padding:14px;background:#1565C0;border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;">Enter</button>
-    <p id="loginError" style="color:#ff5555;font-size:13px;margin:12px 0 0;display:none;"></p>
+<div id="loginScreen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0d1117;">
+  <div style="background:#161b22;border:1px solid #21262d;border-radius:20px;padding:44px 32px;width:320px;text-align:center;">
+    <div style="font-size:38px;margin-bottom:10px;">🍹</div>
+    <h2 style="color:#e6edf3;margin:0 0 4px;font-size:22px;">Bar</h2>
+    <p style="color:#7d8590;font-size:13px;margin:0 0 26px;">Enter restaurant PIN</p>
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="••••"
+      style="width:100%;padding:16px;font-size:24px;text-align:center;background:#0d1117;border:1px solid #30363d;border-radius:12px;color:#fff;letter-spacing:10px;box-sizing:border-box;"/>
+    <button onclick="doLogin()" style="width:100%;margin-top:16px;padding:16px;background:#1f6feb;border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;">Enter</button>
+    <p id="loginError" style="color:#f85149;font-size:13px;margin:14px 0 0;display:none;"></p>
   </div>
 </div>
+
 <div id="mainApp" style="display:none;">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-    <h1>TablePulse <span style="font-size:13px;font-weight:400;color:#888;">Bar</span></h1>
-    <span id="status" class="status-bar ok">Live</span>
+  <div class="topbar">
+    <h1>TablePulse <span>Bar</span></h1>
+    <span class="live">Live</span>
   </div>
-  <div class="sub" id="restName">Bar orders</div>
+  <div class="rest" id="restName">Bar orders</div>
+
+  <div class="sound-bar" onclick="toggleSound()">
+    <div class="sound-box on" id="sound-box">🔊</div>
+    <div>
+      <div class="sound-label">Voice alerts</div>
+      <div class="sound-hint" id="sound-hint">Tap once to enable sound</div>
+    </div>
+  </div>
+
   <div id="b-toast" class="toast blue"></div>
-  <div class="section-title">🍹 Active drink orders</div>
+  <div class="section-title" style="margin-top:0;">🍹 Active drink orders</div>
   <div id="bar-orders"></div>
 </div>
+
 <script>
+var soundOn=true, announcedNew={}, firstLoad=true;
 (async function(){
   var token=localStorage.getItem('tp_token');
   if(!token)return;
@@ -77,8 +97,20 @@ function showApp(name){
   if(name)document.getElementById('restName').textContent=name+' — Bar';
   loadOrders();setInterval(loadOrders,5000);
 }
+function toggleSound(){
+  soundOn=!soundOn;
+  document.getElementById('sound-box').classList.toggle('on',soundOn);
+  document.getElementById('sound-box').textContent=soundOn?'🔊':'🔇';
+  document.getElementById('sound-hint').textContent=soundOn?'Voice alerts ON':'Voice alerts OFF';
+  if(soundOn)speak('Voice alerts on');
+}
+function speak(text){
+  if(!soundOn)return;
+  try{var u=new SpeechSynthesisUtterance(text);u.lang='en-IN';u.rate=0.95;
+  window.speechSynthesis.cancel();window.speechSynthesis.speak(u);}catch(e){}
+}
 async function post(ep,body){
-  try{var r=await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return await r.json();}catch(e){return null;}
+  try{var t=localStorage.getItem('tp_token');var r=await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json','x-auth-token':t},body:JSON.stringify(body)});return await r.json();}catch(e){return null;}
 }
 function toast(msg,cls){
   var el=document.getElementById('b-toast');el.className='toast '+(cls||'blue');
@@ -86,12 +118,20 @@ function toast(msg,cls){
 }
 function ta(d){var m=Math.floor((new Date()-new Date(d))/60000);return m<1?'just now':m+'m ago';}
 async function loadOrders(){
-  try{var r=await fetch('/active-orders');var all=await r.json();
+  try{var t=localStorage.getItem('tp_token');var r=await fetch('/active-orders',{headers:{'x-auth-token':t}});if(r.status===401){localStorage.removeItem('tp_token');location.reload();return;}var all=await r.json();
   var orders=all.filter(function(o){
     if(!o.toB)return false;
     return (o.courses||[]).some(function(c){return c.type==='drinks';});
   });
-  renderOrders(orders);}catch(e){}
+  orders.forEach(function(o){
+    var dr=(o.courses||[]).find(function(c){return c.type==='drinks';});
+    if(dr&&dr.status==='waiting'&&!announcedNew[o._id]){
+      announcedNew[o._id]=true;
+      if(!firstLoad)speak('Table '+o.table+', drinks order');
+    }
+  });
+  renderOrders(orders);firstLoad=false;
+  }catch(e){}
 }
 function renderOrders(orders){
   var el=document.getElementById('bar-orders');
@@ -107,9 +147,9 @@ function renderOrders(orders){
       '<div class="table-name">Table '+o.table+'</div>'+
       '<div class="meta">'+o.orderName+' · Drinks x'+drinks.qty+'</div>'+
       (o.sameTime?'<span class="sync-tag">⏱ Same-time</span>':'')+
-      '</div><div style="font-size:12px;color:#aaa;">'+ta(o.createdAt)+'</div></div>'+
+      '</div><div style="font-size:12px;color:#484f58;">'+ta(o.createdAt)+'</div></div>'+
       coord+
-      '<div class="actions">'+action+'</div></div>';
+      '<div class="btn-row">'+action+'</div></div>';
   }).join('');
 }
 async function drinksReady(id){
