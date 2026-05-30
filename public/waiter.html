@@ -227,6 +227,8 @@ function renderOrders(orders){
       timers+='<span class="timer" data-since="'+o.mainStartedAt+'" data-avg="'+avgMain+'" data-lbl="Main">Main 0m</span>';
     }
     var showStartMain=st&&st.status==='ready'&&main&&main.status==='waiting';
+    // Serve together: both starters+main ordered, main still waiting, starters not done yet
+    var showServeTogether=st&&main&&st.status==='waiting'&&main.status==='waiting';
     return '<div class="card"><div class="order-top"><div>'+
       '<div class="table-name">Table '+o.table+'</div>'+
       '<div class="meta">'+o.orderName+' · '+o.phone+'</div>'+
@@ -235,7 +237,8 @@ function renderOrders(orders){
       (timers?'<div class="timer-wrap">'+timers+'</div>':'')+
       rows+
       '<div class="btn-row">'+
-      (showStartMain?'<button class="btn-sm orange" onclick="startMain(\''+o._id+'\',\''+o.orderName+'\')">▶ Start main</button>':'')+
+      (showServeTogether?'<button class="btn-sm orange" style="flex:2;" onclick="serveTogether(\''+o._id+'\',\''+o.orderName+'\')">🚀 Serve together</button>':'')+
+      (!showServeTogether&&showStartMain?'<button class="btn-sm orange" onclick="startMain(\''+o._id+'\',\''+o.orderName+'\')">▶ Start main</button>':'')+
       '<button class="btn-sm star" onclick="sendReview(\''+o._id+'\',\''+o.phone+'\',\''+o.orderName+'\')">⭐ Review</button>'+
       '<button class="btn-sm yellow" onclick="sendDelay(\''+o._id+'\')">⏰ Delay</button>'+
       '<button class="btn-sm red" onclick="markDone(\''+o._id+'\')">✓ Done</button>'+
@@ -257,6 +260,13 @@ function tickTimers(){
 async function startMain(id,name){
   await post('/update-course',{orderId:id,courseType:'main',status:'started'});
   toast('▶ Main started for '+name+' — WhatsApp sent ✅','orange');
+  loadOrders();
+}
+async function serveTogether(id,name){
+  // Mark starters ready first, then immediately start main
+  await post('/update-course',{orderId:id,courseType:'starters',status:'ready'});
+  await post('/update-course',{orderId:id,courseType:'main',status:'started'});
+  toast('🚀 Both courses started for '+name+' — WhatsApp sent ✅','orange');
   loadOrders();
 }
 async function sendReview(id,phone,name){
