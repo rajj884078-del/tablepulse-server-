@@ -148,6 +148,16 @@ function cleanStr(v, max) {
   return t;
 }
 
+// Generate a URL-safe slug from restaurant name.
+function makeSlug(name) {
+  return name.toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 60);
+}
+
 function requireAdmin(req, res, next) {
   const key = req.headers['x-admin-key'];
   if (!ADMIN_KEY || typeof key !== 'string') return res.status(403).json({ ok: false, error: 'Forbidden' });
@@ -416,15 +426,26 @@ app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) =
     if (await db.collection('restaurants').findOne({ pin })) {
       return res.status(409).json({ ok: false, error: 'PIN already exists' });
     }
+    let slug = makeSlug(name);
+    const slugExists = await db.collection('restaurants').findOne({ slug });
+    if (slugExists) slug = slug + '-' + pin;
     await db.collection('restaurants').insertOne({
-      name, pin, ownerPhone, googleReviewLink,
+      name, pin, slug, ownerPhone, googleReviewLink,
       avgDrinkMins: num(req.body.avgDrinkMins, 8),
       avgStarterMins: num(req.body.avgStarterMins, 18),
       avgMainMins: num(req.body.avgMainMins, 30),
       createdAt: new Date()
     });
-    console.log('[admin] added restaurant: ' + name);
-    res.json({ ok: true });
+    console.log('[admin] added restaurant: ' + name + ' slug=' + slug);
+    const base = process.env.BASE_URL || 'https://tablepulse-server.onrender.com';
+    res.json({
+      ok: true, slug,
+      links: {
+        waiter:  base + '/r/' + slug + '/waiter',
+        kitchen: base + '/r/' + slug + '/kitchen',
+        bar:     base + '/r/' + slug + '/bar'
+      }
+    });
   } catch (e) { console.error('[admin/add]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
 });
 
@@ -630,6 +651,66 @@ app.get('/admin/subscription-links/:pin', adminLimiter, requireAdmin, async (req
   ]);
   if (!monthly || !yearly) return res.status(500).json({ ok: false, error: 'Failed to create payment links' });
   res.json({ ok: true, monthly, yearly });
+});
+
+// ── RESTAURANT SLUG ROUTES ────────────────────────────────────────────────────
+const readFileSafe = require('fs').readFileSync;
+
+function serveStaffScreen(screen) {
+  return async (req, res) => {
+    const slug = cleanStr(req.params.slug, 80);
+    if (!slug) return res.sendStatus(400);
+    const restaurant = await db.collection('restaurants').findOne({ slug });
+    if (!restaurant) return res.status(404).send('Restaurant not found');
+    let html = readFileSafe('./public/' + screen + '.html', 'utf8');
+    // Inject slug so the screen auto-knows which restaurant without manual PIN entry for identification.
+    html = html.replace('</head>', '<script>window.__SLUG__="' + slug + '";</script></head>');
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  };
+}
+
+app.get('/r/:slug/waiter',  serveStaffScreen('waiter'));
+app.get('/r/:slug/kitchen', serveStaffScreen('kitchen'));
+app.get('/r/:slug/bar',     serveStaffScreen('barman'));
+
+// Slug-based login: validates PIN against this specific restaurant only.
+app.post('/r/:slug/login', loginLimiter, async (req, res) => {
+  const slug = cleanStr(req.params.slug, 80);
+  const pin  = cleanStr(String(req.body.pin || ''), 6);
+  if (!slug || !pin) return res.status(400).json({ error: 'Invalid request' });
+  const restaurant = await db.collection('restaurants').findOne({ slug });
+  if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' });
+  if (restaurant.pin !== pin) return res.status(401).json({ error: 'Wrong PIN. Try again.' });
+  const token = generateToken(pin);
+  res.json({
+    token,
+    restaurantName: restaurant.name,
+    googleReviewLink: restaurant.googleReviewLink,
+    avgDrinkMins: restaurant.avgDrinkMins,
+    avgStarterMins: restaurant.avgStarterMins,
+    avgMainMins: restaurant.avgMainMins,
+    subscriptionStatus: restaurant.subscriptionStatus || 'active',
+    subscriptionExpiry: restaurant.subscriptionExpiry || null
+  });
+});
+
+// Get links for existing restaurant by pin (for admin panel).
+app.get('/admin/restaurant-links/:pin', adminLimiter, requireAdmin, async (req, res) => {
+  const pin = cleanStr(req.params.pin, 6);
+  if (!pin) return res.status(400).json({ ok: false, error: 'PIN required' });
+  const restaurant = await db.collection('restaurants').findOne({ pin });
+  if (!restaurant) return res.status(404).json({ ok: false, error: 'Not found' });
+  if (!restaurant.slug) return res.status(400).json({ ok: false, error: 'No slug — re-add this restaurant' });
+  const base = process.env.BASE_URL || 'https://tablepulse-server.onrender.com';
+  res.json({
+    ok: true, slug: restaurant.slug,
+    links: {
+      waiter:  base + '/r/' + restaurant.slug + '/waiter',
+      kitchen: base + '/r/' + restaurant.slug + '/kitchen',
+      bar:     base + '/r/' + restaurant.slug + '/bar'
+    }
+  });
 });
 
 app.listen(3000, () => console.log('TablePulse running on port 3000'));
