@@ -390,6 +390,7 @@ app.post('/review', writeLimiter, requireAuth, async (req, res) => {
     await db.collection('orders').updateOne({ _id: order._id }, { $set: { reviewSent: true } });
     res.json({ status: 'ok' });
     const reviewLink = order.reviewLink || req.restaurant.googleReviewLink || DEFAULT_REVIEW_LINK;
+    console.log('[review] sending to phone=' + order.phone + ' name=' + order.orderName + ' link=' + reviewLink);
     await sendWhatsApp('table_review_request_v2', order.phone, order.orderName,
       getParams('review_request', order.orderName, { reviewLink }));
   } catch (e) { console.error('[review]', e.message); if (!res.headersSent) res.status(500).json({ error: 'Failed' }); }
