@@ -98,7 +98,8 @@ async function doLogin(){
   var pin=document.getElementById('pinInput').value.trim();
   var err=document.getElementById('loginError');err.style.display='none';
   if(!pin)return;
-  try{var r=await fetch('/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin})});
+  try{var loginUrl=window.__SLUG__?'/r/'+window.__SLUG__+'/login':'/login';
+  var r=await fetch(loginUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin})});
   var d=await r.json();
   if(!r.ok){err.textContent=d.error||'Wrong PIN';err.style.display='block';return;}
   localStorage.setItem('tp_token',d.token);
