@@ -33,11 +33,11 @@ input:focus{outline:none;border-color:#388bfd;}
 .chip{flex:1;padding:12px;border:1px solid #30363d;border-radius:12px;font-size:14px;font-weight:600;color:#7d8590;cursor:pointer;text-align:center;transition:all .15s;}
 .chip.on{background:#13261a;color:#3fb950;border-color:#238636;}
 .btn{width:100%;padding:16px;background:#238636;color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;}
-.btn:active{background:#1f7a30;}
+.btn:active{background:#1f7a30;transform:scale(0.98);}
 .btn:disabled{opacity:0.5;}
 .btn-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
-.btn-sm{flex:1;min-width:90px;padding:12px 10px;border:1px solid #30363d;border-radius:11px;background:#21262d;color:#e6edf3;font-size:13px;font-weight:600;cursor:pointer;text-align:center;}
-.btn-sm:active{opacity:.7;}
+.btn-sm{flex:1;min-width:90px;padding:12px 10px;border:1px solid #30363d;border-radius:11px;background:#21262d;color:#e6edf3;font-size:13px;font-weight:600;cursor:pointer;text-align:center;transition:transform .1s,opacity .1s;-webkit-tap-highlight-color:transparent;}
+.btn-sm:active{opacity:.7;transform:scale(0.96);}
 .btn-sm.red{border-color:#3d1518;color:#f85149;background:#1a0f10;}
 .btn-sm.yellow{border-color:#3d2e09;color:#e3b341;background:#1a1407;}
 .btn-sm.star{border-color:#1f3a2a;color:#3fb950;background:#0f1a13;}
@@ -245,7 +245,7 @@ function renderOrders(orders){
       '<div class="btn-row">'+
       (showServeTogether?'<button class="btn-sm orange" style="flex:2;" onclick="serveTogether(\''+o._id+'\',\''+o.orderName+'\')">🚀 Serve together</button>':'')+
       (!showServeTogether&&showStartMain?'<button class="btn-sm orange" onclick="startMain(\''+o._id+'\',\''+o.orderName+'\')">▶ Start main</button>':'')+
-      '<button class="btn-sm star" onclick="sendReview(\''+o._id+'\',\''+o.phone+'\',\''+o.orderName+'\')">⭐ Review</button>'+
+      '<button class="btn-sm star" onclick="sendReview(\''+o._id+'\')">⭐ Review</button>'+
       '<button class="btn-sm yellow" onclick="sendDelay(\''+o._id+'\')">⏰ Delay</button>'+
       '<button class="btn-sm red" onclick="markDone(\''+o._id+'\')">✓ Done</button>'+
       '</div></div>';
@@ -275,10 +275,12 @@ async function serveTogether(id,name){
   toast('🚀 Both courses started for '+name+' — WhatsApp sent ✅','orange');
   loadOrders();
 }
-async function sendReview(id,phone,name){
+async function sendReview(id){
   var link=localStorage.getItem('tp_review_link')||'';
-  await post('/review',{orderId:id,phone:phone,orderName:name,reviewLink:link});
-  toast('⭐ Review request sent to '+name+' ji!','green');
+  var res=await post('/review',{orderId:id,reviewLink:link});
+  if(res&&res.status==='ok') toast('⭐ Review request sent! ✅','green');
+  else toast('Review send failed — try again','orange');
+  loadOrders();
 }
 async function sendDelay(id){await post('/order-delay',{orderId:id});toast('⏰ Delay message sent','orange');}
 async function markDone(id){
