@@ -113,6 +113,12 @@ input[type=range]{padding:0;height:6px;}
   <button class="btn" id="add-btn" onclick="addRestaurant()">+ Add Restaurant</button>
 </div>
 
+<div id="links-box" style="display:none;background:#0f1a13;border:1px solid #238636;border-radius:14px;padding:16px;margin-bottom:16px;">
+  <div style="font-size:13px;font-weight:700;color:#3fb950;margin-bottom:12px;">Restaurant added! Share these links with staff:</div>
+  <div id="links-content"></div>
+  <button onclick="document.getElementById('links-box').style.display='none'" style="margin-top:12px;width:100%;padding:10px;background:#21262d;border:1px solid #30363d;border-radius:10px;color:#7d8590;font-size:13px;cursor:pointer;">Dismiss</button>
+</div>
+
 <!-- ACTIVE RESTAURANTS -->
 <div class="section-title">Active Restaurants</div>
 <div id="rest-list"><div style="color:#444;font-size:13px;text-align:center;padding:2rem;">Loading...</div></div>
@@ -237,11 +243,26 @@ async function addRestaurant() {
   var res = await post('/admin/add-restaurant', { name, pin, ownerPhone: phone, googleReviewLink: review, avgDrinkMins: drink, avgStarterMins: starter, avgMainMins: main });
   btn.disabled = false; btn.textContent = '+ Add Restaurant';
   if (res.ok) {
-    toast('✅ ' + name + ' added! PIN: ' + pin, 'green');
     document.getElementById('a-name').value = '';
     document.getElementById('a-pin').value = '';
     document.getElementById('a-phone').value = '';
     document.getElementById('a-review').value = '';
+    if (res.links) {
+      var lc = document.getElementById('links-content');
+      lc.innerHTML = [
+        {label:'Waiter', url:res.links.waiter},
+        {label:'Kitchen', url:res.links.kitchen},
+        {label:'Bar', url:res.links.bar}
+      ].map(function(l){
+        return '<div style="margin-bottom:10px;">'+
+          '<div style="font-size:12px;color:#7d8590;margin-bottom:4px;">'+l.label+'</div>'+
+          '<div style="display:flex;gap:8px;align-items:center;">'+
+          '<input readonly value="'+l.url+'" style="flex:1;padding:8px;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:12px;box-sizing:border-box;"/>'+
+          '<button onclick="navigator.clipboard.writeText(this.previousSibling.value)" style="padding:8px 12px;background:#238636;border:none;border-radius:8px;color:#fff;font-size:12px;cursor:pointer;">Copy</button>'+
+          '</div></div>';
+      }).join('');
+      document.getElementById('links-box').style.display = 'block';
+    }
     loadRestaurants();
   } else { toast('Error: ' + (res.error || 'Failed'), 'red'); }
 }
