@@ -78,12 +78,13 @@ const MONGODB_URI   = process.env.MONGODB_URI;
 const AISENSY_API_KEY = process.env.AISENSY_API_KEY;
 const ADMIN_KEY              = process.env.ADMIN_KEY;
 const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET;
+const RAZORPAY_KEY_ID         = process.env.RAZORPAY_KEY_ID;
+const RAZORPAY_KEY_SECRET     = process.env.RAZORPAY_KEY_SECRET;
 
 if (!ADMIN_KEY)               console.warn('[boot] ADMIN_KEY not set — admin API routes will reject all requests.');
 if (!RAZORPAY_WEBHOOK_SECRET) console.warn('[boot] RAZORPAY_WEBHOOK_SECRET not set — payment webhooks will be rejected.');
 
 // Razorpay subscription plans
-const RAZORPAY_ME  = 'https://razorpay.me/@tablepulseserver';
 const PLAN_AMOUNT  = { monthly: 210000, yearly: 2100000 }; // paise
 const PLAN_DAYS    = { monthly: 30, yearly: 365 };
 const WARN_DAYS    = 5; // send reminder this many days before expiry
@@ -496,8 +497,37 @@ app.get('/verify', requireAuth, (req, res) => {
 });
 
 // ── SUBSCRIPTION HELPERS ─────────────────────────────────────────────────────
-function makePaymentLink(pin, plan) {
-  return RAZORPAY_ME + '?amount=' + PLAN_AMOUNT[plan] + '&notes[pin]=' + pin + '&notes[plan]=' + plan;
+// Creates a Razorpay Payment Link with amount + notes embedded.
+// Returns the short URL string, or null on failure.
+async function createPaymentLink(pin, plan, restaurantName) {
+  if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+    console.error('[razorpay] KEY_ID or KEY_SECRET not set');
+    return null;
+  }
+  try {
+    const amount = PLAN_AMOUNT[plan];
+    const desc   = 'TablePulse ' + (plan === 'yearly' ? 'Yearly' : 'Monthly') + ' subscription';
+    const resp = await axios.post(
+      'https://api.razorpay.com/v1/payment_links',
+      {
+        amount,
+        currency: 'INR',
+        description: desc,
+        notes: { pin, plan },
+        reminder_enable: false,
+        notify: { sms: false, email: false }
+      },
+      {
+        auth: { username: RAZORPAY_KEY_ID, password: RAZORPAY_KEY_SECRET },
+        timeout: 10000
+      }
+    );
+    console.log('[razorpay] created payment link for ' + restaurantName + ' plan=' + plan);
+    return resp.data.short_url;
+  } catch (e) {
+    console.error('[razorpay] payment link creation failed:', e.response ? JSON.stringify(e.response.data) : e.message);
+    return null;
+  }
 }
 
 async function renewRestaurant(pin, plan) {
@@ -543,8 +573,11 @@ async function sendSubscriptionReminders() {
   for (const r of restaurants) {
     if (!r.ownerPhone) continue;
     const expiryStr = new Date(r.subscriptionExpiry).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
-    const monthlyLink = makePaymentLink(r.pin, 'monthly');
-    const yearlyLink  = makePaymentLink(r.pin, 'yearly');
+    const [monthlyLink, yearlyLink] = await Promise.all([
+      createPaymentLink(r.pin, 'monthly', r.name),
+      createPaymentLink(r.pin, 'yearly', r.name)
+    ]);
+    if (!monthlyLink || !yearlyLink) { console.error('[subscription] skipping reminder for ' + r.name + ' — link creation failed'); continue; }
     await sendWhatsApp('subscription_reminder', r.ownerPhone, r.name,
       [r.name, expiryStr, monthlyLink, yearlyLink]);
     console.log('[subscription] reminder sent to ' + r.name);
@@ -589,11 +622,14 @@ app.post('/admin/renew-subscription', adminLimiter, requireAdmin, async (req, re
 app.get('/admin/subscription-links/:pin', adminLimiter, requireAdmin, async (req, res) => {
   const pin = cleanStr(req.params.pin, 6);
   if (!pin) return res.status(400).json({ ok: false, error: 'PIN required' });
-  res.json({
-    ok: true,
-    monthly: makePaymentLink(pin, 'monthly'),
-    yearly:  makePaymentLink(pin, 'yearly')
-  });
+  const restaurant = await db.collection('restaurants').findOne({ pin });
+  if (!restaurant) return res.status(404).json({ ok: false, error: 'Restaurant not found' });
+  const [monthly, yearly] = await Promise.all([
+    createPaymentLink(pin, 'monthly', restaurant.name),
+    createPaymentLink(pin, 'yearly', restaurant.name)
+  ]);
+  if (!monthly || !yearly) return res.status(500).json({ ok: false, error: 'Failed to create payment links' });
+  res.json({ ok: true, monthly, yearly });
 });
 
 app.listen(3000, () => console.log('TablePulse running on port 3000'));
