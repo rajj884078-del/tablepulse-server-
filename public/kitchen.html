@@ -228,6 +228,29 @@ function showSubBanner(status, expiry) {
   }
 }
 
+
+// Global tap feedback for dynamically rendered buttons
+document.addEventListener('touchstart', function(e) {
+  var el = e.target.closest('button');
+  if (!el) return;
+  el.style.transform = 'scale(0.93)';
+  el.style.opacity = '0.75';
+}, { passive: true });
+document.addEventListener('touchend', function(e) {
+  var el = e.target.closest('button');
+  if (!el) return;
+  setTimeout(function() {
+    el.style.transform = '';
+    el.style.opacity = '';
+  }, 120);
+}, { passive: true });
+document.addEventListener('touchcancel', function(e) {
+  var el = e.target.closest('button');
+  if (!el) return;
+  el.style.transform = '';
+  el.style.opacity = '';
+}, { passive: true });
+
 </script>
 </body>
 </html>
