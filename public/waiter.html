@@ -87,6 +87,14 @@ input:focus{outline:none;border-color:#3b82f6;}
   <div class="rest" id="restName">WhatsApp connected</div>
   <div id="sub-banner" style="display:none;padding:12px 14px;border-radius:11px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;"></div>
   <div id="conn-banner" style="display:none;padding:12px 14px;border-radius:11px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;background:#241011;border:1px solid #6e1a1a;color:#f0635a;">⚠️ Connection lost — retrying...</div>
+  <div class="voice-bar" onclick="toggleSound()" style="display:flex;align-items:center;gap:12px;padding:13px 14px;background:#161a20;border:1px solid #232830;border-radius:11px;margin-bottom:14px;cursor:pointer;">
+    <div id="w-sound-box" style="width:36px;height:36px;border-radius:9px;border:1.5px solid #2b313a;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">🔇</div>
+    <div style="flex:1;">
+      <strong style="font-size:14px;font-weight:600;color:#e8eaed;display:block;">Voice alerts</strong>
+      <span id="w-sound-hint" style="font-size:12px;color:#8b9099;">Tap to enable — alerts when food is ready</span>
+    </div>
+    <span id="w-voice-status" style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:5px;background:#1c2128;color:#8b9099;">OFF</span>
+  </div>
   <div class="tabs">
     <div class="tab" id="tab-tables" onclick="switchTab('tables')">Tables <span class="count" id="tab-count"></span></div>
     <div class="tab" id="tab-new" onclick="switchTab('new')">+ New Order</div>
@@ -135,6 +143,8 @@ input:focus{outline:none;border-color:#3b82f6;}
 <script>
 var dK=true,dB=true,sync=false,cD=true,cS=true,cM=true;
 var activeOrders=[];
+var soundOn=false;
+var prevCourseStates={}; // track previous course statuses to detect changes
 var avgStarter=18, avgMain=30;
 var currentTab='tables';
 
@@ -225,8 +235,38 @@ async function placeOrder(){
   if(res){toast('WhatsApp sent to '+name+' ji! ✅','green');switchTab('tables');}else toast('Server busy — try again','orange');
   loadOrders();
 }
+function toggleSound(){
+  soundOn=!soundOn;
+  document.getElementById('w-sound-box').textContent=soundOn?'🔊':'🔇';
+  document.getElementById('w-sound-box').style.background=soundOn?'#10241a':'transparent';
+  document.getElementById('w-sound-box').style.borderColor=soundOn?'#1a7a45':'#2b313a';
+  document.getElementById('w-sound-hint').textContent=soundOn?'Starter + drinks ready alerts active':'Tap to enable — alerts when food is ready';
+  document.getElementById('w-voice-status').textContent=soundOn?'ON':'OFF';
+  document.getElementById('w-voice-status').style.background=soundOn?'#10241a':'#1c2128';
+  document.getElementById('w-voice-status').style.color=soundOn?'#41c980':'#8b9099';
+  if(soundOn)speak('Voice alerts on');
+}
+function speak(text){
+  if(!soundOn)return;
+  try{var u=new SpeechSynthesisUtterance(text);u.lang='en-IN';u.rate=0.95;
+  window.speechSynthesis.cancel();window.speechSynthesis.speak(u);}catch(e){}
+}
+function checkReadyAlerts(orders){
+  orders.forEach(function(o){
+    (o.courses||[]).forEach(function(c){
+      var key=o._id+'-'+c.type;
+      var prev=prevCourseStates[key];
+      // Fire alert only when status transitions TO 'ready'
+      if(prev&&prev!=='ready'&&c.status==='ready'){
+        var label=c.type==='drinks'?'drinks':c.type==='starters'?'starters':'main course';
+        speak('Table '+o.table+', '+label+' ready');
+      }
+      prevCourseStates[key]=c.status;
+    });
+  });
+}
 async function loadOrders(){
-  try{var t=localStorage.getItem('tp_token');var r=await fetch('/active-orders',{headers:{'x-auth-token':t}});if(r.status===401){localStorage.removeItem('tp_token');location.reload();return;}activeOrders=await r.json();renderOrders(activeOrders);showConn(true);}catch(e){showConn(false);}
+  try{var t=localStorage.getItem('tp_token');var r=await fetch('/active-orders',{headers:{'x-auth-token':t}});if(r.status===401){localStorage.removeItem('tp_token');location.reload();return;}activeOrders=await r.json();checkReadyAlerts(activeOrders);renderOrders(activeOrders);showConn(true);}catch(e){showConn(false);}
 }
 function gc(o,type){return (o.courses||[]).find(function(c){return c.type===type;});}
 
