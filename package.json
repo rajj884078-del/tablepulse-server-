@@ -16,7 +16,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
-    "mongodb": "^7.2.0"
+    "mongodb": "^7.2.0",
     "web-push": "^3.6.7"
   }
 }
