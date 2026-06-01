@@ -5,12 +5,13 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const { MongoClient, ObjectId } = require('mongodb');
 const { generateToken, verifyToken, requireAuth, findRestaurantByPin } = require('./middleware/auth');
+const path = require('path');
 
 const app = express();
 // Render runs behind a proxy; needed for correct client IPs in rate limiting.
 app.set('trust proxy', 1);
 app.use(cors());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Razorpay webhook needs raw body BEFORE express.json() parses it.
 // ── RAZORPAY WEBHOOK ──────────────────────────────────────────────────────────
@@ -655,7 +656,6 @@ app.get('/admin/subscription-links/:pin', adminLimiter, requireAdmin, async (req
 });
 
 // ── RESTAURANT SLUG ROUTES ────────────────────────────────────────────────────
-const path = require('path');
 const readFileSafe = require('fs').readFileSync;
 
 function serveStaffScreen(screen) {
