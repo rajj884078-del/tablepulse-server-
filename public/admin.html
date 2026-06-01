@@ -210,22 +210,31 @@ async function loadRestaurants() {
     var list = await r.json();
     var el = document.getElementById('rest-list');
     if (!list.length) { el.innerHTML = '<div style="color:#444;font-size:13px;text-align:center;padding:2rem;">No restaurants yet</div>'; return; }
-    el.innerHTML = list.map(function(r) {
+        el.innerHTML = list.map(function(r) {
       var subStatus = r.subscriptionStatus || 'active';
       var expiry = r.subscriptionExpiry ? new Date(r.subscriptionExpiry).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : 'Not set';
       var subColor = subStatus==='expired'?'#f85149':subStatus==='warning'?'#e3b341':'#3fb950';
       var subIcon = subStatus==='expired'?'⛔':subStatus==='warning'?'⚠️':'✅';
       var subLabel = subIcon + ' ' + (subStatus==='expired'?'Expired':subStatus==='warning'?'Expires '+expiry:'Active until '+expiry);
+      var base = window.location.origin;
+      var links = r.slug ? (
+        '<div style="display:flex;gap:6px;margin:10px 0 4px;flex-wrap:wrap;">' +
+        '<a href="' + base + '/r/' + r.slug + '/waiter" target="_blank" style="flex:1;min-width:80px;padding:8px 10px;background:#101826;border:1px solid #1e3a5a;border-radius:8px;color:#5aa2f5;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">🧑‍🍽️ Waiter</a>' +
+        '<a href="' + base + '/r/' + r.slug + '/kitchen" target="_blank" style="flex:1;min-width:80px;padding:8px 10px;background:#1a1206;border:1px solid #5a2c0a;border-radius:8px;color:#ff9f43;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">🔥 Kitchen</a>' +
+        '<a href="' + base + '/r/' + r.slug + '/bar" target="_blank" style="flex:1;min-width:80px;padding:8px 10px;background:#101826;border:1px solid #1e3a5a;border-radius:8px;color:#5aa2f5;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">🍹 Bar</a>' +
+        '</div>'
+      ) : '<div style="font-size:12px;color:#525965;margin:8px 0;">No slug — re-add to get links</div>';
       return '<div class="rest-card">' +
         '<div class="rest-name">' + r.name + '</div>' +
         '<div class="rest-meta">PIN: ' + r.pin + ' · Drinks: ' + r.avgDrinkMins + 'm · Starters: ' + r.avgStarterMins + 'm · Main: ' + r.avgMainMins + 'm</div>' +
         '<div class="rest-meta" style="color:#25D366;">📱 ' + (r.ownerPhone || 'No owner phone') + '</div>' +
         '<div class="rest-meta" style="color:' + subColor + ';">📅 ' + subLabel + '</div>' +
+        links +
         '<div class="rest-actions">' +
-        '<div class="act green" onclick="renewSub(\'' + r.pin + '\',\'monthly\')">🔄 +1 Month</div>' +
-        '<div class="act green" onclick="renewSub(\'' + r.pin + '\',\'yearly\')">⭐ +1 Year</div>' +
-        '<div class="act blue" onclick="sendReport(\'' + r.pin + '\')">📊 Report</div>' +
-        '<div class="act red" onclick="deleteRestaurant(\'' + r._id + '\',\'' + r.name + '\')">🗑 Delete</div>' +
+        '<div class="act green" onclick="renewSub(\''+r.pin+'\',' + "'monthly'" + ')">🔄 +1 Month</div>' +
+        '<div class="act green" onclick="renewSub(\''+r.pin+'\',' + "'yearly'" + ')">⭐ +1 Year</div>' +
+        '<div class="act blue" onclick="sendReport(\''+r.pin+'\')">📊 Report</div>' +
+        '<div class="act red" onclick="deleteRestaurant(\''+r._id+'\',\''+r.name+'\')">🗑 Delete</div>' +
         '</div></div>';
     }).join('');
   } catch(e) { document.getElementById('rest-list').innerHTML = '<div style="color:#ff5555;font-size:13px;">Failed to load</div>'; }
