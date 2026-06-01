@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 const { MongoClient, ObjectId } = require('mongodb');
 const { generateToken, verifyToken, requireAuth, findRestaurantByPin } = require('./middleware/auth');
 const path = require('path');
+const webpush = require('web-push');
 
 const app = express();
 // Render runs behind a proxy; needed for correct client IPs in rate limiting.
@@ -80,6 +81,18 @@ const ADMIN_KEY              = process.env.ADMIN_KEY;
 const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET;
 const RAZORPAY_KEY_ID         = process.env.RAZORPAY_KEY_ID;
 const RAZORPAY_KEY_SECRET     = process.env.RAZORPAY_KEY_SECRET;
+
+const VAPID_PUBLIC_KEY  = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
+const VAPID_EMAIL       = process.env.VAPID_EMAIL || 'mailto:rajj884078@gmail.com';
+
+// Configure web-push VAPID
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(VAPID_EMAIL, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  console.log('[push] VAPID configured');
+} else {
+  console.warn('[push] VAPID keys not set — push notifications disabled');
+}
 
 if (!ADMIN_KEY)               console.warn('[boot] ADMIN_KEY not set — admin API routes will reject all requests.');
 if (!RAZORPAY_WEBHOOK_SECRET) console.warn('[boot] RAZORPAY_WEBHOOK_SECRET not set — payment webhooks will be rejected.');
@@ -168,6 +181,26 @@ function requireAdmin(req, res, next) {
     return res.status(403).json({ ok: false, error: 'Forbidden' });
   }
   next();
+}
+
+// Send push notification to all subscribed devices for a restaurant.
+async function sendPushToRestaurant(restaurantPin, title, body, url) {
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return;
+  try {
+    const subs = await db.collection('subscriptions').find({ restaurantPin }).toArray();
+    const payload = JSON.stringify({ title, body, url, tag: restaurantPin });
+    const dead = [];
+    await Promise.all(subs.map(async sub => {
+      try {
+        await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload);
+      } catch (e) {
+        if (e.statusCode === 410 || e.statusCode === 404) dead.push(sub._id);
+        else console.error('[push] send failed:', e.message);
+      }
+    }));
+    // Remove expired subscriptions
+    if (dead.length) await db.collection('subscriptions').deleteMany({ _id: { $in: dead } });
+  } catch (e) { console.error('[push] error:', e.message); }
 }
 
 async function sendWhatsApp(campaignName, phone, orderName, templateParams) {
@@ -314,6 +347,12 @@ app.post('/order', writeLimiter, requireAuth, async (req, res) => {
     return res.status(500).json({ error: 'Could not save order' });
   }
   res.json({ status: 'ok' });
+  // Push notification to kitchen + bar devices
+  sendPushToRestaurant(rest.pin,
+    'New Order — Table ' + table,
+    orderName + ' · ' + courses.map(c=>c.type).join(', '),
+    '/r/' + (rest.slug || '') + '/kitchen'
+  );
   console.log('[order] sending order_received to phone=' + phone + ' name=' + orderName + ' table=' + table + ' courses=' + JSON.stringify(courses.map(c=>c.type)));
   await sendWhatsApp('table_order_received_v2', phone, orderName,
     getParams('order_received', orderName, { table, restaurantName }));
@@ -683,6 +722,37 @@ function scheduleAutoArchive() {
   setInterval(runAutoArchive, 60 * 60 * 1000);
   console.log('[auto-archive] scheduler started — archiving orders older than 6h');
 }
+
+// ── PUSH SUBSCRIPTION ROUTES ─────────────────────────────────────────────────
+// Staff devices subscribe to push on login. Subscriptions stored per restaurant.
+
+app.get('/vapid-public-key', (req, res) => {
+  res.json({ key: VAPID_PUBLIC_KEY || null });
+});
+
+app.post('/subscribe', writeLimiter, requireAuth, async (req, res) => {
+  const { endpoint, keys } = req.body;
+  if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
+    return res.status(400).json({ error: 'Invalid subscription' });
+  }
+  try {
+    // Upsert by endpoint — avoid duplicate subs for same device
+    await db.collection('subscriptions').updateOne(
+      { endpoint },
+      { $set: { endpoint, keys, restaurantPin: req.restaurant.pin, updatedAt: new Date() },
+        $setOnInsert: { createdAt: new Date() } },
+      { upsert: true }
+    );
+    res.json({ ok: true });
+  } catch (e) { console.error('[subscribe]', e.message); res.status(500).json({ error: 'Failed' }); }
+});
+
+app.delete('/subscribe', requireAuth, async (req, res) => {
+  const { endpoint } = req.body;
+  if (!endpoint) return res.status(400).json({ error: 'Endpoint required' });
+  await db.collection('subscriptions').deleteOne({ endpoint, restaurantPin: req.restaurant.pin });
+  res.json({ ok: true });
+});
 
 // ── RESTAURANT SLUG ROUTES ────────────────────────────────────────────────────
 const readFileSafe = require('fs').readFileSync;
