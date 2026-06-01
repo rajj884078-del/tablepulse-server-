@@ -11,7 +11,6 @@ const app = express();
 // Render runs behind a proxy; needed for correct client IPs in rate limiting.
 app.set('trust proxy', 1);
 app.use(cors());
-app.use(express.static(path.join(__dirname, 'public')));
 
 // Razorpay webhook needs raw body BEFORE express.json() parses it.
 // ── RAZORPAY WEBHOOK ──────────────────────────────────────────────────────────
@@ -719,5 +718,9 @@ app.get('/admin/restaurant-links/:pin', adminLimiter, requireAdmin, async (req, 
     }
   });
 });
+
+// Serve static files last — after all routes are registered.
+// Must be last so slug routes (/r/:slug/*) take priority over static files.
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.listen(3000, () => console.log('TablePulse running on port 3000'));
