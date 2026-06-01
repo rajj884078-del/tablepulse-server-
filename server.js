@@ -172,6 +172,7 @@ function requireAdmin(req, res, next) {
 async function sendWhatsApp(campaignName, phone, orderName, templateParams) {
   if (!AISENSY_API_KEY) { console.error('[aisensy] AISENSY_API_KEY not set'); return; }
   try {
+    console.log('[aisensy] calling campaign=' + campaignName + ' to=' + formatPhone(phone) + ' params=' + JSON.stringify(templateParams));
     await axios.post('https://backend.aisensy.com/campaign/t1/api/v2', {
       apiKey: AISENSY_API_KEY, campaignName, destination: formatPhone(phone),
       userName: orderName, source: 'tablepulse-server', templateParams
@@ -312,6 +313,7 @@ app.post('/order', writeLimiter, requireAuth, async (req, res) => {
     return res.status(500).json({ error: 'Could not save order' });
   }
   res.json({ status: 'ok' });
+  console.log('[order] sending order_received to phone=' + phone + ' name=' + orderName + ' table=' + table + ' courses=' + JSON.stringify(courses.map(c=>c.type)));
   await sendWhatsApp('table_order_received_v2', phone, orderName,
     getParams('order_received', orderName, { table, restaurantName }));
 });
@@ -390,9 +392,9 @@ app.post('/review', writeLimiter, requireAuth, async (req, res) => {
     await db.collection('orders').updateOne({ _id: order._id }, { $set: { reviewSent: true } });
     res.json({ status: 'ok' });
     const reviewLink = order.reviewLink || req.restaurant.googleReviewLink || DEFAULT_REVIEW_LINK;
-    console.log('[review] sending to phone=' + order.phone + ' name=' + order.orderName + ' link=' + reviewLink);
-    await sendWhatsApp('table_review_request_v2', order.phone, order.orderName,
-      getParams('review_request', order.orderName, { reviewLink }));
+    const reviewParams = getParams('review_request', order.orderName, { reviewLink });
+    console.log('[review] sending to phone=' + order.phone + ' name=' + order.orderName + ' link=' + reviewLink + ' params=' + JSON.stringify(reviewParams));
+    await sendWhatsApp('table_review_request_v2', order.phone, order.orderName, reviewParams);
   } catch (e) { console.error('[review]', e.message); if (!res.headersSent) res.status(500).json({ error: 'Failed' }); }
 });
 
