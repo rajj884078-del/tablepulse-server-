@@ -655,19 +655,25 @@ app.get('/admin/subscription-links/:pin', adminLimiter, requireAdmin, async (req
 });
 
 // ── RESTAURANT SLUG ROUTES ────────────────────────────────────────────────────
+const path = require('path');
 const readFileSafe = require('fs').readFileSync;
 
 function serveStaffScreen(screen) {
   return async (req, res) => {
     const slug = cleanStr(req.params.slug, 80);
     if (!slug) return res.sendStatus(400);
-    const restaurant = await db.collection('restaurants').findOne({ slug });
-    if (!restaurant) return res.status(404).send('Restaurant not found');
-    let html = readFileSafe('./public/' + screen + '.html', 'utf8');
-    // Inject slug so the screen auto-knows which restaurant without manual PIN entry for identification.
-    html = html.replace('</head>', '<script>window.__SLUG__="' + slug + '";</script></head>');
-    res.setHeader('Content-Type', 'text/html');
-    res.send(html);
+    try {
+      const restaurant = await db.collection('restaurants').findOne({ slug });
+      if (!restaurant) return res.status(404).send('Restaurant not found');
+      const filePath = path.join(__dirname, 'public', screen + '.html');
+      let html = readFileSafe(filePath, 'utf8');
+      html = html.replace('</head>', '<script>window.__SLUG__="' + slug + '";</script></head>');
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+    } catch (e) {
+      console.error('[serveStaffScreen] error:', e.message);
+      res.status(500).send('Server error');
+    }
   };
 }
 
