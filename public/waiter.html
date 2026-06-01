@@ -301,8 +301,13 @@ function renderOrders(orders){
     } else if(showStartMain){
       btns+='<button class="btn-sm primary orange" onclick="startMain(\''+o._id+'\',\''+esc(o.orderName)+'\')">▶ Start main</button>';
     }
-    var reviewClass = (allReady && !showStartMain && !showServeTogether) ? 'btn-sm primary green' : 'btn-sm';
-    btns+='<button class="'+reviewClass+'" onclick="sendReview(\''+o._id+'\')">⭐ Review</button>';
+    // Hide review button if already sent, show as primary green when all courses ready
+    if(!o.reviewSent){
+      var reviewClass = (allReady && !showStartMain && !showServeTogether) ? 'btn-sm primary green' : 'btn-sm';
+      btns+='<button class="'+reviewClass+'" onclick="sendReview(\''+o._id+'\')">⭐ Review</button>';
+    } else {
+      btns+='<span style="flex:1;min-width:84px;padding:12px 10px;font-size:12px;font-weight:600;color:#41c980;text-align:center;">✅ Review sent</span>';
+    }
     btns+='<button class="btn-sm" onclick="sendDelay(\''+o._id+'\')">⏰ Delay</button>';
     btns+='<button class="btn-sm" onclick="markDone(\''+o._id+'\')">✓ Done</button>';
     return '<div class="card"><div class="order-top"><div>'+
