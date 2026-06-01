@@ -70,6 +70,7 @@ h1 span{font-size:12px;font-weight:500;color:#8b9099;}
   </div>
   <div class="rest" id="restName">Bar</div>
   <div id="sub-banner" style="display:none;padding:12px 14px;border-radius:11px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;"></div>
+  <div id="conn-banner" style="display:none;padding:12px 14px;border-radius:11px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;background:#241011;border:1px solid #6e1a1a;color:#f0635a;">⚠️ Connection lost — retrying...</div>
 
   <div class="voice-bar" onclick="toggleSound()">
     <div class="voice-icon" id="sound-box">🔇</div>
@@ -159,7 +160,8 @@ async function loadOrders(){
     }
   });
   renderOrders(orders);firstLoad=false;
-  }catch(e){}
+  showConn(true);
+  }catch(e){showConn(false);}
 }
 function renderOrders(orders){
   var el=document.getElementById('bar-orders');
@@ -215,6 +217,12 @@ document.addEventListener('touchcancel', function(e) {
   var el = e.target.closest('button'); if (!el) return;
   el.style.transform=''; el.style.opacity='';
 }, { passive: true });
+
+function showConn(ok) {
+  var el = document.getElementById('conn-banner');
+  if (el) el.style.display = ok ? 'none' : 'block';
+}
+
 </script>
 </body>
 </html>
