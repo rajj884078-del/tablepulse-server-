@@ -6,75 +6,89 @@
 <title>TablePulse — Bar</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0d1117;color:#e6edf3;padding:14px;padding-bottom:40px;}
-.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
-h1{font-size:20px;font-weight:700;letter-spacing:-0.3px;}
-h1 span{font-size:13px;font-weight:500;color:#7d8590;}
-.live{font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;background:#13261a;color:#3fb950;display:inline-flex;align-items:center;gap:5px;}
-.live::before{content:'';width:6px;height:6px;border-radius:50%;background:#3fb950;}
-.rest{font-size:13px;color:#7d8590;margin-bottom:14px;}
-.sound-bar{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#161b22;border:1px solid #21262d;border-radius:12px;margin-bottom:14px;cursor:pointer;}
-.sound-box{width:24px;height:24px;border-radius:7px;border:2px solid #30363d;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
-.sound-box.on{background:#238636;border-color:#238636;color:#fff;}
-.sound-label{flex:1;font-size:14px;font-weight:500;}
-.sound-hint{font-size:12px;color:#7d8590;}
-.card{background:#161b22;border:1px solid #21262d;border-radius:16px;padding:16px;margin-bottom:12px;}
-.section-title{font-size:12px;font-weight:700;color:#7d8590;text-transform:uppercase;letter-spacing:1px;margin:18px 4px 10px;}
-.toast{padding:14px;border-radius:12px;font-size:14px;font-weight:500;margin-bottom:12px;display:none;}
-.toast.blue{background:#0c1d2e;color:#58a6ff;border:1px solid #1f3a5a;}
-.toast.green{background:#13261a;color:#3fb950;border:1px solid #1f3a2a;}
-.empty{text-align:center;padding:3rem 1rem;color:#484f58;font-size:15px;}
-.sync-tag{display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;background:#1c1607;color:#e3b341;margin-top:5px;}
-.order-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;}
-.table-name{font-size:22px;font-weight:800;}
-.meta{font-size:13px;color:#7d8590;margin-top:3px;}
-.btn-row{display:flex;gap:8px;flex-wrap:wrap;}
-.act-btn{flex:1;min-width:130px;padding:15px 12px;border:1px solid #30363d;border-radius:12px;background:#21262d;color:#e6edf3;font-size:15px;font-weight:700;cursor:pointer;text-align:center;transition:transform .1s,opacity .1s;-webkit-tap-highlight-color:transparent;}
-.act-btn:active{opacity:.85;transform:scale(0.97);}
-.act-btn.green{border-color:#1f3a2a;color:#3fb950;background:#0f1a13;}
-.done-line{font-size:14px;font-weight:600;color:#3fb950;padding:6px 0;}
-.coord-box{font-size:13px;font-weight:600;padding:10px;background:#0c1d2e;color:#58a6ff;border:1px solid #1f3a5a;border-radius:10px;margin-bottom:10px;}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0e1014;color:#e8eaed;padding:14px;padding-bottom:60px;}
+.wrap{max-width:720px;margin:0 auto;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+h1{font-size:18px;font-weight:700;letter-spacing:-0.2px;}
+h1 span{font-size:12px;font-weight:500;color:#8b9099;}
+.live{font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;background:#10241a;color:#41c980;display:inline-flex;align-items:center;gap:5px;}
+.live::before{content:'';width:6px;height:6px;border-radius:50%;background:#41c980;}
+.rest{font-size:12px;color:#8b9099;margin-bottom:12px;}
+
+/* Voice toggle — identical pattern to kitchen */
+.voice-bar{display:flex;align-items:center;gap:12px;padding:13px 14px;background:#161a20;border:1px solid #232830;border-radius:11px;margin-bottom:14px;cursor:pointer;}
+.voice-icon{width:36px;height:36px;border-radius:9px;border:1.5px solid #2b313a;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.voice-icon.on{background:#10241a;border-color:#1a7a45;}
+.voice-label{flex:1;}
+.voice-label strong{font-size:14px;font-weight:600;color:#e8eaed;display:block;}
+.voice-label span{font-size:12px;color:#8b9099;}
+.voice-status{font-size:11px;font-weight:700;padding:3px 9px;border-radius:5px;}
+.voice-status.on{background:#10241a;color:#41c980;}
+.voice-status.off{background:#1c2128;color:#8b9099;}
+
+/* Cards */
+.card{background:#161a20;border:1px solid #232830;border-radius:14px;padding:16px;margin-bottom:10px;}
+.order-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.table-name{font-size:22px;font-weight:800;letter-spacing:-0.3px;}
+.meta{font-size:12px;color:#8b9099;margin-top:2px;}
+.age{font-size:12px;color:#525965;white-space:nowrap;}
+.sync-tag{display:inline-block;font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;background:#1a1407;color:#d4a017;margin-top:5px;letter-spacing:.3px;}
+
+/* Coordinate notice */
+.coord-notice{background:#101826;border:1px solid #1e3a5a;border-radius:9px;padding:11px 13px;margin-bottom:10px;font-size:13px;font-weight:600;color:#5aa2f5;}
+
+/* Action */
+.act-btn{width:100%;padding:16px;border:1.5px solid #1a7a45;border-radius:11px;background:#1a7a45;color:#fff;font-size:15px;font-weight:700;cursor:pointer;text-align:center;transition:transform .1s,opacity .1s;}
+.status-line{font-size:14px;font-weight:600;padding:8px 0;color:#41c980;}
+
+/* Toast */
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;padding:13px 20px;border-radius:10px;font-size:14px;font-weight:600;display:none;z-index:50;max-width:90%;box-shadow:0 8px 24px rgba(0,0,0,.4);}
+.toast.green{background:#10241a;color:#41c980;border:1px solid #1a7a45;}
+.toast.blue{background:#101826;color:#5aa2f5;border:1px solid #1e3a5a;}
+.section-title{font-size:11px;font-weight:700;color:#8b9099;text-transform:uppercase;letter-spacing:.8px;margin:0 2px 10px;}
+.empty{text-align:center;padding:3rem 1rem;color:#525965;font-size:15px;}
 </style>
 </head>
 <body>
-<div id="loginScreen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0d1117;">
-  <div style="background:#161b22;border:1px solid #21262d;border-radius:20px;padding:44px 32px;width:320px;text-align:center;">
-    <div style="font-size:38px;margin-bottom:10px;">🍹</div>
-    <h2 style="color:#e6edf3;margin:0 0 4px;font-size:22px;">Bar</h2>
-    <p style="color:#7d8590;font-size:13px;margin:0 0 26px;">Enter restaurant PIN</p>
+<div id="loginScreen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0e1014;">
+  <div style="background:#161a20;border:1px solid #232830;border-radius:18px;padding:44px 32px;width:320px;text-align:center;">
+    <div style="font-size:34px;margin-bottom:10px;">🍹</div>
+    <h2 style="color:#e8eaed;margin:0 0 4px;font-size:21px;">Bar</h2>
+    <p style="color:#8b9099;font-size:13px;margin:0 0 26px;">Enter restaurant PIN</p>
     <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="••••"
-      style="width:100%;padding:16px;font-size:24px;text-align:center;background:#0d1117;border:1px solid #30363d;border-radius:12px;color:#fff;letter-spacing:10px;box-sizing:border-box;"/>
-    <button onclick="doLogin()" style="width:100%;margin-top:16px;padding:16px;background:#1f6feb;border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;">Enter</button>
-    <p id="loginError" style="color:#f85149;font-size:13px;margin:14px 0 0;display:none;"></p>
+      style="width:100%;padding:16px;font-size:24px;text-align:center;background:#0e1014;border:1px solid #2b313a;border-radius:11px;color:#fff;letter-spacing:10px;box-sizing:border-box;"/>
+    <button onclick="doLogin()" style="width:100%;margin-top:16px;padding:16px;background:#2563eb;border:none;border-radius:11px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;">Enter</button>
+    <p id="loginError" style="color:#f0635a;font-size:13px;margin:14px 0 0;display:none;"></p>
   </div>
 </div>
 
 <div id="mainApp" style="display:none;">
+ <div class="wrap">
   <div class="topbar">
     <h1>TablePulse <span>Bar</span></h1>
     <span class="live">Live</span>
   </div>
-  
-<!-- Subscription warning banner -->
-<div id="sub-banner" style="display:none;padding:12px 14px;border-radius:12px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;"></div>
+  <div class="rest" id="restName">Bar</div>
+  <div id="sub-banner" style="display:none;padding:12px 14px;border-radius:11px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;"></div>
 
-  <div class="rest" id="restName">Bar orders</div>
-
-  <div class="sound-bar" onclick="toggleSound()">
-    <div class="sound-box on" id="sound-box">🔊</div>
-    <div>
-      <div class="sound-label">Voice alerts</div>
-      <div class="sound-hint" id="sound-hint">Tap once to enable sound</div>
+  <div class="voice-bar" onclick="toggleSound()">
+    <div class="voice-icon" id="sound-box">🔇</div>
+    <div class="voice-label">
+      <strong>Voice alerts</strong>
+      <span id="sound-hint">Tap to enable — required for alerts</span>
     </div>
+    <span class="voice-status off" id="voice-status">OFF</span>
   </div>
 
-  <div id="b-toast" class="toast blue"></div>
-  <div class="section-title" style="margin-top:0;">🍹 Active drink orders</div>
+  <div class="section-title">Active drink orders</div>
   <div id="bar-orders"></div>
+ </div>
 </div>
 
+<div id="b-toast" class="toast green"></div>
+
 <script>
-var soundOn=true, announcedNew={}, firstLoad=true;
+var soundOn=false, announcedNew={}, firstLoad=true;
 (async function(){
   var token=localStorage.getItem('tp_token');
   if(!token)return;
@@ -108,9 +122,14 @@ function showApp(name, subStatus, subExpiry){
 }
 function toggleSound(){
   soundOn=!soundOn;
-  document.getElementById('sound-box').classList.toggle('on',soundOn);
-  document.getElementById('sound-box').textContent=soundOn?'🔊':'🔇';
-  document.getElementById('sound-hint').textContent=soundOn?'Voice alerts ON':'Voice alerts OFF';
+  var box=document.getElementById('sound-box');
+  var hint=document.getElementById('sound-hint');
+  var status=document.getElementById('voice-status');
+  box.classList.toggle('on',soundOn);
+  box.textContent=soundOn?'🔊':'🔇';
+  hint.textContent=soundOn?'New drink order alerts active':'Tap to enable — required for alerts';
+  status.textContent=soundOn?'ON':'OFF';
+  status.className='voice-status '+(soundOn?'on':'off');
   if(soundOn)speak('Voice alerts on');
 }
 function speak(text){
@@ -122,8 +141,8 @@ async function post(ep,body){
   try{var t=localStorage.getItem('tp_token');var r=await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json','x-auth-token':t},body:JSON.stringify(body)});return await r.json();}catch(e){return null;}
 }
 function toast(msg,cls){
-  var el=document.getElementById('b-toast');el.className='toast '+(cls||'blue');
-  el.textContent=msg;el.style.display='block';setTimeout(function(){el.style.display='none';},4000);
+  var el=document.getElementById('b-toast');el.className='toast '+(cls||'green');
+  el.textContent=msg;el.style.display='block';setTimeout(function(){el.style.display='none';},3500);
 }
 function ta(d){var m=Math.floor((new Date()-new Date(d))/60000);return m<1?'just now':m+'m ago';}
 async function loadOrders(){
@@ -148,17 +167,16 @@ function renderOrders(orders){
   el.innerHTML=orders.map(function(o){
     var drinks=(o.courses||[]).find(function(c){return c.type==='drinks';});
     if(!drinks)return '';
-    var coord=o.bNotified?'<div class="coord-box">⏱ Coordinate with kitchen — serve together</div>':'';
+    var coord=o.bNotified?'<div class="coord-notice">⏱ Coordinate with kitchen — serve drinks + food together</div>':'';
     var action=drinks.status==='waiting'
-      ?'<button class="act-btn green" onclick="drinksReady(\''+o._id+'\')">✅ Drinks ready</button>'
-      :'<span class="done-line">✅ Drinks served</span>';
+      ?'<button class="act-btn" onclick="drinksReady(\''+o._id+'\')">✅ Drinks ready</button>'
+      :'<div class="status-line">✅ Drinks served</div>';
     return '<div class="card"><div class="order-top"><div>'+
       '<div class="table-name">Table '+o.table+'</div>'+
-      '<div class="meta">'+o.orderName+' · Drinks x'+drinks.qty+'</div>'+
-      (o.sameTime?'<span class="sync-tag">⏱ Same-time</span>':'')+
-      '</div><div style="font-size:12px;color:#484f58;">'+ta(o.createdAt)+'</div></div>'+
-      coord+
-      '<div class="btn-row">'+action+'</div></div>';
+      '<div class="meta">'+o.orderName+' · Drinks ×'+drinks.qty+'</div>'+
+      (o.sameTime?'<span class="sync-tag">⏱ SAME-TIME</span>':'')+
+      '</div><div class="age">'+ta(o.createdAt)+'</div></div>'+
+      coord+action+'</div>';
   }).join('');
 }
 async function drinksReady(id){
@@ -172,42 +190,31 @@ function showSubBanner(status, expiry) {
   if (status === 'warning' && expiry) {
     var d = new Date(expiry).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
     el.style.display = 'block';
-    el.style.background = '#1c1607';
-    el.style.border = '1px solid #9e6a03';
-    el.style.color = '#e3b341';
+    el.style.background = '#1f1810';
+    el.style.border = '1px solid #a16207';
+    el.style.color = '#d4a017';
     el.textContent = '⚠️ Renew before ' + d + ' to continue using TablePulse';
   } else if (status === 'expired') {
     el.style.display = 'block';
-    el.style.background = '#1a0f10';
+    el.style.background = '#241011';
     el.style.border = '1px solid #6e1a1a';
-    el.style.color = '#f85149';
+    el.style.color = '#f0635a';
     el.textContent = '🔴 Subscription expired — contact restaurant owner to renew';
   }
 }
 
-
-// Global tap feedback for dynamically rendered buttons
 document.addEventListener('touchstart', function(e) {
-  var el = e.target.closest('button');
-  if (!el) return;
-  el.style.transform = 'scale(0.93)';
-  el.style.opacity = '0.75';
+  var el = e.target.closest('button'); if (!el) return;
+  el.style.transform = 'scale(0.94)'; el.style.opacity = '0.8';
 }, { passive: true });
 document.addEventListener('touchend', function(e) {
-  var el = e.target.closest('button');
-  if (!el) return;
-  setTimeout(function() {
-    el.style.transform = '';
-    el.style.opacity = '';
-  }, 120);
+  var el = e.target.closest('button'); if (!el) return;
+  setTimeout(function(){ el.style.transform=''; el.style.opacity=''; }, 110);
 }, { passive: true });
 document.addEventListener('touchcancel', function(e) {
-  var el = e.target.closest('button');
-  if (!el) return;
-  el.style.transform = '';
-  el.style.opacity = '';
+  var el = e.target.closest('button'); if (!el) return;
+  el.style.transform=''; el.style.opacity='';
 }, { passive: true });
-
 </script>
 </body>
 </html>
