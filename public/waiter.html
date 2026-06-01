@@ -249,7 +249,9 @@ function renderOrders(orders){
     if(main&&main.status==='started'&&o.mainStartedAt){
       timers+='<span class="timer" data-since="'+o.mainStartedAt+'" data-avg="'+avgMain+'" data-lbl="Main">Main 0m</span>';
     }
-    var showStartMain=st&&st.status==='ready'&&main&&main.status==='waiting';
+    // showStartMain: show if main is waiting AND (no starters ordered OR starters already ready)
+    var showStartMain=main&&main.status==='waiting'&&(!st||st.status==='ready');
+    // showServeTogether: only when BOTH starters AND main are waiting
     var showServeTogether=st&&main&&st.status==='waiting'&&main.status==='waiting';
     var allReady = courses.every(function(c){return c.status==='ready';});
     var btns='';
