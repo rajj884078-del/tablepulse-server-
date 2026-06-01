@@ -323,7 +323,7 @@ app.get('/active-orders', requireAuth, async (req, res) => {
   try {
     const orders = await db.collection('orders')
       .find({ status: { $ne: 'done' }, restaurantPin: req.restaurant.pin })
-      .sort({ createdAt: -1 }).limit(ACTIVE_ORDERS_LIMIT).toArray();
+      .sort({ createdAt: 1 }).limit(ACTIVE_ORDERS_LIMIT).toArray();
     res.json(orders.map(o => Object.assign({}, o, { _id: o._id.toString() })));
   } catch (e) {
     console.error('[active-orders]', e.message);
