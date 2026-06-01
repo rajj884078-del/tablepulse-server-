@@ -96,6 +96,314 @@ input:focus{outline:none;border-color:#3b82f6;}
   <div id="view-new" style="display:none;">
     <div class="card">
       <label>Customer name</label><input type="text" id="w-name" placeholder="Enter name"/>
+      <label>WhatsApp number</label><input type="tel" id="w-phone" placeholder="91XXXXXXXXXX" value="91" onfocus="var v=this.value;this.value='';this.value=v;"/>
+      <label>Table number</label><input type="number" id="w-table" placeholder="e.g. 5"/>
+      <label style="margin-top:4px;">Courses ordered</label>
+      <div class="course-row">
+        <div class="course-check on" id="chk-d" onclick="toggleCourse('d')">✓</div>
+        <span class="course-label">🍹 Drinks</span>
+        <input class="qty" id="qty-d" type="number" value="1" min="1"/>
+      </div>
+      <div class="course-row">
+        <div class="course-check on" id="chk-s" onclick="toggleCourse('s')">✓</div>
+        <span class="course-label">🥗 Starters</span>
+        <input class="qty" id="qty-s" type="number" value="1" min="1"/>
+      </div>
+      <div class="course-row">
+        <div class="course-check on" id="chk-m" onclick="toggleCourse('m')">✓</div>
+        <span class="course-label">🍛 Main course</span>
+        <input class="qty" id="qty-m" type="number" value="1" min="1"/>
+      </div>
+      <div class="toggle-row" onclick="toggleSync()">
+        <div class="toggle-box" id="sync-box"></div>
+        <span class="toggle-label">⏱ Drinks + starters together</span>
+      </div>
+      <label>Send to</label>
+      <div class="dest-row">
+        <div class="chip on" id="dest-k" onclick="toggleDest('k',event)">🔥 Kitchen</div>
+        <div class="chip on" id="dest-b" onclick="toggleDest('b',event)">🍹 Bar</div>
+      </div>
+      <button class="btn" id="place-btn" onclick="placeOrder()">Send order</button>
+    </div>
+  </div>
+ </div>
+</div>
+
+<div id="w-toast" class="toast green"></div>
+
+<script>
+var dK=true,dB=true,sync=false,cD=true,cS=true,cM=true;
+var activeOrders=[];
+var avgStarter=18, avgMain=30;
+var currentTab='tables';
+
+(async function(){
+  var token=localStorage.getItem('tp_token');
+  if(!token)return;
+  try{var r=await fetch('/verify',{headers:{'x-auth-token':token}});
+  if(r.ok){var d=await r.json();showApp(d.restaurantName,d.subscriptionStatus,d.subscriptionExpiry);}
+  else localStorage.removeItem('tp_token');}catch(e){}
+})();
+
+async function doLogin(){
+  var pin=document.getElementById('pinInput').value.trim();
+  var err=document.getElementById('loginError');err.style.display='none';
+  if(!pin)return;
+  try{var loginUrl=window.__SLUG__?'/r/'+window.__SLUG__+'/login':'/login';
+  var r=await fetch(loginUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin})});
+  var d=await r.json();
+  if(!r.ok){err.textContent=d.error||'Wrong PIN';err.style.display='block';return;}
+  localStorage.setItem('tp_token',d.token);
+  localStorage.setItem('tp_restaurant_name',d.restaurantName);
+  localStorage.setItem('tp_review_link',d.googleReviewLink||'');
+  if(d.avgStarterMins)localStorage.setItem('tp_avg_starter',d.avgStarterMins);
+  if(d.avgMainMins)localStorage.setItem('tp_avg_main',d.avgMainMins);
+  showApp(d.restaurantName,d.subscriptionStatus,d.subscriptionExpiry);}catch(e){err.textContent='Server error.';err.style.display='block';}
+}
+document.addEventListener('DOMContentLoaded',function(){
+  document.getElementById('pinInput').addEventListener('keypress',function(e){if(e.key==='Enter')doLogin();});
+});
+function showApp(name, subStatus, subExpiry){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('mainApp').style.display='block';
+  showSubBanner(subStatus||'active', subExpiry||null);
+  if(name)document.getElementById('restName').textContent=name+' — WhatsApp connected';
+  avgStarter=parseInt(localStorage.getItem('tp_avg_starter'))||18;
+  avgMain=parseInt(localStorage.getItem('tp_avg_main'))||30;
+  switchTab('tables');
+  loadOrders();setInterval(loadOrders,8000);
+  setInterval(tickTimers,1000);
+}
+function switchTab(tab){
+  currentTab=tab;
+  document.getElementById('view-tables').style.display = tab==='tables'?'block':'none';
+  document.getElementById('view-new').style.display = tab==='new'?'block':'none';
+  document.getElementById('tab-tables').classList.toggle('on',tab==='tables');
+  document.getElementById('tab-new').classList.toggle('on',tab==='new');
+}
+async function post(ep,body){
+  try{var t=localStorage.getItem('tp_token');var r=await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json','x-auth-token':t},body:JSON.stringify(body)});return await r.json();}catch(e){return null;}
+}
+function toast(msg,cls){
+  var el=document.getElementById('w-toast');el.className='toast '+(cls||'green');
+  el.textContent=msg;el.style.display='block';setTimeout(function(){el.style.display='none';},3500);
+}
+function toggleCourse(c){
+  if(c==='d'){cD=!cD;document.getElementById('chk-d').classList.toggle('on',cD);document.getElementById('chk-d').textContent=cD?'✓':'';}
+  if(c==='s'){cS=!cS;document.getElementById('chk-s').classList.toggle('on',cS);document.getElementById('chk-s').textContent=cS?'✓':'';}
+  if(c==='m'){cM=!cM;document.getElementById('chk-m').classList.toggle('on',cM);document.getElementById('chk-m').textContent=cM?'✓':'';}
+}
+function toggleSync(){sync=!sync;document.getElementById('sync-box').classList.toggle('on',sync);document.getElementById('sync-box').textContent=sync?'✓':'';}
+function toggleDest(d,e){e.stopPropagation();
+  if(d==='k'){dK=!dK;document.getElementById('dest-k').classList.toggle('on',dK);}
+  else{dB=!dB;document.getElementById('dest-b').classList.toggle('on',dB);}
+}
+function ta(d){var m=Math.floor((new Date()-new Date(d))/60000);return m<1?'just now':m+'m ago';}
+
+async function placeOrder(){
+  var name=document.getElementById('w-name').value.trim();
+  var phone=document.getElementById('w-phone').value.trim();
+  var table=document.getElementById('w-table').value.trim();
+  if(!name||!phone||!table){toast('Fill name, number and table','orange');return;}
+  // Duplicate table check: warn if this table already has an active order
+  var existingTable = activeOrders.find(function(o){return String(o.table)===String(table);});
+  if(existingTable){
+    if(!confirm('Table '+table+' already has an active order for '+existingTable.orderName+'. Add another order for this table?'))return;
+  }
+  var courses=[];
+  if(cD)courses.push({type:'drinks',qty:parseInt(document.getElementById('qty-d').value)||1,status:'waiting'});
+  if(cS)courses.push({type:'starters',qty:parseInt(document.getElementById('qty-s').value)||1,status:'waiting'});
+  if(cM)courses.push({type:'main',qty:parseInt(document.getElementById('qty-m').value)||1,status:'waiting'});
+  if(!courses.length){toast('Select at least one course','orange');return;}
+  var btn=document.getElementById('place-btn');btn.disabled=true;btn.textContent='Sending...';
+  var hasBoth=cD&&cS;
+  var res=await post('/order',{phone:phone,orderName:name,table:table,courses:courses,sameTime:sync&&hasBoth,toK:dK,toB:dB});
+  btn.disabled=false;btn.textContent='Send order';
+  document.getElementById('w-name').value='';document.getElementById('w-phone').value='91';document.getElementById('w-table').value='';
+  sync=false;document.getElementById('sync-box').classList.remove('on');document.getElementById('sync-box').textContent='';
+  if(res){toast('WhatsApp sent to '+name+' ji! ✅','green');switchTab('tables');}else toast('Server busy — try again','orange');
+  loadOrders();
+}
+async function loadOrders(){
+  try{var t=localStorage.getItem('tp_token');var r=await fetch('/active-orders',{headers:{'x-auth-token':t}});if(r.status===401){localStorage.removeItem('tp_token');location.reload();return;}activeOrders=await r.json();renderOrders(activeOrders);}catch(e){}
+}
+function gc(o,type){return (o.courses||[]).find(function(c){return c.type===type;});}
+
+function renderOrders(orders){
+  var el=document.getElementById('waiter-orders');
+  document.getElementById('tab-count').textContent = orders.length ? '('+orders.length+')' : '';
+  if(!orders.length){el.innerHTML='<div class="empty">No active tables yet</div>';return;}
+  el.innerHTML=orders.map(function(o){
+    var courses=o.courses||[];
+    var st=gc(o,'starters');var main=gc(o,'main');
+    var rows=courses.map(function(c){
+      var lbl=c.type==='drinks'?'🍹 Drinks':c.type==='starters'?'🥗 Starters':'🍛 Main course';
+      var sc=c.status==='ready'?'ready':c.status==='started'?'prep':'wait';
+      var plbl=c.status==='ready'?'Ready':c.status==='started'?'Preparing':'Waiting';
+      return '<div class="tl-row"><span class="tl-label">'+lbl+' ×'+c.qty+'</span><span class="chipstat '+sc+'">'+plbl+'</span></div>';
+    }).join('');
+    var timers='';
+    if(st&&st.status!=='ready'){
+      timers+='<span class="timer" data-since="'+o.createdAt+'" data-avg="'+avgStarter+'" data-lbl="Starter">Starter 0m</span>';
+    }
+    if(main&&main.status==='started'&&o.mainStartedAt){
+      timers+='<span class="timer" data-since="'+o.mainStartedAt+'" data-avg="'+avgMain+'" data-lbl="Main">Main 0m</span>';
+    }
+    var showStartMain=st&&st.status==='ready'&&main&&main.status==='waiting';
+    var showServeTogether=st&&main&&st.status==='waiting'&&main.status==='waiting';
+    var allReady = courses.every(function(c){return c.status==='ready';});
+    var btns='';
+    if(showServeTogether){
+      btns+='<button class="btn-sm primary orange" onclick="serveTogether(\''+o._id+'\',\''+esc(o.orderName)+'\')">🚀 Serve together</button>';
+    } else if(showStartMain){
+      btns+='<button class="btn-sm primary orange" onclick="startMain(\''+o._id+'\',\''+esc(o.orderName)+'\')">▶ Start main</button>';
+    }
+    var reviewClass = (allReady && !showStartMain && !showServeTogether) ? 'btn-sm primary green' : 'btn-sm';
+    btns+='<button class="'+reviewClass+'" onclick="sendReview(\''+o._id+'\')">⭐ Review</button>';
+    btns+='<button class="btn-sm" onclick="sendDelay(\''+o._id+'\')">⏰ Delay</button>';
+    btns+='<button class="btn-sm" onclick="markDone(\''+o._id+'\')">✓ Done</button>';
+    return '<div class="card"><div class="order-top"><div>'+
+      '<div class="table-name">Table '+o.table+'</div>'+
+      '<div class="meta">'+esc(o.orderName)+'</div>'+
+      (o.sameTime?'<span class="sync-tag">⏱ SAME-TIME</span>':'')+
+      '</div><div class="age">'+ta(o.createdAt)+'</div></div>'+
+      (timers?'<div class="timer-wrap">'+timers+'</div>':'')+
+      rows+
+      '<div class="btn-row">'+btns+'</div></div>';
+  }).join('');
+  tickTimers();
+}
+function esc(s){return String(s).replace(/'/g,"\\'").replace(/"/g,'&quot;');}
+function tickTimers(){
+  var els=document.querySelectorAll('.timer');
+  els.forEach(function(t){
+    var since=new Date(t.getAttribute('data-since'));
+    var avg=parseInt(t.getAttribute('data-avg'))||999;
+    var lbl=t.getAttribute('data-lbl');
+    var mins=Math.floor((new Date()-since)/60000);
+    t.textContent=lbl+' '+mins+'m';
+    if(mins>=avg)t.classList.add('warn');else t.classList.remove('warn');
+  });
+}
+async function startMain(id,name){
+  await post('/update-course',{orderId:id,courseType:'main',status:'started'});
+  toast('▶ Main started for '+name+' — WhatsApp sent ✅','orange');
+  loadOrders();
+}
+async function serveTogether(id,name){
+  await post('/update-course',{orderId:id,courseType:'starters',status:'ready'});
+  await post('/update-course',{orderId:id,courseType:'main',status:'started'});
+  toast('🚀 Both courses started for '+name+' — WhatsApp sent ✅','orange');
+  loadOrders();
+}
+async function sendReview(id){
+  var link=localStorage.getItem('tp_review_link')||'';
+  var res=await post('/review',{orderId:id,reviewLink:link});
+  if(res&&res.status==='ok') toast('⭐ Review request sent! ✅','green');
+  else toast('Review send failed — try again','orange');
+  loadOrders();
+}
+async function sendDelay(id){await post('/order-delay',{orderId:id});toast('⏰ Delay message sent','orange');}
+async function markDone(id){
+  if(!confirm('Mark this table as done?'))return;
+  await post('/order-done',{orderId:id});toast('Table marked done ✓','green');loadOrders();
+}
+
+function showSubBanner(status, expiry) {
+  var el = document.getElementById('sub-banner');
+  if (!el) return;
+  if (status === 'warning' && expiry) {
+    var d = new Date(expiry).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+    el.style.display = 'block';
+    el.style.background = '#1f1810';
+    el.style.border = '1px solid #a16207';
+    el.style.color = '#d4a017';
+    el.textContent = '⚠️ Renew before ' + d + ' to continue using TablePulse';
+  } else if (status === 'expired') {
+    el.style.display = 'block';
+    el.style.background = '#241011';
+    el.style.border = '1px solid #6e1a1a';
+    el.style.color = '#f0635a';
+    el.textContent = '🔴 Subscription expired — contact restaurant owner to renew';
+  }
+}
+
+document.addEventListener('touchstart', function(e) {
+  var el = e.target.closest('button'); if (!el) return;
+  el.style.transform = 'scale(0.94)'; el.style.opacity = '0.8';
+}, { passive: true });
+document.addEventListener('touchend', function(e) {
+  var el = e.target.closest('button'); if (!el) return;
+  setTimeout(function(){ el.style.transform=''; el.style.opacity=''; }, 110);
+}, { passive: true });
+document.addEventListener('touchcancel', function(e) {
+  var el = e.target.closest('button'); if (!el) return;
+  el.style.transform=''; el.style.opacity='';
+}, { passive: true });
+</script>
+</body>
+</html>.chip{flex:1;padding:12px;border:1px solid #2b313a;border-radius:11px;font-size:14px;font-weight:600;color:#8b9099;cursor:pointer;text-align:center;transition:all .12s;}
+.chip.on{background:#101a26;color:#5aa2f5;border-color:#2563eb;}
+.btn{width:100%;padding:16px;background:#2563eb;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;transition:transform .1s,opacity .1s;}
+.btn:active{transform:scale(0.98);}
+.btn:disabled{opacity:0.5;}
+.order-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;}
+.table-name{font-size:22px;font-weight:800;letter-spacing:-0.3px;}
+.meta{font-size:13px;color:#8b9099;margin-top:2px;}
+.age{font-size:12px;color:#525965;text-align:right;white-space:nowrap;}
+.sync-tag{display:inline-block;font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;background:#1a1407;color:#d4a017;margin-top:6px;letter-spacing:.3px;}
+.tl-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #1c2128;}
+.tl-row:last-child{border-bottom:none;}
+.tl-label{flex:1;font-size:14px;color:#c9ced6;}
+.chipstat{font-size:11px;font-weight:600;padding:3px 9px;border-radius:5px;}
+.chipstat.wait{background:#1c2128;color:#8b9099;}
+.chipstat.prep{background:#1f1810;color:#d4a017;}
+.chipstat.ready{background:#10241a;color:#41c980;}
+.timer-wrap{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 4px;}
+.timer{font-size:12px;font-weight:700;padding:4px 10px;border-radius:6px;background:#1c2128;color:#8b9099;white-space:nowrap;}
+.timer.warn{background:#241011;color:#f0635a;}
+.btn-row{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+.btn-sm{flex:1;min-width:84px;padding:12px 10px;border:1px solid #2b313a;border-radius:10px;background:#1c2128;color:#9aa0aa;font-size:13px;font-weight:600;cursor:pointer;text-align:center;transition:transform .1s,opacity .1s;}
+.btn-sm.primary{background:#2563eb;border-color:#2563eb;color:#fff;font-weight:700;flex:2;}
+.btn-sm.primary.orange{background:#c2660c;border-color:#c2660c;}
+.btn-sm.primary.green{background:#1a7a45;border-color:#1a7a45;}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;padding:13px 20px;border-radius:10px;font-size:14px;font-weight:600;display:none;z-index:50;max-width:90%;box-shadow:0 8px 24px rgba(0,0,0,.4);}
+.toast.green{background:#10241a;color:#41c980;border:1px solid #1a7a45;}
+.toast.orange{background:#1f1810;color:#d4a017;border:1px solid #a16207;}
+.empty{text-align:center;padding:3rem 1rem;color:#525965;font-size:15px;}
+</style>
+</head>
+<body>
+<div id="loginScreen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0e1014;">
+  <div style="background:#161a20;border:1px solid #232830;border-radius:18px;padding:44px 32px;width:320px;text-align:center;">
+    <div style="font-size:34px;margin-bottom:10px;">🧑‍🍽️</div>
+    <h2 style="color:#e8eaed;margin:0 0 4px;font-size:21px;">Waiter</h2>
+    <p style="color:#8b9099;font-size:13px;margin:0 0 26px;">Enter restaurant PIN</p>
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="••••"
+      style="width:100%;padding:16px;font-size:24px;text-align:center;background:#0e1014;border:1px solid #2b313a;border-radius:11px;color:#fff;letter-spacing:10px;box-sizing:border-box;"/>
+    <button onclick="doLogin()" style="width:100%;margin-top:16px;padding:16px;background:#2563eb;border:none;border-radius:11px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;">Enter</button>
+    <p id="loginError" style="color:#f0635a;font-size:13px;margin:14px 0 0;display:none;"></p>
+  </div>
+</div>
+
+<div id="mainApp" style="display:none;">
+ <div class="wrap">
+  <div class="topbar">
+    <h1>TablePulse <span>Waiter</span></h1>
+    <span class="live">Live</span>
+  </div>
+  <div class="rest" id="restName">WhatsApp connected</div>
+  <div id="sub-banner" style="display:none;padding:12px 14px;border-radius:11px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;"></div>
+  <div class="tabs">
+    <div class="tab" id="tab-tables" onclick="switchTab('tables')">Tables <span class="count" id="tab-count"></span></div>
+    <div class="tab" id="tab-new" onclick="switchTab('new')">+ New Order</div>
+  </div>
+  <div id="view-tables">
+    <div id="waiter-orders"></div>
+  </div>
+  <div id="view-new" style="display:none;">
+    <div class="card">
+      <label>Customer name</label><input type="text" id="w-name" placeholder="Enter name"/>
       <label>WhatsApp number</label><input type="tel" id="w-phone" placeholder="91XXXXXXXXXX"/>
       <label>Table number</label><input type="number" id="w-table" placeholder="e.g. 5"/>
       <label style="margin-top:4px;">Courses ordered</label>
