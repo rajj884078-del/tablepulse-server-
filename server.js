@@ -101,6 +101,7 @@ MongoClient.connect(MONGODB_URI).then(client => {
   console.log('MongoDB connected');
   scheduleWeeklyReports();
   scheduleSubscriptionChecks();
+  scheduleAutoArchive();
 }).catch(err => {
   console.error('[boot] MongoDB connection failed:', err.message);
 });
@@ -655,6 +656,33 @@ app.get('/admin/subscription-links/:pin', adminLimiter, requireAdmin, async (req
   if (!monthly || !yearly) return res.status(500).json({ ok: false, error: 'Failed to create payment links' });
   res.json({ ok: true, monthly, yearly });
 });
+
+// ── AUTO-ARCHIVE STALE ORDERS ────────────────────────────────────────────────
+// Orders not marked done after 6 hours are auto-archived.
+// Prevents forgotten tables from polluting staff screens indefinitely.
+const AUTO_ARCHIVE_AFTER_MS = 6 * 60 * 60 * 1000;
+
+async function runAutoArchive() {
+  try {
+    const cutoff = new Date(Date.now() - AUTO_ARCHIVE_AFTER_MS);
+    const result = await db.collection('orders').updateMany(
+      { status: 'active', createdAt: { $lt: cutoff } },
+      { $set: { status: 'auto-archived', completedAt: new Date() } }
+    );
+    if (result.modifiedCount > 0) {
+      console.log('[auto-archive] archived ' + result.modifiedCount + ' stale orders');
+    }
+  } catch (e) {
+    console.error('[auto-archive] error:', e.message);
+  }
+}
+
+function scheduleAutoArchive() {
+  // Run once on boot, then every hour.
+  runAutoArchive();
+  setInterval(runAutoArchive, 60 * 60 * 1000);
+  console.log('[auto-archive] scheduler started — archiving orders older than 6h');
+}
 
 // ── RESTAURANT SLUG ROUTES ────────────────────────────────────────────────────
 const readFileSafe = require('fs').readFileSync;
