@@ -6,129 +6,135 @@
 <title>TablePulse — Waiter</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0d1117;color:#e6edf3;padding:14px;padding-bottom:40px;}
-.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
-h1{font-size:20px;font-weight:700;letter-spacing:-0.3px;}
-h1 span{font-size:13px;font-weight:500;color:#7d8590;}
-.live{font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;background:#13261a;color:#3fb950;display:inline-flex;align-items:center;gap:5px;}
-.live::before{content:'';width:6px;height:6px;border-radius:50%;background:#3fb950;}
-.rest{font-size:13px;color:#7d8590;margin-bottom:16px;}
-.card{background:#161b22;border:1px solid #21262d;border-radius:16px;padding:16px;margin-bottom:12px;}
-.section-title{font-size:12px;font-weight:700;color:#7d8590;text-transform:uppercase;letter-spacing:1px;margin:18px 4px 10px;}
-label{display:block;font-size:12px;color:#7d8590;margin-bottom:6px;font-weight:500;}
-input[type=text],input[type=tel],input[type=number]{width:100%;padding:14px;border:1px solid #30363d;border-radius:12px;font-size:16px;margin-bottom:14px;background:#0d1117;color:#e6edf3;}
-input::placeholder{color:#484f58;}
-input:focus{outline:none;border-color:#388bfd;}
-.course-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #21262d;}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0e1014;color:#e8eaed;padding:0;padding-bottom:90px;}
+.wrap{max-width:720px;margin:0 auto;padding:14px;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+h1{font-size:18px;font-weight:700;letter-spacing:-0.2px;}
+h1 span{font-size:12px;font-weight:500;color:#8b9099;}
+.live{font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;background:#10241a;color:#41c980;display:inline-flex;align-items:center;gap:5px;}
+.live::before{content:'';width:6px;height:6px;border-radius:50%;background:#41c980;}
+.rest{font-size:12px;color:#8b9099;margin-bottom:14px;}
+.tabs{display:flex;gap:6px;background:#161a20;border:1px solid #232830;border-radius:12px;padding:5px;margin-bottom:16px;}
+.tab{flex:1;padding:11px;text-align:center;font-size:14px;font-weight:600;color:#8b9099;border-radius:8px;cursor:pointer;transition:all .12s;}
+.tab.on{background:#232830;color:#e8eaed;}
+.tab .count{font-size:12px;color:#41c980;margin-left:4px;}
+.card{background:#161a20;border:1px solid #232830;border-radius:14px;padding:16px;margin-bottom:12px;}
+label{display:block;font-size:12px;color:#8b9099;margin-bottom:6px;font-weight:500;}
+input[type=text],input[type=tel],input[type=number]{width:100%;padding:14px;border:1px solid #2b313a;border-radius:11px;font-size:16px;margin-bottom:14px;background:#0e1014;color:#e8eaed;}
+input::placeholder{color:#525965;}
+input:focus{outline:none;border-color:#3b82f6;}
+.course-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #232830;}
 .course-row:last-of-type{border-bottom:none;}
-.course-check{width:24px;height:24px;border-radius:7px;border:2px solid #30363d;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;flex-shrink:0;transition:all .15s;}
-.course-check.on{background:#238636;border-color:#238636;color:#fff;}
+.course-check{width:26px;height:26px;border-radius:7px;border:2px solid #2b313a;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;flex-shrink:0;transition:all .12s;}
+.course-check.on{background:#2563eb;border-color:#2563eb;color:#fff;}
 .course-label{flex:1;font-size:16px;font-weight:500;}
-.qty{width:64px;padding:8px;border:1px solid #30363d;border-radius:10px;font-size:15px;text-align:center;background:#0d1117;color:#e6edf3;margin:0;}
-.toggle-row{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid #9e6a03;border-radius:12px;background:#1c1607;margin:14px 0;cursor:pointer;}
-.toggle-label{font-size:14px;color:#e3b341;flex:1;font-weight:500;}
-.toggle-box{width:24px;height:24px;border-radius:7px;border:2px solid #9e6a03;display:flex;align-items:center;justify-content:center;font-size:14px;color:#e3b341;flex-shrink:0;}
-.toggle-box.on{background:#9e6a03;color:#fff;}
-.dest-row{display:flex;gap:10px;margin:10px 0 16px;}
-.chip{flex:1;padding:12px;border:1px solid #30363d;border-radius:12px;font-size:14px;font-weight:600;color:#7d8590;cursor:pointer;text-align:center;transition:all .15s;}
-.chip.on{background:#13261a;color:#3fb950;border-color:#238636;}
-.btn{width:100%;padding:16px;background:#238636;color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;}
-.btn:active{background:#1f7a30;transform:scale(0.98);}
+.qty{width:60px;padding:8px;border:1px solid #2b313a;border-radius:9px;font-size:15px;text-align:center;background:#0e1014;color:#e8eaed;margin:0;}
+.toggle-row{display:flex;align-items:center;gap:12px;padding:13px;border:1px solid #2b313a;border-radius:11px;background:#12161c;margin:14px 0;cursor:pointer;}
+.toggle-label{font-size:14px;color:#c9ced6;flex:1;font-weight:500;}
+.toggle-box{width:26px;height:26px;border-radius:7px;border:2px solid #2b313a;display:flex;align-items:center;justify-content:center;font-size:14px;color:#c9ced6;flex-shrink:0;}
+.toggle-box.on{background:#a16207;border-color:#a16207;color:#fff;}
+.dest-row{display:flex;gap:10px;margin:10px 0 18px;}
+.chip{flex:1;padding:12px;border:1px solid #2b313a;border-radius:11px;font-size:14px;font-weight:600;color:#8b9099;cursor:pointer;text-align:center;transition:all .12s;}
+.chip.on{background:#101a26;color:#5aa2f5;border-color:#2563eb;}
+.btn{width:100%;padding:16px;background:#2563eb;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;transition:transform .1s,opacity .1s;}
+.btn:active{transform:scale(0.98);}
 .btn:disabled{opacity:0.5;}
-.btn-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
-.btn-sm{flex:1;min-width:90px;padding:12px 10px;border:1px solid #30363d;border-radius:11px;background:#21262d;color:#e6edf3;font-size:13px;font-weight:600;cursor:pointer;text-align:center;transition:transform .1s,opacity .1s;-webkit-tap-highlight-color:transparent;}
-.btn-sm:active{opacity:.7;transform:scale(0.96);}
-.btn-sm.red{border-color:#3d1518;color:#f85149;background:#1a0f10;}
-.btn-sm.yellow{border-color:#3d2e09;color:#e3b341;background:#1a1407;}
-.btn-sm.star{border-color:#1f3a2a;color:#3fb950;background:#0f1a13;}
-.btn-sm.orange{border-color:#5a2c0a;color:#ff9f43;background:#1f1206;font-weight:700;}
-.tl-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #21262d;}
-.tl-row:last-child{border-bottom:none;}
-.tl-label{flex:1;font-size:14px;color:#7d8590;}
-.tl-label.ready{color:#3fb950;font-weight:600;}
-.tl-label.started{color:#ff9f43;font-weight:600;}
-.pill{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;}
-.pill-wait{background:#21262d;color:#7d8590;}
-.pill-ready{background:#13261a;color:#3fb950;}
-.pill-started{background:#1f1206;color:#ff9f43;}
-.toast{padding:14px;border-radius:12px;font-size:14px;font-weight:500;margin-bottom:12px;display:none;}
-.toast.green{background:#13261a;color:#3fb950;border:1px solid #1f3a2a;}
-.toast.orange{background:#1f1206;color:#ff9f43;border:1px solid #5a2c0a;}
-.empty{text-align:center;padding:3rem 1rem;color:#484f58;font-size:15px;}
-.sync-tag{display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;background:#1c1607;color:#e3b341;margin-top:5px;}
 .order-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;}
-.table-name{font-size:20px;font-weight:700;}
-.meta{font-size:13px;color:#7d8590;margin-top:3px;}
-.timer{font-size:13px;font-weight:700;padding:5px 11px;border-radius:20px;background:#21262d;color:#7d8590;white-space:nowrap;}
-.timer.warn{background:#1a0f10;color:#f85149;}
-.timer-wrap{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 2px;}
+.table-name{font-size:22px;font-weight:800;letter-spacing:-0.3px;}
+.meta{font-size:13px;color:#8b9099;margin-top:2px;}
+.age{font-size:12px;color:#525965;text-align:right;white-space:nowrap;}
+.sync-tag{display:inline-block;font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;background:#1a1407;color:#d4a017;margin-top:6px;letter-spacing:.3px;}
+.tl-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #1c2128;}
+.tl-row:last-child{border-bottom:none;}
+.tl-label{flex:1;font-size:14px;color:#c9ced6;}
+.chipstat{font-size:11px;font-weight:600;padding:3px 9px;border-radius:5px;}
+.chipstat.wait{background:#1c2128;color:#8b9099;}
+.chipstat.prep{background:#1f1810;color:#d4a017;}
+.chipstat.ready{background:#10241a;color:#41c980;}
+.timer-wrap{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 4px;}
+.timer{font-size:12px;font-weight:700;padding:4px 10px;border-radius:6px;background:#1c2128;color:#8b9099;white-space:nowrap;}
+.timer.warn{background:#241011;color:#f0635a;}
+.btn-row{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+.btn-sm{flex:1;min-width:84px;padding:12px 10px;border:1px solid #2b313a;border-radius:10px;background:#1c2128;color:#9aa0aa;font-size:13px;font-weight:600;cursor:pointer;text-align:center;transition:transform .1s,opacity .1s;}
+.btn-sm.primary{background:#2563eb;border-color:#2563eb;color:#fff;font-weight:700;flex:2;}
+.btn-sm.primary.orange{background:#c2660c;border-color:#c2660c;}
+.btn-sm.primary.green{background:#1a7a45;border-color:#1a7a45;}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;padding:13px 20px;border-radius:10px;font-size:14px;font-weight:600;display:none;z-index:50;max-width:90%;box-shadow:0 8px 24px rgba(0,0,0,.4);}
+.toast.green{background:#10241a;color:#41c980;border:1px solid #1a7a45;}
+.toast.orange{background:#1f1810;color:#d4a017;border:1px solid #a16207;}
+.empty{text-align:center;padding:3rem 1rem;color:#525965;font-size:15px;}
 </style>
 </head>
 <body>
-<div id="loginScreen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0d1117;">
-  <div style="background:#161b22;border:1px solid #21262d;border-radius:20px;padding:44px 32px;width:320px;text-align:center;">
-    <div style="font-size:38px;margin-bottom:10px;">🧑‍🍽️</div>
-    <h2 style="color:#e6edf3;margin:0 0 4px;font-size:22px;">Waiter</h2>
-    <p style="color:#7d8590;font-size:13px;margin:0 0 26px;">Enter restaurant PIN</p>
+<div id="loginScreen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0e1014;">
+  <div style="background:#161a20;border:1px solid #232830;border-radius:18px;padding:44px 32px;width:320px;text-align:center;">
+    <div style="font-size:34px;margin-bottom:10px;">🧑‍🍽️</div>
+    <h2 style="color:#e8eaed;margin:0 0 4px;font-size:21px;">Waiter</h2>
+    <p style="color:#8b9099;font-size:13px;margin:0 0 26px;">Enter restaurant PIN</p>
     <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="••••"
-      style="width:100%;padding:16px;font-size:24px;text-align:center;background:#0d1117;border:1px solid #30363d;border-radius:12px;color:#fff;letter-spacing:10px;box-sizing:border-box;"/>
-    <button onclick="doLogin()" style="width:100%;margin-top:16px;padding:16px;background:#238636;border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;">Enter</button>
-    <p id="loginError" style="color:#f85149;font-size:13px;margin:14px 0 0;display:none;"></p>
+      style="width:100%;padding:16px;font-size:24px;text-align:center;background:#0e1014;border:1px solid #2b313a;border-radius:11px;color:#fff;letter-spacing:10px;box-sizing:border-box;"/>
+    <button onclick="doLogin()" style="width:100%;margin-top:16px;padding:16px;background:#2563eb;border:none;border-radius:11px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;">Enter</button>
+    <p id="loginError" style="color:#f0635a;font-size:13px;margin:14px 0 0;display:none;"></p>
   </div>
 </div>
 
 <div id="mainApp" style="display:none;">
+ <div class="wrap">
   <div class="topbar">
     <h1>TablePulse <span>Waiter</span></h1>
     <span class="live">Live</span>
   </div>
-  
-<!-- Subscription warning banner -->
-<div id="sub-banner" style="display:none;padding:12px 14px;border-radius:12px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;"></div>
-
   <div class="rest" id="restName">WhatsApp connected</div>
-  <div id="w-toast" class="toast green"></div>
-
-  <div class="card">
-    <div class="section-title" style="margin-top:0;">New order</div>
-    <label>Customer name</label><input type="text" id="w-name" placeholder="Enter name"/>
-    <label>WhatsApp number</label><input type="tel" id="w-phone" placeholder="91XXXXXXXXXX"/>
-    <label>Table number</label><input type="number" id="w-table" placeholder="e.g. 5"/>
-    <label style="margin-top:4px;">Courses ordered</label>
-    <div class="course-row">
-      <div class="course-check on" id="chk-d" onclick="toggleCourse('d')">✓</div>
-      <span class="course-label">🍹 Drinks</span>
-      <input class="qty" id="qty-d" type="number" value="1" min="1"/>
-    </div>
-    <div class="course-row">
-      <div class="course-check on" id="chk-s" onclick="toggleCourse('s')">✓</div>
-      <span class="course-label">🥗 Starters</span>
-      <input class="qty" id="qty-s" type="number" value="1" min="1"/>
-    </div>
-    <div class="course-row">
-      <div class="course-check on" id="chk-m" onclick="toggleCourse('m')">✓</div>
-      <span class="course-label">🍛 Main course</span>
-      <input class="qty" id="qty-m" type="number" value="1" min="1"/>
-    </div>
-    <div class="toggle-row" onclick="toggleSync()">
-      <div class="toggle-box" id="sync-box"></div>
-      <span class="toggle-label">⏱ Drinks + starters together</span>
-    </div>
-    <label>Send to</label>
-    <div class="dest-row">
-      <div class="chip on" id="dest-k" onclick="toggleDest('k',event)">🔥 Kitchen</div>
-      <div class="chip on" id="dest-b" onclick="toggleDest('b',event)">🍹 Bar</div>
-    </div>
-    <button class="btn" id="place-btn" onclick="placeOrder()">Send order</button>
+  <div id="sub-banner" style="display:none;padding:12px 14px;border-radius:11px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;"></div>
+  <div class="tabs">
+    <div class="tab" id="tab-tables" onclick="switchTab('tables')">Tables <span class="count" id="tab-count"></span></div>
+    <div class="tab" id="tab-new" onclick="switchTab('new')">+ New Order</div>
   </div>
-
-  <div class="section-title">Active tables</div>
-  <div id="waiter-orders"></div>
+  <div id="view-tables">
+    <div id="waiter-orders"></div>
+  </div>
+  <div id="view-new" style="display:none;">
+    <div class="card">
+      <label>Customer name</label><input type="text" id="w-name" placeholder="Enter name"/>
+      <label>WhatsApp number</label><input type="tel" id="w-phone" placeholder="91XXXXXXXXXX"/>
+      <label>Table number</label><input type="number" id="w-table" placeholder="e.g. 5"/>
+      <label style="margin-top:4px;">Courses ordered</label>
+      <div class="course-row">
+        <div class="course-check on" id="chk-d" onclick="toggleCourse('d')">✓</div>
+        <span class="course-label">🍹 Drinks</span>
+        <input class="qty" id="qty-d" type="number" value="1" min="1"/>
+      </div>
+      <div class="course-row">
+        <div class="course-check on" id="chk-s" onclick="toggleCourse('s')">✓</div>
+        <span class="course-label">🥗 Starters</span>
+        <input class="qty" id="qty-s" type="number" value="1" min="1"/>
+      </div>
+      <div class="course-row">
+        <div class="course-check on" id="chk-m" onclick="toggleCourse('m')">✓</div>
+        <span class="course-label">🍛 Main course</span>
+        <input class="qty" id="qty-m" type="number" value="1" min="1"/>
+      </div>
+      <div class="toggle-row" onclick="toggleSync()">
+        <div class="toggle-box" id="sync-box"></div>
+        <span class="toggle-label">⏱ Drinks + starters together</span>
+      </div>
+      <label>Send to</label>
+      <div class="dest-row">
+        <div class="chip on" id="dest-k" onclick="toggleDest('k',event)">🔥 Kitchen</div>
+        <div class="chip on" id="dest-b" onclick="toggleDest('b',event)">🍹 Bar</div>
+      </div>
+      <button class="btn" id="place-btn" onclick="placeOrder()">Send order</button>
+    </div>
+  </div>
+ </div>
 </div>
+
+<div id="w-toast" class="toast green"></div>
 
 <script>
 var dK=true,dB=true,sync=false,cD=true,cS=true,cM=true;
 var avgStarter=18, avgMain=30;
+var currentTab='tables';
 
 (async function(){
   var token=localStorage.getItem('tp_token');
@@ -151,7 +157,7 @@ async function doLogin(){
   localStorage.setItem('tp_review_link',d.googleReviewLink||'');
   if(d.avgStarterMins)localStorage.setItem('tp_avg_starter',d.avgStarterMins);
   if(d.avgMainMins)localStorage.setItem('tp_avg_main',d.avgMainMins);
-  showApp(d.restaurantName);}catch(e){err.textContent='Server error.';err.style.display='block';}
+  showApp(d.restaurantName,d.subscriptionStatus,d.subscriptionExpiry);}catch(e){err.textContent='Server error.';err.style.display='block';}
 }
 document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('pinInput').addEventListener('keypress',function(e){if(e.key==='Enter')doLogin();});
@@ -163,15 +169,23 @@ function showApp(name, subStatus, subExpiry){
   if(name)document.getElementById('restName').textContent=name+' — WhatsApp connected';
   avgStarter=parseInt(localStorage.getItem('tp_avg_starter'))||18;
   avgMain=parseInt(localStorage.getItem('tp_avg_main'))||30;
+  switchTab('tables');
   loadOrders();setInterval(loadOrders,8000);
   setInterval(tickTimers,1000);
+}
+function switchTab(tab){
+  currentTab=tab;
+  document.getElementById('view-tables').style.display = tab==='tables'?'block':'none';
+  document.getElementById('view-new').style.display = tab==='new'?'block':'none';
+  document.getElementById('tab-tables').classList.toggle('on',tab==='tables');
+  document.getElementById('tab-new').classList.toggle('on',tab==='new');
 }
 async function post(ep,body){
   try{var t=localStorage.getItem('tp_token');var r=await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json','x-auth-token':t},body:JSON.stringify(body)});return await r.json();}catch(e){return null;}
 }
 function toast(msg,cls){
   var el=document.getElementById('w-toast');el.className='toast '+(cls||'green');
-  el.textContent=msg;el.style.display='block';setTimeout(function(){el.style.display='none';},4000);
+  el.textContent=msg;el.style.display='block';setTimeout(function(){el.style.display='none';},3500);
 }
 function toggleCourse(c){
   if(c==='d'){cD=!cD;document.getElementById('chk-d').classList.toggle('on',cD);document.getElementById('chk-d').textContent=cD?'✓':'';}
@@ -201,7 +215,7 @@ async function placeOrder(){
   btn.disabled=false;btn.textContent='Send order';
   document.getElementById('w-name').value='';document.getElementById('w-phone').value='';document.getElementById('w-table').value='';
   sync=false;document.getElementById('sync-box').classList.remove('on');document.getElementById('sync-box').textContent='';
-  if(res)toast('WhatsApp sent to '+name+' ji! ✅','green');else toast('Server busy — try again','orange');
+  if(res){toast('WhatsApp sent to '+name+' ji! ✅','green');switchTab('tables');}else toast('Server busy — try again','orange');
   loadOrders();
 }
 async function loadOrders(){
@@ -211,47 +225,49 @@ function gc(o,type){return (o.courses||[]).find(function(c){return c.type===type
 
 function renderOrders(orders){
   var el=document.getElementById('waiter-orders');
+  document.getElementById('tab-count').textContent = orders.length ? '('+orders.length+')' : '';
   if(!orders.length){el.innerHTML='<div class="empty">No active tables yet</div>';return;}
   el.innerHTML=orders.map(function(o){
     var courses=o.courses||[];
     var st=gc(o,'starters');var main=gc(o,'main');
     var rows=courses.map(function(c){
       var lbl=c.type==='drinks'?'🍹 Drinks':c.type==='starters'?'🥗 Starters':'🍛 Main course';
-      var cls=c.status==='ready'?'ready':c.status==='started'?'started':'';
-      var pill=c.status==='ready'?'pill-ready':c.status==='started'?'pill-started':'pill-wait';
+      var sc=c.status==='ready'?'ready':c.status==='started'?'prep':'wait';
       var plbl=c.status==='ready'?'Ready':c.status==='started'?'Preparing':'Waiting';
-      return '<div class="tl-row"><span class="tl-label '+cls+'">'+lbl+' x'+c.qty+'</span><span class="pill '+pill+'">'+plbl+'</span></div>';
+      return '<div class="tl-row"><span class="tl-label">'+lbl+' ×'+c.qty+'</span><span class="chipstat '+sc+'">'+plbl+'</span></div>';
     }).join('');
-    // Timers
     var timers='';
-    // Starter timer: from order created until starters ready
     if(st&&st.status!=='ready'){
       timers+='<span class="timer" data-since="'+o.createdAt+'" data-avg="'+avgStarter+'" data-lbl="Starter">Starter 0m</span>';
     }
-    // Main timer: from mainStartedAt until main ready
     if(main&&main.status==='started'&&o.mainStartedAt){
       timers+='<span class="timer" data-since="'+o.mainStartedAt+'" data-avg="'+avgMain+'" data-lbl="Main">Main 0m</span>';
     }
     var showStartMain=st&&st.status==='ready'&&main&&main.status==='waiting';
-    // Serve together: both starters+main ordered, main still waiting, starters not done yet
     var showServeTogether=st&&main&&st.status==='waiting'&&main.status==='waiting';
+    var allReady = courses.every(function(c){return c.status==='ready';});
+    var btns='';
+    if(showServeTogether){
+      btns+='<button class="btn-sm primary orange" onclick="serveTogether(\''+o._id+'\',\''+esc(o.orderName)+'\')">🚀 Serve together</button>';
+    } else if(showStartMain){
+      btns+='<button class="btn-sm primary orange" onclick="startMain(\''+o._id+'\',\''+esc(o.orderName)+'\')">▶ Start main</button>';
+    }
+    var reviewClass = (allReady && !showStartMain && !showServeTogether) ? 'btn-sm primary green' : 'btn-sm';
+    btns+='<button class="'+reviewClass+'" onclick="sendReview(\''+o._id+'\')">⭐ Review</button>';
+    btns+='<button class="btn-sm" onclick="sendDelay(\''+o._id+'\')">⏰ Delay</button>';
+    btns+='<button class="btn-sm" onclick="markDone(\''+o._id+'\')">✓ Done</button>';
     return '<div class="card"><div class="order-top"><div>'+
       '<div class="table-name">Table '+o.table+'</div>'+
-      '<div class="meta">'+o.orderName+' · '+o.phone+'</div>'+
-      (o.sameTime?'<span class="sync-tag">⏱ Same-time</span>':'')+
-      '</div><div style="font-size:12px;color:#484f58;text-align:right;">'+ta(o.createdAt)+'</div></div>'+
+      '<div class="meta">'+esc(o.orderName)+'</div>'+
+      (o.sameTime?'<span class="sync-tag">⏱ SAME-TIME</span>':'')+
+      '</div><div class="age">'+ta(o.createdAt)+'</div></div>'+
       (timers?'<div class="timer-wrap">'+timers+'</div>':'')+
       rows+
-      '<div class="btn-row">'+
-      (showServeTogether?'<button class="btn-sm orange" style="flex:2;" onclick="serveTogether(\''+o._id+'\',\''+o.orderName+'\')">🚀 Serve together</button>':'')+
-      (!showServeTogether&&showStartMain?'<button class="btn-sm orange" onclick="startMain(\''+o._id+'\',\''+o.orderName+'\')">▶ Start main</button>':'')+
-      '<button class="btn-sm star" onclick="sendReview(\''+o._id+'\')">⭐ Review</button>'+
-      '<button class="btn-sm yellow" onclick="sendDelay(\''+o._id+'\')">⏰ Delay</button>'+
-      '<button class="btn-sm red" onclick="markDone(\''+o._id+'\')">✓ Done</button>'+
-      '</div></div>';
+      '<div class="btn-row">'+btns+'</div></div>';
   }).join('');
   tickTimers();
 }
+function esc(s){return String(s).replace(/'/g,"\\'").replace(/"/g,'&quot;');}
 function tickTimers(){
   var els=document.querySelectorAll('.timer');
   els.forEach(function(t){
@@ -269,7 +285,6 @@ async function startMain(id,name){
   loadOrders();
 }
 async function serveTogether(id,name){
-  // Mark starters ready first, then immediately start main
   await post('/update-course',{orderId:id,courseType:'starters',status:'ready'});
   await post('/update-course',{orderId:id,courseType:'main',status:'started'});
   toast('🚀 Both courses started for '+name+' — WhatsApp sent ✅','orange');
@@ -294,42 +309,31 @@ function showSubBanner(status, expiry) {
   if (status === 'warning' && expiry) {
     var d = new Date(expiry).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
     el.style.display = 'block';
-    el.style.background = '#1c1607';
-    el.style.border = '1px solid #9e6a03';
-    el.style.color = '#e3b341';
+    el.style.background = '#1f1810';
+    el.style.border = '1px solid #a16207';
+    el.style.color = '#d4a017';
     el.textContent = '⚠️ Renew before ' + d + ' to continue using TablePulse';
   } else if (status === 'expired') {
     el.style.display = 'block';
-    el.style.background = '#1a0f10';
+    el.style.background = '#241011';
     el.style.border = '1px solid #6e1a1a';
-    el.style.color = '#f85149';
+    el.style.color = '#f0635a';
     el.textContent = '🔴 Subscription expired — contact restaurant owner to renew';
   }
 }
 
-
-// Global tap feedback for dynamically rendered buttons
 document.addEventListener('touchstart', function(e) {
-  var el = e.target.closest('button');
-  if (!el) return;
-  el.style.transform = 'scale(0.93)';
-  el.style.opacity = '0.75';
+  var el = e.target.closest('button'); if (!el) return;
+  el.style.transform = 'scale(0.94)'; el.style.opacity = '0.8';
 }, { passive: true });
 document.addEventListener('touchend', function(e) {
-  var el = e.target.closest('button');
-  if (!el) return;
-  setTimeout(function() {
-    el.style.transform = '';
-    el.style.opacity = '';
-  }, 120);
+  var el = e.target.closest('button'); if (!el) return;
+  setTimeout(function(){ el.style.transform=''; el.style.opacity=''; }, 110);
 }, { passive: true });
 document.addEventListener('touchcancel', function(e) {
-  var el = e.target.closest('button');
-  if (!el) return;
-  el.style.transform = '';
-  el.style.opacity = '';
+  var el = e.target.closest('button'); if (!el) return;
+  el.style.transform=''; el.style.opacity='';
 }, { passive: true });
-
 </script>
 </body>
 </html>
