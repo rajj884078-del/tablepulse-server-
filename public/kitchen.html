@@ -139,6 +139,7 @@ document.addEventListener('DOMContentLoaded',function(){
 });
 function showApp(name, subStatus, subExpiry){
   initPWA();
+  requestWakeLock();
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('mainApp').style.display='block';
   showSubBanner(subStatus||'active', subExpiry||null);
@@ -354,6 +355,26 @@ function logout() {
   localStorage.clear();
   location.reload();
 }
+
+
+// ── Wake Lock: keep screen on during shift ────────────────────────────────────
+var wakeLock = null;
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    console.log('[wakelock] screen lock acquired');
+    // Re-acquire if released (e.g. tab becomes visible again)
+    wakeLock.addEventListener('release', () => {
+      console.log('[wakelock] released — reacquiring');
+      requestWakeLock();
+    });
+  } catch (e) { console.log('[wakelock] failed:', e.message); }
+}
+// Re-acquire when page becomes visible again
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') requestWakeLock();
+});
 
 </script>
 </body>
