@@ -34,7 +34,8 @@ h1 span{font-size:12px;font-weight:500;color:#8b9099;}
 .sync-tag{display:inline-block;font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;background:#1a1407;color:#d4a017;margin-top:5px;letter-spacing:.3px;}
 .coord-notice{background:#101826;border:1px solid #1e3a5a;border-radius:9px;padding:11px 13px;margin-bottom:10px;font-size:13px;font-weight:600;color:#5aa2f5;}
 .act-btn{width:100%;padding:16px;border:1.5px solid #1a7a45;border-radius:11px;background:#1a7a45;color:#fff;font-size:15px;font-weight:700;cursor:pointer;text-align:center;transition:transform .1s,opacity .1s;margin-bottom:8px;}
-.act-btn.bell{background:#101826;border-color:#1e3a5a;color:#5aa2f5;font-size:14px;font-weight:600;}
+.act-btn.bell{background:#101826;border-color:#1e3a5a;color:#5aa2f5;font-size:14px;font-weight:600;transition:transform .12s,background .12s,border-color .12s;}
+.act-btn.bell.tapped{background:#162040;border-color:#3b6fd4;transform:scale(0.91);}
 .status-line{font-size:14px;font-weight:600;padding:8px 0;color:#41c980;}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;padding:13px 20px;border-radius:10px;font-size:14px;font-weight:600;display:none;z-index:50;max-width:90%;box-shadow:0 8px 24px rgba(0,0,0,.4);}
 .toast.green{background:#10241a;color:#41c980;border:1px solid #1a7a45;}
@@ -175,11 +176,11 @@ function renderOrders(orders){
     var coord=o.bNotified?'<div class="coord-notice">Coordinate with kitchen — serve drinks + food together</div>':'';
     var action=drinks.status==='waiting'
       ?'<button class="act-btn" onclick="drinksReady(\''+o._id+'\')">Drinks ready — all done</button>'+
-       '<button class="act-btn bell" onclick="notifyWaiterBar(\''+o._id+'\',\''+o.table+'\')">Partial ready — alert waiter</button>'
+       '<button class="act-btn bell" onclick="notifyWaiterBar(this,\''+o._id+'\',\''+o.table+'\')">🔔 Partial ready — alert waiter</button>'
       :'<div class="status-line">Drinks served</div>';
     return '<div class="card"><div class="order-top"><div>'+
       '<div class="table-name">Table '+o.table+'</div>'+
-      '<div class="meta">'+o.orderName+' Drinks x'+drinks.qty+'</div>'+
+      '<div class="meta">'+o.orderName+' · Drinks x'+drinks.qty+'</div>'+
       (o.sameTime?'<span class="sync-tag">SAME-TIME</span>':'')+
       '</div><div class="age">'+ta(o.createdAt)+'</div></div>'+
       coord+action+'</div>';
@@ -189,10 +190,13 @@ async function drinksReady(id){
   await post('/update-course',{orderId:id,courseType:'drinks',status:'ready'});
   toast('Drinks marked ready','green');loadOrders();
 }
-async function notifyWaiterBar(id, table){
+async function notifyWaiterBar(btn, id, table){
+  // Bell tap feedback
+  btn.classList.add('tapped');
+  setTimeout(function(){ btn.classList.remove('tapped'); }, 200);
   var msg='Table '+table+', drinks ready';
   await post('/notify-waiter',{orderId:id,message:msg});
-  toast('Waiter notified','blue');
+  toast('🔔 Waiter notified','blue');
 }
 function showSubBanner(status, expiry){
   var el=document.getElementById('sub-banner');if(!el)return;
