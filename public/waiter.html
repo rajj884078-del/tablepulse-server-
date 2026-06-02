@@ -152,6 +152,7 @@ input:focus{outline:none;border-color:#3b82f6;}
 <script>
 var dK=true,dB=true,sync=false,cD=true,cS=true,cM=true;
 var activeOrders=[];
+var spokenAlerts={};
 var soundOn=localStorage.getItem('tp_sound')!=='off';
 var prevCourseStates={}; // track previous course statuses to detect changes
 var avgStarter=18, avgMain=30;
@@ -277,8 +278,20 @@ function checkReadyAlerts(orders){
     });
   });
 }
+function checkWaiterAlerts(orders){
+  orders.forEach(function(o){
+    if(!o.waiterAlert||!o.waiterAlert.at)return;
+    var key=o._id+'-'+new Date(o.waiterAlert.at).getTime();
+    if(spokenAlerts[key])return;
+    var age=(new Date()-new Date(o.waiterAlert.at))/1000;
+    if(age>30)return;
+    spokenAlerts[key]=true;
+    speak(o.waiterAlert.message);
+    toast('Bell: '+o.waiterAlert.message,'green');
+  });
+}
 async function loadOrders(){
-  try{var t=localStorage.getItem('tp_token');var r=await fetch('/active-orders',{headers:{'x-auth-token':t}});if(r.status===401){localStorage.removeItem('tp_token');location.reload();return;}activeOrders=await r.json();checkReadyAlerts(activeOrders);renderOrders(activeOrders);showConn(true);}catch(e){showConn(false);}
+  try{var t=localStorage.getItem('tp_token');var r=await fetch('/active-orders',{headers:{'x-auth-token':t}});if(r.status===401){localStorage.removeItem('tp_token');location.reload();return;}activeOrders=await r.json();checkReadyAlerts(activeOrders);checkWaiterAlerts(activeOrders);renderOrders(activeOrders);showConn(true);}catch(e){showConn(false);}
 }
 function gc(o,type){return (o.courses||[]).find(function(c){return c.type===type;});}
 
