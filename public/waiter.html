@@ -97,12 +97,12 @@ input:focus{outline:none;border-color:#3b82f6;}
   <div id="sub-banner" style="display:none;padding:12px 14px;border-radius:11px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;"></div>
   <div id="conn-banner" style="display:none;padding:12px 14px;border-radius:11px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;background:#241011;border:1px solid #6e1a1a;color:#f0635a;">⚠️ Connection lost — retrying...</div>
   <div class="voice-bar" onclick="toggleSound()" style="display:flex;align-items:center;gap:12px;padding:13px 14px;background:#161a20;border:1px solid #232830;border-radius:11px;margin-bottom:14px;cursor:pointer;">
-    <div id="w-sound-box" style="width:36px;height:36px;border-radius:9px;border:1.5px solid #2b313a;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">🔇</div>
+    <div id="w-sound-box" style="width:36px;height:36px;border-radius:9px;border:1.5px solid #1a7a45;background:#10241a;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">🔊</div>
     <div style="flex:1;">
       <strong style="font-size:14px;font-weight:600;color:#e8eaed;display:block;">Voice alerts</strong>
-      <span id="w-sound-hint" style="font-size:12px;color:#8b9099;">Tap to enable — alerts when food is ready</span>
+      <span id="w-sound-hint" style="font-size:12px;color:#8b9099;">Voice alerts active — tap to disable</span>
     </div>
-    <span id="w-voice-status" style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:5px;background:#1c2128;color:#8b9099;">OFF</span>
+    <span id="w-voice-status" style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:5px;background:#10241a;color:#41c980;">ON</span>
   </div>
   <div class="tabs">
     <div class="tab" id="tab-tables" onclick="switchTab('tables')">Tables <span class="count" id="tab-count"></span></div>
@@ -152,7 +152,7 @@ input:focus{outline:none;border-color:#3b82f6;}
 <script>
 var dK=true,dB=true,sync=false,cD=true,cS=true,cM=true;
 var activeOrders=[];
-var soundOn=false;
+var soundOn=localStorage.getItem('tp_sound')!=='off';
 var prevCourseStates={}; // track previous course statuses to detect changes
 var avgStarter=18, avgMain=30;
 var currentTab='tables';
@@ -248,6 +248,7 @@ async function placeOrder(){
 }
 function toggleSound(){
   soundOn=!soundOn;
+  localStorage.setItem('tp_sound', soundOn?'on':'off');
   document.getElementById('w-sound-box').textContent=soundOn?'🔊':'🔇';
   document.getElementById('w-sound-box').style.background=soundOn?'#10241a':'transparent';
   document.getElementById('w-sound-box').style.borderColor=soundOn?'#1a7a45':'#2b313a';
