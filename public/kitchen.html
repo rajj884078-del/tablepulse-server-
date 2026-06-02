@@ -39,7 +39,8 @@ h1 span{font-size:12px;font-weight:500;color:#8b9099;}
 .actions{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
 .act-btn{width:100%;padding:16px;border:1.5px solid #2b313a;border-radius:11px;background:#1c2128;color:#9aa0aa;font-size:15px;font-weight:700;cursor:pointer;text-align:center;transition:transform .1s,opacity .1s;}
 .act-btn.primary{background:#1a7a45;border-color:#1a7a45;color:#fff;}
-.act-btn.bell{background:#101826;border-color:#1e3a5a;color:#5aa2f5;font-size:14px;font-weight:600;}
+.act-btn.bell{background:#101826;border-color:#1e3a5a;color:#5aa2f5;font-size:14px;font-weight:600;transition:transform .12s,background .12s,border-color .12s;}
+.act-btn.bell.tapped{background:#162040;border-color:#3b6fd4;transform:scale(0.91);}
 .act-btn.secondary{background:#12161c;border-color:#2b313a;color:#5aa2f5;font-size:14px;font-weight:600;}
 .status-line{font-size:14px;font-weight:600;padding:6px 0;color:#41c980;}
 .wait-line{font-size:13px;color:#8b9099;padding:5px 0;}
@@ -201,13 +202,13 @@ function renderOrders(orders){
     if(sameTimeNotify) actions+='<button class="act-btn secondary" onclick="notifyBar(\''+o._id+'\')">🔔 Notify barman — same-time order</button>';
     if(st&&st.status==='waiting'){
       actions+='<button class="act-btn primary" onclick="updateCourse(\''+o._id+'\',\'starters\',\'ready\')">✅ Starters ready — all done</button>';
-      actions+='<button class="act-btn bell" onclick="notifyWaiter(\''+o._id+'\',\''+o.table+'\',\'starters\')">🔔 Partial ready — alert waiter</button>';
+      actions+='<button class="act-btn bell" onclick="notifyWaiter(this,\''+o._id+'\',\''+o.table+'\')">🔔 Partial ready — alert waiter</button>';
     }
     if(st&&st.status==='ready') actions+='<div class="status-line">✅ Starters done</div>';
     if(main&&main.status==='waiting') actions+='<div class="wait-line">Main course — waiting for waiter to start</div>';
     if(main&&main.status==='started'){
       actions+='<button class="act-btn primary" onclick="updateCourse(\''+o._id+'\',\'main\',\'ready\')">✅ Main ready — all done</button>';
-      actions+='<button class="act-btn bell" onclick="notifyWaiter(\''+o._id+'\',\''+o.table+'\',\'main\')">🔔 Partial ready — alert waiter</button>';
+      actions+='<button class="act-btn bell" onclick="notifyWaiter(this,\''+o._id+'\',\''+o.table+'\')">🔔 Partial ready — alert waiter</button>';
     }
     if(main&&main.status==='ready') actions+='<div class="status-line">✅ Main done</div>';
     return '<div class="card'+(isUrgent?' urgent':'')+'">'+
@@ -232,8 +233,12 @@ async function notifyBar(id){
   await post('/notify-bar',{orderId:id});
   toast('🔔 Barman notified','blue');loadOrders();
 }
-async function notifyWaiter(id, table, type){
-  var msg='Table '+table+', '+(type==='main'?'main course':'starters')+' ready';
+async function notifyWaiter(btn, id, table){
+  // Bell tap feedback — deeper scale + color flash
+  btn.classList.add('tapped');
+  setTimeout(function(){ btn.classList.remove('tapped'); }, 200);
+  // Always say "food ready" regardless of course type
+  var msg='Table '+table+', food ready';
   await post('/notify-waiter',{orderId:id,message:msg});
   toast('🔔 Waiter notified','blue');
 }
