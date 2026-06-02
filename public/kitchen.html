@@ -20,42 +20,29 @@ h1 span{font-size:12px;font-weight:500;color:#8b9099;}
 .live{font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;background:#10241a;color:#41c980;display:inline-flex;align-items:center;gap:5px;}
 .live::before{content:'';width:6px;height:6px;border-radius:50%;background:#41c980;}
 .rest{font-size:12px;color:#8b9099;margin-bottom:12px;}
-
-/* Voice toggle */
 .voice-bar{display:flex;align-items:center;gap:12px;padding:13px 14px;background:#161a20;border:1px solid #232830;border-radius:11px;margin-bottom:14px;cursor:pointer;}
-.voice-icon{width:36px;height:36px;border-radius:9px;border:1.5px solid #2b313a;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
-.voice-icon.on{background:#10241a;border-color:#1a7a45;}
+.voice-icon{width:36px;height:36px;border-radius:9px;border:1.5px solid #1a7a45;background:#10241a;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
 .voice-label{flex:1;}
 .voice-label strong{font-size:14px;font-weight:600;color:#e8eaed;display:block;}
 .voice-label span{font-size:12px;color:#8b9099;}
-.voice-status{font-size:11px;font-weight:700;padding:3px 9px;border-radius:5px;}
-.voice-status.on{background:#10241a;color:#41c980;}
-.voice-status.off{background:#1c2128;color:#8b9099;}
-
-/* Cards */
+.voice-status{font-size:11px;font-weight:700;padding:3px 9px;border-radius:5px;background:#10241a;color:#41c980;}
 .card{background:#161a20;border:1px solid #232830;border-radius:14px;padding:16px;margin-bottom:10px;}
 .card.urgent{border-color:#c2660c;border-width:1.5px;}
 @keyframes urgentpulse{0%,100%{box-shadow:0 0 0 0 rgba(194,102,12,0.3);}60%{box-shadow:0 0 0 7px rgba(194,102,12,0);}}
 .card.urgent{animation:urgentpulse 2s infinite;}
-
-/* Urgent banner */
 .urgent-banner{background:#c2660c;color:#fff;font-size:13px;font-weight:800;padding:9px 12px;border-radius:8px;margin-bottom:12px;text-align:center;letter-spacing:.4px;}
-
 .order-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
 .table-name{font-size:22px;font-weight:800;letter-spacing:-0.3px;}
 .meta{font-size:12px;color:#8b9099;margin-top:2px;}
 .sync-tag{display:inline-block;font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;background:#1a1407;color:#d4a017;margin-top:5px;letter-spacing:.3px;}
 .elapsed{font-size:12px;font-weight:700;color:#c2660c;white-space:nowrap;}
-
-/* Action area */
 .actions{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
 .act-btn{width:100%;padding:16px;border:1.5px solid #2b313a;border-radius:11px;background:#1c2128;color:#9aa0aa;font-size:15px;font-weight:700;cursor:pointer;text-align:center;transition:transform .1s,opacity .1s;}
 .act-btn.primary{background:#1a7a45;border-color:#1a7a45;color:#fff;}
+.act-btn.bell{background:#101826;border-color:#1e3a5a;color:#5aa2f5;font-size:14px;font-weight:600;}
 .act-btn.secondary{background:#12161c;border-color:#2b313a;color:#5aa2f5;font-size:14px;font-weight:600;}
 .status-line{font-size:14px;font-weight:600;padding:6px 0;color:#41c980;}
 .wait-line{font-size:13px;color:#8b9099;padding:5px 0;}
-
-/* Toast */
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;padding:13px 20px;border-radius:10px;font-size:14px;font-weight:600;display:none;z-index:50;max-width:90%;box-shadow:0 8px 24px rgba(0,0,0,.4);}
 .toast.green{background:#10241a;color:#41c980;border:1px solid #1a7a45;}
 .toast.orange{background:#1f1810;color:#d4a017;border:1px solid #a16207;}
@@ -91,12 +78,12 @@ h1 span{font-size:12px;font-weight:500;color:#8b9099;}
   <div id="conn-banner" style="display:none;padding:12px 14px;border-radius:11px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;background:#241011;border:1px solid #6e1a1a;color:#f0635a;">⚠️ Connection lost — retrying...</div>
 
   <div class="voice-bar" onclick="toggleSound()">
-    <div class="voice-icon" id="sound-box">🔇</div>
+    <div id="sound-box" class="voice-icon">🔊</div>
     <div class="voice-label">
       <strong>Voice alerts</strong>
-      <span id="sound-hint">Tap to enable — required for alerts</span>
+      <span id="sound-hint">Voice alerts active — tap to disable</span>
     </div>
-    <span class="voice-status off" id="voice-status">OFF</span>
+    <span id="voice-status" class="voice-status">ON</span>
   </div>
 
   <div class="section-title">Active food orders</div>
@@ -107,7 +94,7 @@ h1 span{font-size:12px;font-weight:500;color:#8b9099;}
 <div id="k-toast" class="toast orange"></div>
 
 <script>
-var soundOn=localStorage.getItem("tp_sound")!=="off";
+var soundOn=localStorage.getItem('tp_sound')!=='off';
 var announcedNew={};
 var announcedMain={};
 var firstLoad=true;
@@ -138,12 +125,12 @@ document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('pinInput').addEventListener('keypress',function(e){if(e.key==='Enter')doLogin();});
 });
 function showApp(name, subStatus, subExpiry){
-  initPWA();
-  requestWakeLock();
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('mainApp').style.display='block';
   showSubBanner(subStatus||'active', subExpiry||null);
   if(name)document.getElementById('restName').textContent=name+' — Kitchen';
+  initPWA();
+  requestWakeLock();
   loadOrders();setInterval(loadOrders,5000);
 }
 function toggleSound(){
@@ -163,12 +150,8 @@ function toggleSound(){
 }
 function speak(text){
   if(!soundOn)return;
-  try{
-    var u=new SpeechSynthesisUtterance(text);
-    u.lang='en-IN'; u.rate=0.95; u.pitch=1;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
-  }catch(e){}
+  try{var u=new SpeechSynthesisUtterance(text);u.lang='en-IN';u.rate=0.95;u.pitch=1;
+  window.speechSynthesis.cancel();window.speechSynthesis.speak(u);}catch(e){}
 }
 async function post(ep,body){
   try{var t=localStorage.getItem('tp_token');var r=await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json','x-auth-token':t},body:JSON.stringify(body)});return await r.json();}catch(e){return null;}
@@ -177,6 +160,7 @@ function toast(msg,cls){
   var el=document.getElementById('k-toast');el.className='toast '+(cls||'orange');
   el.textContent=msg;el.style.display='block';setTimeout(function(){el.style.display='none';},3500);
 }
+function showConn(ok){var el=document.getElementById('conn-banner');if(el)el.style.display=ok?'none':'block';}
 function ta(d){var m=Math.floor((new Date()-new Date(d))/60000);return m<1?'just now':m+'m ago';}
 function elapsed(d){if(!d)return '';var m=Math.floor((new Date()-new Date(d))/60000);return '⏱ '+m+'m';}
 function gc(o,type){return (o.courses||[]).find(function(c){return c.type===type;});}
@@ -215,10 +199,16 @@ function renderOrders(orders){
     var sameTimeNotify=o.sameTime&&st&&st.status==='waiting'&&!o.bNotified;
     var actions='';
     if(sameTimeNotify) actions+='<button class="act-btn secondary" onclick="notifyBar(\''+o._id+'\')">🔔 Notify barman — same-time order</button>';
-    if(st&&st.status==='waiting') actions+='<button class="act-btn primary" onclick="updateCourse(\''+o._id+'\',\'starters\',\'ready\')">✅ Starters ready</button>';
+    if(st&&st.status==='waiting'){
+      actions+='<button class="act-btn primary" onclick="updateCourse(\''+o._id+'\',\'starters\',\'ready\')">✅ Starters ready — all done</button>';
+      actions+='<button class="act-btn bell" onclick="notifyWaiter(\''+o._id+'\',\''+o.table+'\',\'starters\')">🔔 Partial ready — alert waiter</button>';
+    }
     if(st&&st.status==='ready') actions+='<div class="status-line">✅ Starters done</div>';
     if(main&&main.status==='waiting') actions+='<div class="wait-line">Main course — waiting for waiter to start</div>';
-    if(main&&main.status==='started') actions+='<button class="act-btn primary" onclick="updateCourse(\''+o._id+'\',\'main\',\'ready\')">✅ Main ready — send to table</button>';
+    if(main&&main.status==='started'){
+      actions+='<button class="act-btn primary" onclick="updateCourse(\''+o._id+'\',\'main\',\'ready\')">✅ Main ready — all done</button>';
+      actions+='<button class="act-btn bell" onclick="notifyWaiter(\''+o._id+'\',\''+o.table+'\',\'main\')">🔔 Partial ready — alert waiter</button>';
+    }
     if(main&&main.status==='ready') actions+='<div class="status-line">✅ Main done</div>';
     return '<div class="card'+(isUrgent?' urgent':'')+'">'+
       (isUrgent?'<div class="urgent-banner">🔥 MAIN COURSE — Table '+o.table+' — START NOW</div>':'')+
@@ -242,33 +232,85 @@ async function notifyBar(id){
   await post('/notify-bar',{orderId:id});
   toast('🔔 Barman notified','blue');loadOrders();
 }
-
+async function notifyWaiter(id, table, type){
+  var msg='Table '+table+', '+(type==='main'?'main course':'starters')+' ready';
+  await post('/notify-waiter',{orderId:id,message:msg});
+  toast('🔔 Waiter notified','blue');
+}
 function showSubBanner(status, expiry) {
   var el = document.getElementById('sub-banner');
   if (!el) return;
   if (status === 'warning' && expiry) {
     var d = new Date(expiry).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
-    el.style.display = 'block';
-    el.style.background = '#1f1810';
-    el.style.border = '1px solid #a16207';
-    el.style.color = '#d4a017';
+    el.style.display = 'block';el.style.background = '#1f1810';el.style.border = '1px solid #a16207';el.style.color = '#d4a017';
     el.textContent = '⚠️ Renew before ' + d + ' to continue using TablePulse';
   } else if (status === 'expired') {
-    el.style.display = 'block';
-    el.style.background = '#241011';
-    el.style.border = '1px solid #6e1a1a';
-    el.style.color = '#f0635a';
+    el.style.display = 'block';el.style.background = '#241011';el.style.border = '1px solid #6e1a1a';el.style.color = '#f0635a';
     el.textContent = '🔴 Subscription expired — contact restaurant owner to renew';
   }
 }
-
-// Auto-unlock audio on first touch (browser requirement)
+function logout() {
+  if (!confirm('Log out of this device?')) return;
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then(reg => {
+      reg.pushManager.getSubscription().then(sub => {
+        if (sub) {
+          var token = localStorage.getItem('tp_token');
+          fetch('/subscribe', {method: 'DELETE',headers: {'Content-Type': 'application/json','x-auth-token': token},body: JSON.stringify({ endpoint: sub.endpoint })});
+          sub.unsubscribe();
+        }
+      });
+    });
+  }
+  localStorage.clear();location.reload();
+}
+async function initPWA() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.register('/service-worker.js');
+    setTimeout(() => subscribeToPush(reg), 2000);
+  } catch (e) { console.log('[pwa] sw failed:', e.message); }
+}
+async function subscribeToPush(reg) {
+  if (!('PushManager' in window)) return;
+  try {
+    const keyRes = await fetch('/vapid-public-key');
+    const { key } = await keyRes.json();
+    if (!key) return;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') return;
+      sub = await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(key)});
+    }
+    const token = localStorage.getItem('tp_token');
+    if (!token) return;
+    await fetch('/subscribe', {method: 'POST',headers: {'Content-Type': 'application/json','x-auth-token': token},body: JSON.stringify({endpoint: sub.endpoint, keys: {p256dh: arrayBufferToBase64(sub.getKey('p256dh')), auth: arrayBufferToBase64(sub.getKey('auth'))}})});
+  } catch (e) { console.log('[pwa] push failed:', e.message); }
+}
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = window.atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+function arrayBufferToBase64(buffer) {
+  return btoa(String.fromCharCode(...new Uint8Array(buffer))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+var wakeLock = null;
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { requestWakeLock(); });
+  } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') requestWakeLock();
+});
 var audioUnlocked=false;
 document.addEventListener('touchstart', function(){
-  if(!audioUnlocked&&soundOn){
-    audioUnlocked=true;
-    try{var u=new SpeechSynthesisUtterance('');window.speechSynthesis.speak(u);}catch(e){}
-  }
+  if(!audioUnlocked&&soundOn){audioUnlocked=true;try{var u=new SpeechSynthesisUtterance('');window.speechSynthesis.speak(u);}catch(e){}}
 },{once:true,passive:true});
 document.addEventListener('touchstart', function(e) {
   var el = e.target.closest('button'); if (!el) return;
@@ -282,111 +324,6 @@ document.addEventListener('touchcancel', function(e) {
   var el = e.target.closest('button'); if (!el) return;
   el.style.transform=''; el.style.opacity='';
 }, { passive: true });
-
-function showConn(ok) {
-  var el = document.getElementById('conn-banner');
-  if (el) el.style.display = ok ? 'none' : 'block';
-}
-
-
-// ── PWA: Service Worker + Push Notifications ─────────────────────────────────
-async function initPWA() {
-  if (!('serviceWorker' in navigator)) return;
-  try {
-    const reg = await navigator.serviceWorker.register('/service-worker.js');
-    console.log('[pwa] service worker registered');
-    // Subscribe to push after a short delay (let login settle)
-    setTimeout(() => subscribeToPush(reg), 2000);
-  } catch (e) { console.log('[pwa] service worker failed:', e.message); }
-}
-
-async function subscribeToPush(reg) {
-  if (!('PushManager' in window)) return;
-  try {
-    // Get VAPID public key from server
-    const keyRes = await fetch('/vapid-public-key');
-    const { key } = await keyRes.json();
-    if (!key) return;
-
-    // Check existing subscription
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      // Request permission and subscribe
-      const perm = await Notification.requestPermission();
-      if (perm !== 'granted') { console.log('[pwa] push permission denied'); return; }
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(key)
-      });
-    }
-    // Send subscription to server
-    const token = localStorage.getItem('tp_token');
-    if (!token) return;
-    await fetch('/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-      body: JSON.stringify({ endpoint: sub.endpoint, keys: { p256dh: arrayBufferToBase64(sub.getKey('p256dh')), auth: arrayBufferToBase64(sub.getKey('auth')) } })
-    });
-    console.log('[pwa] push subscription registered');
-  } catch (e) { console.log('[pwa] push subscribe failed:', e.message); }
-}
-
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const raw = window.atob(base64);
-  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
-}
-
-function arrayBufferToBase64(buffer) {
-  return btoa(String.fromCharCode(...new Uint8Array(buffer)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-// Call initPWA after login
-
-function logout() {
-  if (!confirm('Log out of this device?')) return;
-  // Unsubscribe from push before logout
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.ready.then(reg => {
-      reg.pushManager.getSubscription().then(sub => {
-        if (sub) {
-          var token = localStorage.getItem('tp_token');
-          fetch('/subscribe', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-            body: JSON.stringify({ endpoint: sub.endpoint })
-          });
-          sub.unsubscribe();
-        }
-      });
-    });
-  }
-  localStorage.clear();
-  location.reload();
-}
-
-
-// ── Wake Lock: keep screen on during shift ────────────────────────────────────
-var wakeLock = null;
-async function requestWakeLock() {
-  if (!('wakeLock' in navigator)) return;
-  try {
-    wakeLock = await navigator.wakeLock.request('screen');
-    console.log('[wakelock] screen lock acquired');
-    // Re-acquire if released (e.g. tab becomes visible again)
-    wakeLock.addEventListener('release', () => {
-      console.log('[wakelock] released — reacquiring');
-      requestWakeLock();
-    });
-  } catch (e) { console.log('[wakelock] failed:', e.message); }
-}
-// Re-acquire when page becomes visible again
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') requestWakeLock();
-});
-
 </script>
 </body>
 </html>
