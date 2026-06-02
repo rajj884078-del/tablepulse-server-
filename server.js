@@ -222,7 +222,7 @@ function getParams(stage, name, extras) {
   extras = extras || {};
   const rName = extras.restaurantName || DEFAULT_RESTAURANT;
   const rLink = extras.reviewLink     || DEFAULT_REVIEW_LINK;
-  if (stage === 'order_received')  return [name, rName, String(extras.table || '')];
+  if (stage === 'order_received')  return [name, String(extras.table || ''), rName];
   if (stage === 'order_preparing') return [name];
   if (stage === 'order_arriving')  return [name];
   if (stage === 'order_delay')     return [name];
@@ -753,6 +753,30 @@ function scheduleAutoArchive() {
   setInterval(runAutoArchive, 60 * 60 * 1000);
   console.log('[auto-archive] scheduler started — archiving orders older than 6h');
 }
+
+// ── FCM TOKEN ROUTES ─────────────────────────────────────────────────────────
+// React Native app sends FCM token after login.
+app.post('/fcm-token', writeLimiter, requireAuth, async (req, res) => {
+  const { token, role } = req.body;
+  if (!token) return res.status(400).json({ error: 'Token required' });
+  try {
+    await db.collection('fcm_tokens').updateOne(
+      { token },
+      { $set: { token, role: role||'waiter', restaurantPin: req.restaurant.pin, updatedAt: new Date() },
+        $setOnInsert: { createdAt: new Date() } },
+      { upsert: true }
+    );
+    console.log('[fcm] token registered for pin=' + req.restaurant.pin + ' role=' + (role||'waiter'));
+    res.json({ ok: true });
+  } catch (e) { console.error('[fcm]', e.message); res.status(500).json({ error: 'Failed' }); }
+});
+
+app.delete('/fcm-token', requireAuth, async (req, res) => {
+  const { token } = req.body;
+  if (!token) return res.status(400).json({ error: 'Token required' });
+  await db.collection('fcm_tokens').deleteOne({ token });
+  res.json({ ok: true });
+});
 
 // ── PUSH SUBSCRIPTION ROUTES ─────────────────────────────────────────────────
 // Staff devices subscribe to push on login. Subscriptions stored per restaurant.
