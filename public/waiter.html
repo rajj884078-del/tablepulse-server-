@@ -88,7 +88,10 @@ input:focus{outline:none;border-color:#3b82f6;}
  <div class="wrap">
   <div class="topbar">
     <h1>TablePulse <span>Waiter</span></h1>
-    <span class="live">Live</span>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="live">Live</span>
+      <button onclick="logout()" style="padding:4px 10px;background:transparent;border:1px solid #2b313a;border-radius:6px;color:#8b9099;font-size:11px;font-weight:600;cursor:pointer;">Logout</button>
+    </div>
   </div>
   <div class="rest" id="restName">WhatsApp connected</div>
   <div id="sub-banner" style="display:none;padding:12px 14px;border-radius:11px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;"></div>
@@ -457,6 +460,29 @@ function arrayBufferToBase64(buffer) {
 }
 
 // Call initPWA after login
+
+function logout() {
+  if (!confirm('Log out of this device?')) return;
+  // Unsubscribe from push before logout
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then(reg => {
+      reg.pushManager.getSubscription().then(sub => {
+        if (sub) {
+          var token = localStorage.getItem('tp_token');
+          fetch('/subscribe', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+            body: JSON.stringify({ endpoint: sub.endpoint })
+          });
+          sub.unsubscribe();
+        }
+      });
+    });
+  }
+  localStorage.clear();
+  location.reload();
+}
+
 </script>
 </body>
 </html>
