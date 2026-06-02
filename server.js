@@ -355,7 +355,7 @@ app.post('/order', writeLimiter, requireAuth, async (req, res) => {
     '/r/' + (rest.slug || '') + '/kitchen'
   );
   console.log('[order] sending order_received to phone=' + phone + ' name=' + orderName + ' table=' + table + ' courses=' + JSON.stringify(courses.map(c=>c.type)));
-  await sendWhatsApp('table_order_received_v2', phone, orderName,
+  await sendWhatsApp('table_order_received_v3', phone, orderName,
     getParams('order_received', orderName, { table, restaurantName }));
 });
 
@@ -552,7 +552,7 @@ app.get('/test-whatsapp', adminLimiter, requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Required: valid phone, name, stage' });
   }
   const campaigns = {
-    order_received: 'table_order_received_v2', order_preparing: 'table_order_preparing_v2',
+    order_received: 'table_order_received_v3', order_preparing: 'table_order_preparing_v2',
     order_arriving: 'table_order_arriving_v2', order_delay: 'table_order_delay_v2',
     review_request: 'table_review_request_v2'
   };
