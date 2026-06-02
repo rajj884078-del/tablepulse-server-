@@ -188,6 +188,7 @@ async function sendPushToRestaurant(restaurantPin, title, body, url) {
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return;
   try {
     const subs = await db.collection('subscriptions').find({ restaurantPin }).toArray();
+    console.log('[push] looking for pin=' + restaurantPin + ' found=' + subs.length + ' subs');
     const payload = JSON.stringify({ title, body, url, tag: restaurantPin });
     const dead = [];
     await Promise.all(subs.map(async sub => {
