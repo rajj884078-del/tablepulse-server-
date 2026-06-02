@@ -195,7 +195,7 @@ async function sendPushToRestaurant(restaurantPin, title, body, url) {
         await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload);
       } catch (e) {
         if (e.statusCode === 410 || e.statusCode === 404) dead.push(sub._id);
-        else console.error('[push] send failed:', e.message);
+        else console.error('[push] send failed status=' + e.statusCode + ' body=' + JSON.stringify(e.body) + ' msg=' + e.message);
       }
     }));
     // Remove expired subscriptions
