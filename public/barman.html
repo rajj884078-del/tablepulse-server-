@@ -98,7 +98,7 @@ h1 span{font-size:12px;font-weight:500;color:#8b9099;}
 <div id="b-toast" class="toast green"></div>
 
 <script>
-var soundOn=false, announcedNew={}, firstLoad=true;
+var soundOn=localStorage.getItem('tp_sound')!=='off', announcedNew={}, firstLoad=true;
 (async function(){
   var token=localStorage.getItem('tp_token');
   if(!token)return;
@@ -134,14 +134,17 @@ function showApp(name, subStatus, subExpiry){
 }
 function toggleSound(){
   soundOn=!soundOn;
+  localStorage.setItem('tp_sound', soundOn?'on':'off');
   var box=document.getElementById('sound-box');
   var hint=document.getElementById('sound-hint');
   var status=document.getElementById('voice-status');
-  box.classList.toggle('on',soundOn);
+  box.style.background=soundOn?'#10241a':'transparent';
+  box.style.borderColor=soundOn?'#1a7a45':'#2b313a';
   box.textContent=soundOn?'🔊':'🔇';
-  hint.textContent=soundOn?'New drink order alerts active':'Tap to enable — required for alerts';
+  hint.textContent=soundOn?'Voice alerts active — tap to disable':'Tap to enable — required for alerts';
   status.textContent=soundOn?'ON':'OFF';
-  status.className='voice-status '+(soundOn?'on':'off');
+  status.style.background=soundOn?'#10241a':'#1c2128';
+  status.style.color=soundOn?'#41c980':'#8b9099';
   if(soundOn)speak('Voice alerts on');
 }
 function speak(text){
@@ -216,6 +219,14 @@ function showSubBanner(status, expiry) {
   }
 }
 
+// Auto-unlock audio on first touch (browser requirement)
+var audioUnlocked=false;
+document.addEventListener('touchstart', function(){
+  if(!audioUnlocked&&soundOn){
+    audioUnlocked=true;
+    try{var u=new SpeechSynthesisUtterance('');window.speechSynthesis.speak(u);}catch(e){}
+  }
+},{once:true,passive:true});
 document.addEventListener('touchstart', function(e) {
   var el = e.target.closest('button'); if (!el) return;
   el.style.transform = 'scale(0.94)'; el.style.opacity = '0.8';
