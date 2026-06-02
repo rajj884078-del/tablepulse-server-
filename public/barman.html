@@ -20,34 +20,22 @@ h1 span{font-size:12px;font-weight:500;color:#8b9099;}
 .live{font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;background:#10241a;color:#41c980;display:inline-flex;align-items:center;gap:5px;}
 .live::before{content:'';width:6px;height:6px;border-radius:50%;background:#41c980;}
 .rest{font-size:12px;color:#8b9099;margin-bottom:12px;}
-
-/* Voice toggle — identical pattern to kitchen */
 .voice-bar{display:flex;align-items:center;gap:12px;padding:13px 14px;background:#161a20;border:1px solid #232830;border-radius:11px;margin-bottom:14px;cursor:pointer;}
-.voice-icon{width:36px;height:36px;border-radius:9px;border:1.5px solid #2b313a;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
-.voice-icon.on{background:#10241a;border-color:#1a7a45;}
+.voice-icon{width:36px;height:36px;border-radius:9px;border:1.5px solid #1a7a45;background:#10241a;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
 .voice-label{flex:1;}
 .voice-label strong{font-size:14px;font-weight:600;color:#e8eaed;display:block;}
 .voice-label span{font-size:12px;color:#8b9099;}
-.voice-status{font-size:11px;font-weight:700;padding:3px 9px;border-radius:5px;}
-.voice-status.on{background:#10241a;color:#41c980;}
-.voice-status.off{background:#1c2128;color:#8b9099;}
-
-/* Cards */
+.voice-status{font-size:11px;font-weight:700;padding:3px 9px;border-radius:5px;background:#10241a;color:#41c980;}
 .card{background:#161a20;border:1px solid #232830;border-radius:14px;padding:16px;margin-bottom:10px;}
 .order-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
 .table-name{font-size:22px;font-weight:800;letter-spacing:-0.3px;}
 .meta{font-size:12px;color:#8b9099;margin-top:2px;}
 .age{font-size:12px;color:#525965;white-space:nowrap;}
 .sync-tag{display:inline-block;font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;background:#1a1407;color:#d4a017;margin-top:5px;letter-spacing:.3px;}
-
-/* Coordinate notice */
 .coord-notice{background:#101826;border:1px solid #1e3a5a;border-radius:9px;padding:11px 13px;margin-bottom:10px;font-size:13px;font-weight:600;color:#5aa2f5;}
-
-/* Action */
-.act-btn{width:100%;padding:16px;border:1.5px solid #1a7a45;border-radius:11px;background:#1a7a45;color:#fff;font-size:15px;font-weight:700;cursor:pointer;text-align:center;transition:transform .1s,opacity .1s;}
+.act-btn{width:100%;padding:16px;border:1.5px solid #1a7a45;border-radius:11px;background:#1a7a45;color:#fff;font-size:15px;font-weight:700;cursor:pointer;text-align:center;transition:transform .1s,opacity .1s;margin-bottom:8px;}
+.act-btn.bell{background:#101826;border-color:#1e3a5a;color:#5aa2f5;font-size:14px;font-weight:600;}
 .status-line{font-size:14px;font-weight:600;padding:8px 0;color:#41c980;}
-
-/* Toast */
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;padding:13px 20px;border-radius:10px;font-size:14px;font-weight:600;display:none;z-index:50;max-width:90%;box-shadow:0 8px 24px rgba(0,0,0,.4);}
 .toast.green{background:#10241a;color:#41c980;border:1px solid #1a7a45;}
 .toast.blue{background:#101826;color:#5aa2f5;border:1px solid #1e3a5a;}
@@ -82,12 +70,12 @@ h1 span{font-size:12px;font-weight:500;color:#8b9099;}
   <div id="conn-banner" style="display:none;padding:12px 14px;border-radius:11px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;background:#241011;border:1px solid #6e1a1a;color:#f0635a;">⚠️ Connection lost — retrying...</div>
 
   <div class="voice-bar" onclick="toggleSound()">
-    <div class="voice-icon" id="sound-box">🔇</div>
+    <div id="sound-box" class="voice-icon">🔊</div>
     <div class="voice-label">
       <strong>Voice alerts</strong>
-      <span id="sound-hint">Tap to enable — required for alerts</span>
+      <span id="sound-hint">Voice alerts active — tap to disable</span>
     </div>
-    <span class="voice-status off" id="voice-status">OFF</span>
+    <span id="voice-status" class="voice-status">ON</span>
   </div>
 
   <div class="section-title">Active drink orders</div>
@@ -124,12 +112,12 @@ document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('pinInput').addEventListener('keypress',function(e){if(e.key==='Enter')doLogin();});
 });
 function showApp(name, subStatus, subExpiry){
-  initPWA();
-  requestWakeLock();
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('mainApp').style.display='block';
   showSubBanner(subStatus||'active', subExpiry||null);
   if(name)document.getElementById('restName').textContent=name+' — Bar';
+  initPWA();
+  requestWakeLock();
   loadOrders();setInterval(loadOrders,5000);
 }
 function toggleSound(){
@@ -159,6 +147,7 @@ function toast(msg,cls){
   var el=document.getElementById('b-toast');el.className='toast '+(cls||'green');
   el.textContent=msg;el.style.display='block';setTimeout(function(){el.style.display='none';},3500);
 }
+function showConn(ok){var el=document.getElementById('conn-banner');if(el)el.style.display=ok?'none':'block';}
 function ta(d){var m=Math.floor((new Date()-new Date(d))/60000);return m<1?'just now':m+'m ago';}
 async function loadOrders(){
   try{var t=localStorage.getItem('tp_token');var r=await fetch('/active-orders',{headers:{'x-auth-token':t}});if(r.status===401){localStorage.removeItem('tp_token');location.reload();return;}var all=await r.json();
@@ -179,171 +168,64 @@ async function loadOrders(){
 }
 function renderOrders(orders){
   var el=document.getElementById('bar-orders');
-  if(!orders.length){el.innerHTML='<div class="empty">No drink orders 🎉</div>';return;}
+  if(!orders.length){el.innerHTML='<div class="empty">No drink orders</div>';return;}
   el.innerHTML=orders.map(function(o){
     var drinks=(o.courses||[]).find(function(c){return c.type==='drinks';});
     if(!drinks)return '';
-    var coord=o.bNotified?'<div class="coord-notice">⏱ Coordinate with kitchen — serve drinks + food together</div>':'';
+    var coord=o.bNotified?'<div class="coord-notice">Coordinate with kitchen — serve drinks + food together</div>':'';
     var action=drinks.status==='waiting'
-      ?'<button class="act-btn" onclick="drinksReady(\''+o._id+'\')">✅ Drinks ready</button>'
-      :'<div class="status-line">✅ Drinks served</div>';
+      ?'<button class="act-btn" onclick="drinksReady(\''+o._id+'\')">Drinks ready — all done</button>'+
+       '<button class="act-btn bell" onclick="notifyWaiterBar(\''+o._id+'\',\''+o.table+'\')">Partial ready — alert waiter</button>'
+      :'<div class="status-line">Drinks served</div>';
     return '<div class="card"><div class="order-top"><div>'+
       '<div class="table-name">Table '+o.table+'</div>'+
-      '<div class="meta">'+o.orderName+' · Drinks ×'+drinks.qty+'</div>'+
-      (o.sameTime?'<span class="sync-tag">⏱ SAME-TIME</span>':'')+
+      '<div class="meta">'+o.orderName+' Drinks x'+drinks.qty+'</div>'+
+      (o.sameTime?'<span class="sync-tag">SAME-TIME</span>':'')+
       '</div><div class="age">'+ta(o.createdAt)+'</div></div>'+
       coord+action+'</div>';
   }).join('');
 }
 async function drinksReady(id){
   await post('/update-course',{orderId:id,courseType:'drinks',status:'ready'});
-  toast('✅ Drinks marked ready','green');loadOrders();
+  toast('Drinks marked ready','green');loadOrders();
 }
-
-function showSubBanner(status, expiry) {
-  var el = document.getElementById('sub-banner');
-  if (!el) return;
-  if (status === 'warning' && expiry) {
-    var d = new Date(expiry).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
-    el.style.display = 'block';
-    el.style.background = '#1f1810';
-    el.style.border = '1px solid #a16207';
-    el.style.color = '#d4a017';
-    el.textContent = '⚠️ Renew before ' + d + ' to continue using TablePulse';
-  } else if (status === 'expired') {
-    el.style.display = 'block';
-    el.style.background = '#241011';
-    el.style.border = '1px solid #6e1a1a';
-    el.style.color = '#f0635a';
-    el.textContent = '🔴 Subscription expired — contact restaurant owner to renew';
-  }
+async function notifyWaiterBar(id, table){
+  var msg='Table '+table+', drinks ready';
+  await post('/notify-waiter',{orderId:id,message:msg});
+  toast('Waiter notified','blue');
 }
-
-// Auto-unlock audio on first touch (browser requirement)
+function showSubBanner(status, expiry){
+  var el=document.getElementById('sub-banner');if(!el)return;
+  if(status==='warning'&&expiry){var d=new Date(expiry).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});el.style.display='block';el.style.background='#1f1810';el.style.border='1px solid #a16207';el.style.color='#d4a017';el.textContent='Renew before '+d+' to continue using TablePulse';}
+  else if(status==='expired'){el.style.display='block';el.style.background='#241011';el.style.border='1px solid #6e1a1a';el.style.color='#f0635a';el.textContent='Subscription expired — contact restaurant owner to renew';}
+}
+function logout(){
+  if(!confirm('Log out of this device?'))return;
+  if('serviceWorker' in navigator){navigator.serviceWorker.ready.then(reg=>{reg.pushManager.getSubscription().then(sub=>{if(sub){var token=localStorage.getItem('tp_token');fetch('/subscribe',{method:'DELETE',headers:{'Content-Type':'application/json','x-auth-token':token},body:JSON.stringify({endpoint:sub.endpoint})});sub.unsubscribe();}});});}
+  localStorage.clear();location.reload();
+}
+async function initPWA(){
+  if(!('serviceWorker' in navigator))return;
+  try{const reg=await navigator.serviceWorker.register('/service-worker.js');setTimeout(()=>subscribeToPush(reg),2000);}catch(e){}
+}
+async function subscribeToPush(reg){
+  if(!('PushManager' in window))return;
+  try{const keyRes=await fetch('/vapid-public-key');const{key}=await keyRes.json();if(!key)return;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub){const perm=await Notification.requestPermission();if(perm!=='granted')return;sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(key)});}
+  const token=localStorage.getItem('tp_token');if(!token)return;
+  await fetch('/subscribe',{method:'POST',headers:{'Content-Type':'application/json','x-auth-token':token},body:JSON.stringify({endpoint:sub.endpoint,keys:{p256dh:arrayBufferToBase64(sub.getKey('p256dh')),auth:arrayBufferToBase64(sub.getKey('auth'))}})});}catch(e){}
+}
+function urlBase64ToUint8Array(b){const p='='.repeat((4-b.length%4)%4);const base64=(b+p).replace(/-/g,'+').replace(/_/g,'/');const raw=window.atob(base64);return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));}
+function arrayBufferToBase64(buf){return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+var wakeLock=null;
+async function requestWakeLock(){if(!('wakeLock' in navigator))return;try{wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>{requestWakeLock();});}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')requestWakeLock();});
 var audioUnlocked=false;
-document.addEventListener('touchstart', function(){
-  if(!audioUnlocked&&soundOn){
-    audioUnlocked=true;
-    try{var u=new SpeechSynthesisUtterance('');window.speechSynthesis.speak(u);}catch(e){}
-  }
-},{once:true,passive:true});
-document.addEventListener('touchstart', function(e) {
-  var el = e.target.closest('button'); if (!el) return;
-  el.style.transform = 'scale(0.94)'; el.style.opacity = '0.8';
-}, { passive: true });
-document.addEventListener('touchend', function(e) {
-  var el = e.target.closest('button'); if (!el) return;
-  setTimeout(function(){ el.style.transform=''; el.style.opacity=''; }, 110);
-}, { passive: true });
-document.addEventListener('touchcancel', function(e) {
-  var el = e.target.closest('button'); if (!el) return;
-  el.style.transform=''; el.style.opacity='';
-}, { passive: true });
-
-function showConn(ok) {
-  var el = document.getElementById('conn-banner');
-  if (el) el.style.display = ok ? 'none' : 'block';
-}
-
-
-// ── PWA: Service Worker + Push Notifications ─────────────────────────────────
-async function initPWA() {
-  if (!('serviceWorker' in navigator)) return;
-  try {
-    const reg = await navigator.serviceWorker.register('/service-worker.js');
-    console.log('[pwa] service worker registered');
-    // Subscribe to push after a short delay (let login settle)
-    setTimeout(() => subscribeToPush(reg), 2000);
-  } catch (e) { console.log('[pwa] service worker failed:', e.message); }
-}
-
-async function subscribeToPush(reg) {
-  if (!('PushManager' in window)) return;
-  try {
-    // Get VAPID public key from server
-    const keyRes = await fetch('/vapid-public-key');
-    const { key } = await keyRes.json();
-    if (!key) return;
-
-    // Check existing subscription
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      // Request permission and subscribe
-      const perm = await Notification.requestPermission();
-      if (perm !== 'granted') { console.log('[pwa] push permission denied'); return; }
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(key)
-      });
-    }
-    // Send subscription to server
-    const token = localStorage.getItem('tp_token');
-    if (!token) return;
-    await fetch('/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-      body: JSON.stringify({ endpoint: sub.endpoint, keys: { p256dh: arrayBufferToBase64(sub.getKey('p256dh')), auth: arrayBufferToBase64(sub.getKey('auth')) } })
-    });
-    console.log('[pwa] push subscription registered');
-  } catch (e) { console.log('[pwa] push subscribe failed:', e.message); }
-}
-
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const raw = window.atob(base64);
-  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
-}
-
-function arrayBufferToBase64(buffer) {
-  return btoa(String.fromCharCode(...new Uint8Array(buffer)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-// Call initPWA after login
-
-function logout() {
-  if (!confirm('Log out of this device?')) return;
-  // Unsubscribe from push before logout
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.ready.then(reg => {
-      reg.pushManager.getSubscription().then(sub => {
-        if (sub) {
-          var token = localStorage.getItem('tp_token');
-          fetch('/subscribe', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-            body: JSON.stringify({ endpoint: sub.endpoint })
-          });
-          sub.unsubscribe();
-        }
-      });
-    });
-  }
-  localStorage.clear();
-  location.reload();
-}
-
-
-// ── Wake Lock: keep screen on during shift ────────────────────────────────────
-var wakeLock = null;
-async function requestWakeLock() {
-  if (!('wakeLock' in navigator)) return;
-  try {
-    wakeLock = await navigator.wakeLock.request('screen');
-    console.log('[wakelock] screen lock acquired');
-    // Re-acquire if released (e.g. tab becomes visible again)
-    wakeLock.addEventListener('release', () => {
-      console.log('[wakelock] released — reacquiring');
-      requestWakeLock();
-    });
-  } catch (e) { console.log('[wakelock] failed:', e.message); }
-}
-// Re-acquire when page becomes visible again
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') requestWakeLock();
-});
-
+document.addEventListener('touchstart',function(){if(!audioUnlocked&&soundOn){audioUnlocked=true;try{var u=new SpeechSynthesisUtterance('');window.speechSynthesis.speak(u);}catch(e){}}},{once:true,passive:true});
+document.addEventListener('touchstart',function(e){var el=e.target.closest('button');if(!el)return;el.style.transform='scale(0.94)';el.style.opacity='0.8';},{passive:true});
+document.addEventListener('touchend',function(e){var el=e.target.closest('button');if(!el)return;setTimeout(function(){el.style.transform='';el.style.opacity='';},110);},{passive:true});
+document.addEventListener('touchcancel',function(e){var el=e.target.closest('button');if(!el)return;el.style.transform='';el.style.opacity='';},{passive:true});
 </script>
 </body>
 </html>
