@@ -394,6 +394,19 @@ app.post('/update-course', writeLimiter, requireAuth, async (req, res) => {
     if (courseType === 'main' && status === 'ready')   upd.$set.mainStartedAt = null;
     await db.collection('orders').updateOne({ _id: order._id, 'courses.type': courseType }, upd);
     res.json({ status: 'ok' });
+    const pin = req.restaurant.pin;
+    const slug = req.restaurant.slug || '';
+    const t = order.table;
+    // Push to waiter when food/drinks are ready
+    if (courseType === 'starters' && status === 'ready')
+      sendPushToRestaurant(pin, 'Starters Ready — Table ' + t, order.orderName + ' · send to table', '/r/' + slug + '/waiter');
+    if (courseType === 'drinks' && status === 'ready')
+      sendPushToRestaurant(pin, 'Drinks Ready — Table ' + t, order.orderName + ' · send to table', '/r/' + slug + '/waiter');
+    if (courseType === 'main' && status === 'ready')
+      sendPushToRestaurant(pin, 'Main Course Ready — Table ' + t, order.orderName + ' · send to table', '/r/' + slug + '/waiter');
+    // Push to kitchen when waiter starts main
+    if (courseType === 'main' && status === 'started')
+      sendPushToRestaurant(pin, 'Start Main Course — Table ' + t, order.orderName + ' · begin cooking', '/r/' + slug + '/kitchen');
     if (courseType === 'main' && status === 'started')
       await sendWhatsApp('table_order_preparing_v2', order.phone, order.orderName, getParams('order_preparing', order.orderName));
     if (courseType === 'main' && status === 'ready')
