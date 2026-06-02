@@ -428,6 +428,23 @@ app.post('/notify-bar', writeLimiter, requireAuth, async (req, res) => {
   } catch (e) { console.error('[notify-bar]', e.message); res.status(500).json({ error: 'Failed' }); }
 });
 
+// ── NOTIFY WAITER ───────────────────────────────────────────────────────────────
+// Kitchen/bar taps bell → sets waiterAlert on order → waiter screen polls + speaks it.
+app.post('/notify-waiter', writeLimiter, requireAuth, async (req, res) => {
+  const order = await loadOwnedOrder(req, res);
+  if (!order) return;
+  const message = cleanStr(String(req.body.message || ''), 100);
+  if (!message) return res.status(400).json({ error: 'Message required' });
+  try {
+    await db.collection('orders').updateOne(
+      { _id: order._id },
+      { $set: { waiterAlert: { message, at: new Date() } } }
+    );
+    res.json({ status: 'ok' });
+    console.log('[notify-waiter] table=' + order.table + ' msg=' + message);
+  } catch (e) { console.error('[notify-waiter]', e.message); res.status(500).json({ error: 'Failed' }); }
+});
+
 // ── ORDER DONE ────────────────────────────────────────────────────────────────
 app.post('/order-done', writeLimiter, requireAuth, async (req, res) => {
   const order = await loadOwnedOrder(req, res);
