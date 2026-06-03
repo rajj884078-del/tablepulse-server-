@@ -114,7 +114,7 @@ input:focus{outline:none;border-color:#3b82f6;}
   <div id="view-new" style="display:none;">
     <div class="card">
       <label>Customer name</label><input type="text" id="w-name" placeholder="Enter name"/>
-      <label>WhatsApp number</label><input type="tel" id="w-phone" placeholder="91XXXXXXXXXX" value="91" onfocus="var v=this.value;this.value='';this.value=v;"/>
+      <label>WhatsApp number <span style="color:#525965;font-size:11px;">(optional)</span></label><input type="tel" id="w-phone" placeholder="91XXXXXXXXXX — skip if not available" value="" />
       <label>Table number</label><input type="number" id="w-table" placeholder="e.g. 5"/>
       <label style="margin-top:4px;">Courses ordered</label>
       <div class="course-row">
@@ -225,9 +225,9 @@ function ta(d){var m=Math.floor((new Date()-new Date(d))/60000);return m<1?'just
 
 async function placeOrder(){
   var name=document.getElementById('w-name').value.trim();
-  var phone=document.getElementById('w-phone').value.trim();
+  var phone=document.getElementById('w-phone').value.trim().replace(/\D/g,'');
   var table=document.getElementById('w-table').value.trim();
-  if(!name||!phone||!table){toast('Fill name, number and table','orange');return;}
+  if(!name||!table){toast('Fill name and table number','orange');return;}
   // Duplicate table check: warn if this table already has an active order
   var existingTable = activeOrders.find(function(o){return String(o.table)===String(table);});
   if(existingTable){
