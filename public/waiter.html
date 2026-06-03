@@ -580,7 +580,6 @@ function renderFloor(tables){
   document.getElementById('f-occupied').textContent=occ;
   document.getElementById('f-free').textContent=free;
   document.getElementById('f-urgent').textContent=urg;
-  document.getElementById('f-avg').textContent=avg+'m';
   var activeNums=tables.map(t=>parseInt(t.table));
   var cards=[];
   var sorted=tables.slice().sort((a,b)=>{var o={urgent:0,ordered:1,eating:2};return (o[a.status]||3)-(o[b.status]||3);});
@@ -610,7 +609,7 @@ function renderFloor(tables){
 
 </script>
 <div id="view-floor" style="display:none;margin-top:0;">
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
     <div style="background:#161a20;border:1px solid #232830;border-radius:11px;padding:10px;text-align:center;">
       <div style="font-size:22px;font-weight:700;color:#f97316;" id="f-occupied">—</div>
       <div style="font-size:10px;color:#8b9099;margin-top:2px;">Occupied</div></div>
@@ -620,9 +619,6 @@ function renderFloor(tables){
     <div style="background:#161a20;border:1px solid #232830;border-radius:11px;padding:10px;text-align:center;">
       <div style="font-size:22px;font-weight:700;color:#f0635a;" id="f-urgent">—</div>
       <div style="font-size:10px;color:#8b9099;margin-top:2px;">Urgent</div></div>
-    <div style="background:#161a20;border:1px solid #232830;border-radius:11px;padding:10px;text-align:center;">
-      <div style="font-size:22px;font-weight:700;color:#5aa2f5;" id="f-avg">—</div>
-      <div style="font-size:10px;color:#8b9099;margin-top:2px;">Avg wait</div></div>
   </div>
   <div id="floor-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;"></div>
 </div>
