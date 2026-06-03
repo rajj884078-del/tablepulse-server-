@@ -269,7 +269,7 @@ async function placeOrder(){
   btn.disabled=false;btn.textContent='Send order';
   document.getElementById('w-name').value='';document.getElementById('w-phone').value='';document.getElementById('w-table').value='';
   sync=false;document.getElementById('sync-box').classList.remove('on');document.getElementById('sync-box').textContent='';
-  if(res){toast('WhatsApp sent to '+name+' ji! ✅','green');switchTab('tables');}else toast('Server busy — try again','orange');
+  if(res){toast(orderMode==='quick'?'Order sent to kitchen ✅':'WhatsApp sent to '+name+' ji! ✅','green');switchTab('tables');}else toast('Server busy — try again','orange');
   loadOrders();
 }
 function toggleSound(){
