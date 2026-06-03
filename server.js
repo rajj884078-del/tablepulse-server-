@@ -371,7 +371,7 @@ app.post('/order', writeLimiter, requireAuth, async (req, res) => {
   const phone     = req.body.phone;
   const table     = cleanStr(String(req.body.table || ''), 10);
   if (!orderName) return res.status(400).json({ error: 'Customer name required' });
-  if (!isValidPhone(phone)) return res.status(400).json({ error: 'Valid WhatsApp number required' });
+  if (phone && !isValidPhone(phone)) return res.status(400).json({ error: 'Valid WhatsApp number required' });
   if (!table) return res.status(400).json({ error: 'Table required' });
 
   const rawCourses = Array.isArray(req.body.courses) ? req.body.courses : [];
