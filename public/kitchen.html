@@ -39,8 +39,9 @@ h1 span{font-size:12px;font-weight:500;color:#8b9099;}
 .actions{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
 .act-btn{width:100%;padding:16px;border:1.5px solid #2b313a;border-radius:11px;background:#1c2128;color:#9aa0aa;font-size:15px;font-weight:700;cursor:pointer;text-align:center;transition:transform .1s,opacity .1s;}
 .act-btn.primary{background:#1a7a45;border-color:#1a7a45;color:#fff;}
-.act-btn.bell{background:#101826;border-color:#1e3a5a;color:#5aa2f5;font-size:14px;font-weight:600;transition:transform .12s,background .12s,border-color .12s;}
-.act-btn.bell.tapped{background:#162040;border-color:#3b6fd4;transform:scale(0.91);}
+.act-btn.bell{background:#101826;border-color:#1e3a5a;color:#5aa2f5;font-size:14px;font-weight:600;}
+.act-btn.blocked{background:#1a1a1a;border-color:#333;color:#555;cursor:not-allowed;}
+.act-btn:active{transform:scale(0.96);opacity:0.85;}
 .act-btn.secondary{background:#12161c;border-color:#2b313a;color:#5aa2f5;font-size:14px;font-weight:600;}
 .status-line{font-size:14px;font-weight:600;padding:6px 0;color:#41c980;}
 .wait-line{font-size:13px;color:#8b9099;padding:5px 0;}
@@ -173,6 +174,7 @@ async function loadOrders(){
     return (o.courses||[]).some(function(c){return c.type==='starters'||c.type==='main';});
   });
   checkAnnouncements(orders);
+  checkBellStatus(orders);
   renderOrders(orders);
   firstLoad=false;
   showConn(true);
@@ -202,13 +204,13 @@ function renderOrders(orders){
     if(sameTimeNotify) actions+='<button class="act-btn secondary" onclick="notifyBar(\''+o._id+'\')">🔔 Notify barman — same-time order</button>';
     if(st&&st.status==='waiting'){
       actions+='<button class="act-btn primary" onclick="updateCourse(\''+o._id+'\',\'starters\',\'ready\')">✅ Starters ready — all done</button>';
-      actions+='<button class="act-btn bell" onclick="notifyWaiter(this,\''+o._id+'\',\''+o.table+'\')">🔔 Partial ready — alert waiter</button>';
+      actions+='<button class="act-btn bell" onclick="notifyWaiter(\''+o._id+'\',\''+o.table+'\',\'starters\')">🔔 Partial ready — alert waiter</button>';
     }
     if(st&&st.status==='ready') actions+='<div class="status-line">✅ Starters done</div>';
     if(main&&main.status==='waiting') actions+='<div class="wait-line">Main course — waiting for waiter to start</div>';
     if(main&&main.status==='started'){
       actions+='<button class="act-btn primary" onclick="updateCourse(\''+o._id+'\',\'main\',\'ready\')">✅ Main ready — all done</button>';
-      actions+='<button class="act-btn bell" onclick="notifyWaiter(this,\''+o._id+'\',\''+o.table+'\')">🔔 Partial ready — alert waiter</button>';
+      actions+='<button class="act-btn bell" onclick="notifyWaiter(\''+o._id+'\',\''+o.table+'\',\'main\')">🔔 Partial ready — alert waiter</button>';
     }
     if(main&&main.status==='ready') actions+='<div class="status-line">✅ Main done</div>';
     return '<div class="card'+(isUrgent?' urgent':'')+'">'+
@@ -223,6 +225,18 @@ function renderOrders(orders){
       '<div class="actions">'+actions+'</div></div>';
   }).join('');
 }
+async function checkBellStatus(orders){
+  for(var i=0;i<orders.length;i++){
+    var o=orders[i];
+    try{
+      var t=localStorage.getItem('tp_token');
+      var r=await fetch('/bell-status/'+o._id,{headers:{'x-auth-token':t}});
+      var d=await r.json();
+      if(d.blocked)bellBlocked[o._id]=Date.now()+d.remainingSeconds*1000;
+      else delete bellBlocked[o._id];
+    }catch(e){}
+  }
+}
 async function updateCourse(id,type,status){
   await post('/update-course',{orderId:id,courseType:type,status:status});
   if(type==='main'&&status==='ready')toast('✅ Main ready — WhatsApp sent','green');
@@ -233,14 +247,16 @@ async function notifyBar(id){
   await post('/notify-bar',{orderId:id});
   toast('🔔 Barman notified','blue');loadOrders();
 }
-async function notifyWaiter(btn, id, table){
-  // Bell tap feedback — deeper scale + color flash
-  btn.classList.add('tapped');
-  setTimeout(function(){ btn.classList.remove('tapped'); }, 200);
-  // Always say "food ready" regardless of course type
-  var msg='Table '+table+', food ready';
+var bellBlocked={};
+async function notifyWaiter(id, table, type){
+  if(bellBlocked[id]&&bellBlocked[id]>Date.now()){
+    var rem=Math.ceil((bellBlocked[id]-Date.now())/1000);
+    toast('Waiter acknowledged — bell blocked ('+rem+'s)','orange');
+    return;
+  }
+  var msg='Table '+table+', '+(type==='main'?'main course':'starters')+' ready';
   await post('/notify-waiter',{orderId:id,message:msg});
-  toast('🔔 Waiter notified','blue');
+  toast('🔔 Waiter notified — '+msg,'blue');
 }
 function showSubBanner(status, expiry) {
   var el = document.getElementById('sub-banner');
