@@ -99,9 +99,6 @@ input:focus{outline:none;border-color:#3b82f6;}
   </div>
   <div class="rest" id="restName">WhatsApp connected</div>
   
-  <!-- Settings panel -->
-  <div id="settings-panel" style="display:none;background:#161a20;border:1px solid #232830;border-radius:14px;padding:16px;margin-bottom:14px;">
-    <div style="font-size:13px;font-weight:700;color:#8b9099;text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;">Settings</div>
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #1a1f26;">
       <div>
         <div style="font-size:14px;font-weight:600;color:#e8eaed;">Voice alerts</div>
@@ -308,11 +305,7 @@ async function placeOrder(){
   if(res){toast(orderMode==='quick'?'Order sent to kitchen ✅':'WhatsApp sent to '+name+' ji! ✅','green');switchTab('tables');}else toast('Server busy — try again','orange');
   loadOrders();
 }
-function toggleSettings(){
-  var panel=document.getElementById("settings-panel");
-  panel.style.display=panel.style.display==="none"?"block":"none";
-  updateSettingsUI();
-}
+
 function updateSettingsUI(){
   var knob=document.getElementById("settings-knob");
   var toggle=document.getElementById("settings-toggle");
