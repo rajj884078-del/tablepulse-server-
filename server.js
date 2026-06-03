@@ -31,10 +31,11 @@ app.use(cors());
 
 // Razorpay webhook needs raw body BEFORE express.json() parses it.
 // Send FCM push notification to all registered devices for a restaurant.
-async function sendFCMToRestaurant(restaurantPin, title, body, data) {
+async function sendFCMToRestaurant(restaurantPin, title, body, data, targetRole) {
   if (!firebaseInitialized) return;
   try {
-    const tokens = await db.collection('fcm_tokens').find({ restaurantPin }).toArray();
+    const query = targetRole ? { restaurantPin, role: targetRole } : { restaurantPin };
+    const tokens = await db.collection('fcm_tokens').find(query).toArray();
     if (!tokens.length) return;
     console.log('[fcm] sending to ' + tokens.length + ' devices for pin=' + restaurantPin);
     const tokenList = tokens.map(t => t.token);
@@ -408,7 +409,14 @@ app.post('/order', writeLimiter, requireAuth, async (req, res) => {
   sendFCMToRestaurant(rest.pin,
     'New Order — Table ' + table,
     orderName + ' · ' + courses.map(c=>c.type).join(', '),
-    { table: String(table), type: 'new_order', role: 'kitchen' }
+    { table: String(table), type: 'new_order', role: 'kitchen' },
+    'kitchen'
+  );
+  sendFCMToRestaurant(rest.pin,
+    'New Order — Table ' + table,
+    orderName + ' · drinks',
+    { table: String(table), type: 'new_order', role: 'bar' },
+    'bar'
   );
   console.log('[order] sending order_received to phone=' + phone + ' name=' + orderName + ' table=' + table + ' courses=' + JSON.stringify(courses.map(c=>c.type)));
   await sendWhatsApp('table_order_received_v3', phone, orderName,
@@ -457,20 +465,20 @@ app.post('/update-course', writeLimiter, requireAuth, async (req, res) => {
     // Push to waiter when food/drinks are ready
     if (courseType === 'starters' && status === 'ready') {
       sendPushToRestaurant(pin, 'Starters Ready — Table ' + t, order.orderName + ' · send to table', '/r/' + slug + '/waiter');
-      sendFCMToRestaurant(pin, 'Table ' + t + ', starters ready', 'Send to table now', { table: String(t), type: 'starters_ready', role: 'waiter' });
+      sendFCMToRestaurant(pin, 'Table ' + t + ', starters ready', 'Send to table now', { table: String(t), type: 'starters_ready', role: 'waiter' }, 'waiter');
     }
     if (courseType === 'drinks' && status === 'ready') {
       sendPushToRestaurant(pin, 'Drinks Ready — Table ' + t, order.orderName + ' · send to table', '/r/' + slug + '/waiter');
-      sendFCMToRestaurant(pin, 'Table ' + t + ', drinks ready', 'Send to table now', { table: String(t), type: 'drinks_ready', role: 'waiter' });
+      sendFCMToRestaurant(pin, 'Table ' + t + ', drinks ready', 'Send to table now', { table: String(t), type: 'drinks_ready', role: 'waiter' }, 'waiter');
     }
     if (courseType === 'main' && status === 'ready') {
       sendPushToRestaurant(pin, 'Main Course Ready — Table ' + t, order.orderName + ' · send to table', '/r/' + slug + '/waiter');
-      sendFCMToRestaurant(pin, 'Table ' + t + ', main course ready', 'Send to table now', { table: String(t), type: 'main_ready', role: 'waiter' });
+      sendFCMToRestaurant(pin, 'Table ' + t + ', main course ready', 'Send to table now', { table: String(t), type: 'main_ready', role: 'waiter' }, 'waiter');
     }
     // Push to kitchen when waiter starts main
     if (courseType === 'main' && status === 'started') {
       sendPushToRestaurant(pin, 'Start Main Course — Table ' + t, order.orderName + ' · begin cooking', '/r/' + slug + '/kitchen');
-      sendFCMToRestaurant(pin, 'Table ' + t + ', start main course', 'Begin cooking now', { table: String(t), type: 'main_started', role: 'kitchen' });
+      sendFCMToRestaurant(pin, 'Table ' + t + ', start main course', 'Begin cooking now', { table: String(t), type: 'main_started', role: 'kitchen' }, 'kitchen');
     }
     if (courseType === 'main' && status === 'started')
       await sendWhatsApp('table_order_preparing_v2', order.phone, order.orderName, getParams('order_preparing', order.orderName));
@@ -509,7 +517,8 @@ app.post('/notify-waiter', writeLimiter, requireAuth, async (req, res) => {
     sendFCMToRestaurant(req.restaurant.pin,
       message,
       'Tap to view table ' + order.table,
-      { table: String(order.table), type: 'bell_alert', role: 'waiter', orderId: String(order._id) }
+      { table: String(order.table), type: 'bell_alert', role: 'waiter', orderId: String(order._id) },
+      'waiter'
     );
   } catch (e) { console.error('[notify-waiter]', e.message); res.status(500).json({ error: 'Failed' }); }
 });
@@ -649,6 +658,45 @@ app.post('/login', loginLimiter, async (req, res) => {
     subscriptionStatus: restaurant.subscriptionStatus || 'active',
     subscriptionExpiry: restaurant.subscriptionExpiry || null
   });
+});
+
+// ── ROLE PASSCODE ROUTES ─────────────────────────────────────────────────────
+// Check if a role passcode has been set for this restaurant
+app.get('/role-passcode/:role', requireAuth, async (req, res) => {
+  const role = req.params.role;
+  if (!['waiter','kitchen','bar'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
+  const pin = req.restaurant.pin;
+  const doc = await db.collection('role_passcodes').findOne({ pin, role });
+  res.json({ exists: !!doc });
+});
+
+// Set role passcode (first time setup or reset by owner)
+app.post('/role-passcode/:role', requireAuth, async (req, res) => {
+  const role = req.params.role;
+  if (!['waiter','kitchen','bar'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
+  const passcode = cleanStr(String(req.body.passcode || ''), 6);
+  if (!passcode || passcode.length < 4) return res.status(400).json({ error: 'Passcode must be 4-6 digits' });
+  const pin = req.restaurant.pin;
+  await db.collection('role_passcodes').updateOne(
+    { pin, role },
+    { $set: { pin, role, passcode, updatedAt: new Date() }, $setOnInsert: { createdAt: new Date() } },
+    { upsert: true }
+  );
+  console.log('[role-passcode] set for pin=' + pin + ' role=' + role);
+  res.json({ ok: true });
+});
+
+// Verify role passcode login
+app.post('/role-login', requireAuth, async (req, res) => {
+  const { role, passcode } = req.body;
+  if (!['waiter','kitchen','bar'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
+  if (!passcode) return res.status(400).json({ error: 'Passcode required' });
+  const pin = req.restaurant.pin;
+  const doc = await db.collection('role_passcodes').findOne({ pin, role });
+  if (!doc) return res.status(404).json({ error: 'Passcode not set', notSet: true });
+  if (doc.passcode !== String(passcode)) return res.status(401).json({ error: 'Wrong passcode' });
+  console.log('[role-login] success pin=' + pin + ' role=' + role);
+  res.json({ ok: true, role });
 });
 
 app.get('/verify', requireAuth, (req, res) => {
