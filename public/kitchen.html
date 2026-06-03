@@ -40,7 +40,25 @@ h1 span{font-size:12px;font-weight:500;color:#8b9099;}
 .act-btn{width:100%;padding:16px;border:1.5px solid #2b313a;border-radius:11px;background:#1c2128;color:#9aa0aa;font-size:15px;font-weight:700;cursor:pointer;text-align:center;transition:transform .1s,opacity .1s;}
 .act-btn.primary{background:#1a7a45;border-color:#1a7a45;color:#fff;}
 .act-btn.bell{background:#101826;border-color:#1e3a5a;color:#5aa2f5;font-size:14px;font-weight:600;}
-.act-btn.blocked{background:#1a1a1a;border-color:#333;color:#555;cursor:not-allowed;}
+.act-btn.blocked{
+  background:#0d1a0d;
+  border-color:#1a7a45;
+  color:#41c980;
+  cursor:not-allowed;
+  position:relative;
+  opacity:0.85;
+}
+.act-btn.blocked::before{
+  content:'';
+  position:absolute;
+  top:50%;
+  left:12px;
+  right:12px;
+  height:1.5px;
+  background:#41c980;
+  opacity:0.4;
+  transform:translateY(-50%);
+}
 .act-btn:active{transform:scale(0.96);opacity:0.85;}
 .act-btn.secondary{background:#12161c;border-color:#2b313a;color:#5aa2f5;font-size:14px;font-weight:600;}
 .status-line{font-size:14px;font-weight:600;padding:6px 0;color:#41c980;}
