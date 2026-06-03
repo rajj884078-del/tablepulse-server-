@@ -73,7 +73,21 @@ h1 span{font-size:12px;font-weight:500;color:#8b9099;}
       style="width:100%;padding:16px;font-size:24px;text-align:center;background:#0e1014;border:1px solid #2b313a;border-radius:11px;color:#fff;letter-spacing:10px;box-sizing:border-box;"/>
     <button onclick="doLogin()" style="width:100%;margin-top:16px;padding:16px;background:#2563eb;border:none;border-radius:11px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;">Enter</button>
     <p id="loginError" style="color:#f0635a;font-size:13px;margin:14px 0 0;display:none;"></p>
+ 
+  <!-- Bottom settings bar -->
+  <div style="position:fixed;bottom:0;left:0;right:0;background:#0e1014;border-top:1px solid #1a1f26;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;z-index:100;">
+    <button onclick="toggleSettings()" style="display:flex;align-items:center;gap:8px;background:transparent;border:1px solid #2b313a;border-radius:10px;padding:10px 16px;color:#8b9099;font-size:13px;font-weight:600;cursor:pointer;">
+      ⚙️ Settings
+    </button>
+    <div onclick="toggleSound()" style="display:flex;align-items:center;gap:10px;cursor:pointer;background:#161a20;border:1px solid #232830;border-radius:10px;padding:10px 16px;">
+      <span style="font-size:13px;font-weight:600;" id="bottom-voice-label">🔊 Voice ON</span>
+      <div style="width:36px;height:22px;border-radius:11px;position:relative;transition:background .2s;" id="bottom-toggle">
+        <div style="width:16px;height:16px;border-radius:50%;position:absolute;top:3px;transition:left .2s;" id="bottom-knob"></div>
+      </div>
+    </div>
+    <button onclick="logout()" style="background:transparent;border:1px solid #2b313a;border-radius:10px;padding:10px 16px;color:#8b9099;font-size:13px;font-weight:600;cursor:pointer;">Logout</button>
   </div>
+ </div>
 </div>
 
 <div id="mainApp" style="display:none;">
@@ -82,16 +96,31 @@ h1 span{font-size:12px;font-weight:500;color:#8b9099;}
     <h1>TablePulse <span>Bar</span></h1>
     <div style="display:flex;align-items:center;gap:8px;">
       <span class="live">Live</span>
-      <button onclick="logout()" style="padding:4px 10px;background:transparent;border:1px solid #2b313a;border-radius:6px;color:#8b9099;font-size:11px;font-weight:600;cursor:pointer;">Logout</button>
+      
     </div>
   </div>
   <div class="rest" id="restName">Bar</div>
+  
+  <!-- Settings panel -->
+  <div id="settings-panel" style="display:none;background:#161a20;border:1px solid #232830;border-radius:14px;padding:16px;margin-bottom:14px;">
+    <div style="font-size:13px;font-weight:700;color:#8b9099;text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;">Settings</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #1a1f26;">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:#e8eaed;">Voice alerts</div>
+        <div style="font-size:12px;color:#8b9099;" id="settings-voice-hint">Speak alert when order/food is ready</div>
+      </div>
+      <div onclick="toggleSound()" style="cursor:pointer;width:44px;height:26px;border-radius:13px;background:#1c2128;border:1px solid #2b313a;position:relative;transition:background .2s;" id="settings-toggle">
+        <div style="width:20px;height:20px;border-radius:50%;background:#8b9099;position:absolute;top:2px;left:2px;transition:left .2s,background .2s;" id="settings-knob"></div>
+      </div>
+    </div>
+    <div style="padding:12px 0 0;">
+      <div style="font-size:12px;color:#525965;">Version 1.0 · TablePulse</div>
+    </div>
+  </div>
   <div id="sub-banner" style="display:none;padding:12px 14px;border-radius:11px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;"></div>
   <div id="conn-banner" style="display:none;padding:12px 14px;border-radius:11px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;background:#241011;border:1px solid #6e1a1a;color:#f0635a;">⚠️ Connection lost — retrying...</div>
 
-  <div class="voice-bar" onclick="toggleSound()">
-    <div id="sound-box" class="voice-icon">🔊</div>
-    <div class="voice-label">
+<div class="voice-label">
       <strong>Voice alerts</strong>
       <span id="sound-hint">Voice alerts active — tap to disable</span>
     </div>
@@ -138,6 +167,7 @@ function showApp(name, subStatus, subExpiry){
   if(name)document.getElementById('restName').textContent=name+' — Bar';
   initPWA();
   requestWakeLock();
+  updateSettingsUI();
   loadOrders();setInterval(loadOrders,5000);
   setInterval(function(){
     Object.keys(bellBlocked).forEach(function(id){
@@ -155,6 +185,34 @@ function showApp(name, subStatus, subExpiry){
     });
   },1000);
 }
+function toggleSettings(){
+  var panel=document.getElementById("settings-panel");
+  panel.style.display=panel.style.display==="none"?"block":"none";
+  updateSettingsUI();
+}
+function updateSettingsUI(){
+  var knob=document.getElementById("settings-knob");
+  var toggle=document.getElementById("settings-toggle");
+  var hint=document.getElementById("settings-voice-hint");
+  var bknob=document.getElementById("bottom-knob");
+  var btoggle=document.getElementById("bottom-toggle");
+  var blabel=document.getElementById("bottom-voice-label");
+  if(soundOn){
+    if(knob){knob.style.left="22px";knob.style.background="#3b82f6";}
+    if(toggle){toggle.style.background="#10241a";toggle.style.borderColor="#1a7a45";}
+    if(hint)hint.textContent="Voice alerts active";
+    if(bknob){bknob.style.left="17px";bknob.style.background="#3b82f6";}
+    if(btoggle){btoggle.style.background="#10241a";btoggle.style.borderColor="#1a7a45";}
+    if(blabel)blabel.textContent="🔊 Voice ON";
+  } else {
+    if(knob){knob.style.left="2px";knob.style.background="#8b9099";}
+    if(toggle){toggle.style.background="#1c2128";toggle.style.borderColor="#2b313a";}
+    if(hint)hint.textContent="Voice alerts off";
+    if(bknob){bknob.style.left="3px";bknob.style.background="#8b9099";}
+    if(btoggle){btoggle.style.background="#1c2128";btoggle.style.borderColor="#2b313a";}
+    if(blabel)blabel.textContent="🔇 Voice OFF";
+  }
+}
 function toggleSound(){
   soundOn=!soundOn;
   localStorage.setItem('tp_sound', soundOn?'on':'off');
@@ -169,6 +227,7 @@ function toggleSound(){
   status.style.background=soundOn?'#10241a':'#1c2128';
   status.style.color=soundOn?'#41c980':'#8b9099';
   if(soundOn)speak('Voice alerts on');
+  updateSettingsUI();
 }
 function speak(text){
   if(!soundOn)return;
