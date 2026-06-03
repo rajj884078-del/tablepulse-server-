@@ -220,7 +220,7 @@ function toast(msg,cls){
   el.textContent=msg;el.style.display='block';setTimeout(function(){el.style.display='none';},3500);
 }
 function toggleCourse(c){
-  if(c==='d'){cD=!cD;document.getElementById('chk-d').classList.toggle('on',cD);document.getElementById('chk-d').textContent=cD?'✓':'';}
+  if(c==='d'){cD=!cD;document.getElementById('chk-d').classList.toggle('on',cD);document.getElementById('chk-d').textContent=cD?'✓':'';dB=cD;var destB=document.getElementById('dest-b');destB.classList.toggle('on',dB);destB.style.opacity=cD?'1':'0.4';destB.style.pointerEvents=cD?'auto':'none';}
   if(c==='s'){cS=!cS;document.getElementById('chk-s').classList.toggle('on',cS);document.getElementById('chk-s').textContent=cS?'✓':'';}
   if(c==='m'){cM=!cM;document.getElementById('chk-m').classList.toggle('on',cM);document.getElementById('chk-m').textContent=cM?'✓':'';}
 }
