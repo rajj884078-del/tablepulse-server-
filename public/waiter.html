@@ -113,8 +113,16 @@ input:focus{outline:none;border-color:#3b82f6;}
   </div>
   <div id="view-new" style="display:none;">
     <div class="card">
-      <label>Customer name</label><input type="text" id="w-name" placeholder="Enter name"/>
-      <label>WhatsApp number <span style="color:#525965;font-size:11px;">(optional)</span></label><input type="tel" id="w-phone" placeholder="91XXXXXXXXXX — skip if not available" value="" />
+      <!-- Mode toggle -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button id="mode-full-btn" onclick="setOrderMode('full')" style="flex:1;padding:10px;border-radius:10px;background:#f97316;border:none;color:#000;font-size:13px;font-weight:700;cursor:pointer;">With WhatsApp</button>
+        <button id="mode-quick-btn" onclick="setOrderMode('quick')" style="flex:1;padding:10px;border-radius:10px;background:#1c2128;border:1px solid #2b313a;color:#8b9099;font-size:13px;font-weight:700;cursor:pointer;">Quick Order</button>
+      </div>
+      <!-- Full details -->
+      <div id="full-details">
+        <label>Customer name</label><input type="text" id="w-name" placeholder="Enter name"/>
+        <label>WhatsApp number</label><input type="tel" id="w-phone" placeholder="91XXXXXXXXXX"/>
+      </div>
       <label>Table number</label><input type="number" id="w-table" placeholder="e.g. 5"/>
       <label style="margin-top:4px;">Courses ordered</label>
       <div class="course-row">
@@ -223,11 +231,28 @@ function toggleDest(d,e){e.stopPropagation();
 }
 function ta(d){var m=Math.floor((new Date()-new Date(d))/60000);return m<1?'just now':m+'m ago';}
 
+var orderMode='full';
+function setOrderMode(mode){
+  orderMode=mode;
+  var fullDetails=document.getElementById('full-details');
+  var fullBtn=document.getElementById('mode-full-btn');
+  var quickBtn=document.getElementById('mode-quick-btn');
+  if(mode==='quick'){
+    fullDetails.style.display='none';
+    fullBtn.style.background='#1c2128';fullBtn.style.color='#8b9099';fullBtn.style.border='1px solid #2b313a';
+    quickBtn.style.background='#f97316';quickBtn.style.color='#000';quickBtn.style.border='none';
+  } else {
+    fullDetails.style.display='block';
+    fullBtn.style.background='#f97316';fullBtn.style.color='#000';fullBtn.style.border='none';
+    quickBtn.style.background='#1c2128';quickBtn.style.color='#8b9099';quickBtn.style.border='1px solid #2b313a';
+  }
+}
 async function placeOrder(){
-  var name=document.getElementById('w-name').value.trim();
-  var phone=document.getElementById('w-phone').value.trim().replace(/\D/g,'');
+  var name=orderMode==='quick'?'Table '+document.getElementById('w-table').value.trim():document.getElementById('w-name').value.trim();
+  var phone=orderMode==='quick'?'':document.getElementById('w-phone').value.trim().replace(/\D/g,'');
   var table=document.getElementById('w-table').value.trim();
-  if(!name||!table){toast('Fill name and table number','orange');return;}
+  if(!table){toast('Enter table number','orange');return;}
+  if(orderMode==='full'&&!name){toast('Enter customer name','orange');return;}
   // Duplicate table check: warn if this table already has an active order
   var existingTable = activeOrders.find(function(o){return String(o.table)===String(table);});
   if(existingTable){
@@ -242,7 +267,7 @@ async function placeOrder(){
   var hasBoth=cD&&cS;
   var res=await post('/order',{phone:phone,orderName:name,table:table,courses:courses,sameTime:sync&&hasBoth,toK:dK,toB:dB});
   btn.disabled=false;btn.textContent='Send order';
-  document.getElementById('w-name').value='';document.getElementById('w-phone').value='91';document.getElementById('w-table').value='';
+  document.getElementById('w-name').value='';document.getElementById('w-phone').value='';document.getElementById('w-table').value='';
   sync=false;document.getElementById('sync-box').classList.remove('on');document.getElementById('sync-box').textContent='';
   if(res){toast('WhatsApp sent to '+name+' ji! ✅','green');switchTab('tables');}else toast('Server busy — try again','orange');
   loadOrders();
