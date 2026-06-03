@@ -655,6 +655,36 @@ function renderFloor(tables){
   document.getElementById('floor-grid').innerHTML=cards.join('');
 }
 
+
+function openSettings(){
+  var p=document.getElementById('settings-page');
+  if(p){ p.style.display='block'; updateSettingsPage(); }
+}
+function closeSettings(){
+  var p=document.getElementById('settings-page');
+  if(p) p.style.display='none';
+}
+function updateSettingsPage(){
+  var knob=document.getElementById('sp-knob');
+  var toggle=document.getElementById('sp-toggle');
+  var sub=document.getElementById('sp-voice-sub');
+  if(!knob)return;
+  if(soundOn){
+    knob.style.left='25px';knob.style.background='#f97316';
+    toggle.style.background='#10241a';toggle.style.border='1px solid #1a7a45';
+    if(sub)sub.textContent='Active — tap to disable';
+  }else{
+    knob.style.left='3px';knob.style.background='#525965';
+    toggle.style.background='#1c2128';toggle.style.border='1px solid #2b313a';
+    if(sub)sub.textContent='Off — tap to enable';
+  }
+}
+function toggleSoundSettings(){
+  soundOn=!soundOn;
+  localStorage.setItem('tp_sound',soundOn?'on':'off');
+  updateSettingsPage();
+  if(soundOn)speak('Voice alerts on');
+}
 </script>
 <div id="view-floor" style="display:none;margin-top:0;">
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
