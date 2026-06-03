@@ -234,6 +234,7 @@ async function loadRestaurants() {
         '<div class="act green" onclick="renewSub(\''+r.pin+'\',' + "'monthly'" + ')">🔄 +1 Month</div>' +
         '<div class="act green" onclick="renewSub(\''+r.pin+'\',' + "'yearly'" + ')">⭐ +1 Year</div>' +
         '<div class="act blue" onclick="sendReport(\''+r.pin+'\')">📊 Report</div>' +
+        '<div class="act" onclick="editRestaurant(\''+r.pin+'\',\''+r.name+'\')" style="background:#1a1407;border-color:#a16207;color:#d4a017;">✏️ Edit</div>' +
         '<div class="act red" onclick="deleteRestaurant(\''+r._id+'\',\''+r.name+'\')">🗑 Delete</div>' +
         '</div></div>';
     }).join('');
@@ -274,6 +275,19 @@ async function addRestaurant() {
     }
     loadRestaurants();
   } else { toast('Error: ' + (res.error || 'Failed'), 'red'); }
+}
+async function editRestaurant(pin, name) {
+  var newPin = prompt('Change PIN for ' + name + ' (current: ' + pin + ')\nLeave blank to keep same:', pin);
+  if (newPin === null) return;
+  var newName = prompt('Change name (current: ' + name + ')\nLeave blank to keep same:', name);
+  if (newName === null) return;
+  var body = { pin: pin };
+  if (newPin && newPin !== pin) body.newPin = newPin;
+  if (newName && newName !== name) body.name = newName;
+  if (Object.keys(body).length === 1) { alert('Nothing changed.'); return; }
+  var res = await post('/admin/update-restaurant', body);
+  if (res && res.ok) { alert('Updated!'); loadRestaurants(); }
+  else alert('Error: ' + (res && res.error ? res.error : 'Failed'));
 }
 async function deleteRestaurant(id, name) {
   if (!confirm('Delete ' + name + '?')) return;
