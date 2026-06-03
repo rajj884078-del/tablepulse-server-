@@ -100,11 +100,12 @@ input:focus{outline:none;border-color:#3b82f6;}
   <div class="rest" id="restName">WhatsApp connected</div>
   
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #1a1f26;">
-      <div>
-        <div style="font-size:14px;font-weight:600;color:#e8eaed;">Voice alerts</div>
-        <div style="font-size:12px;color:#8b9099;" id="settings-voice-hint">Speak alert when order/food is ready</div>
-      </div>
-      
+
+  <div class="tabs">
+    <div class="tab on" id="tab-tables" onclick="switchTab('tables')">Tables <span class="count" id="tab-count"></span></div>
+    <div class="tab" id="tab-new" onclick="switchTab('new')">+ New Order</div>
+    <div class="tab" id="tab-floor" onclick="switchTab('floor')">Floor</div>
+  </div>
   <div id="view-tables">
     <div id="waiter-orders"></div>
   </div>
