@@ -104,27 +104,7 @@ input:focus{outline:none;border-color:#3b82f6;}
         <div style="font-size:14px;font-weight:600;color:#e8eaed;">Voice alerts</div>
         <div style="font-size:12px;color:#8b9099;" id="settings-voice-hint">Speak alert when order/food is ready</div>
       </div>
-      <div onclick="toggleSound()" style="cursor:pointer;width:44px;height:26px;border-radius:13px;background:#1c2128;border:1px solid #2b313a;position:relative;transition:background .2s;" id="settings-toggle">
-        <div style="width:20px;height:20px;border-radius:50%;background:#8b9099;position:absolute;top:2px;left:2px;transition:left .2s,background .2s;" id="settings-knob"></div>
-      </div>
-    </div>
-    <div style="padding:12px 0 0;">
-      <div style="font-size:12px;color:#525965;">Version 1.0 · TablePulse</div>
-    </div>
-  </div>
-  <div id="sub-banner" style="display:none;padding:12px 14px;border-radius:11px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;"></div>
-  <div id="conn-banner" style="display:none;padding:12px 14px;border-radius:11px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;background:#241011;border:1px solid #6e1a1a;color:#f0635a;">⚠️ Connection lost — retrying...</div>
-<div style="flex:1;">
-      <strong style="font-size:14px;font-weight:600;color:#e8eaed;display:block;">Voice alerts</strong>
-      <span id="w-sound-hint" style="font-size:12px;color:#8b9099;">Voice alerts active — tap to disable</span>
-    </div>
-    <span id="w-voice-status" style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:5px;background:#10241a;color:#41c980;">ON</span>
-  </div>
-  <div class="tabs">
-    <div class="tab" id="tab-tables" onclick="switchTab('tables')">Tables <span class="count" id="tab-count"></span></div>
-    <div class="tab" id="tab-new" onclick="switchTab('new')">+ New Order</div>
-    <div class="tab" id="tab-floor" onclick="switchTab('floor')">Floor</div>
-  </div>
+      
   <div id="view-tables">
     <div id="waiter-orders"></div>
   </div>
@@ -708,6 +688,10 @@ function toggleSoundSettings(){
     </div>
     <div style="background:#161a20;border:1px solid #232830;border-radius:16px;overflow:hidden;margin-bottom:16px;">
       <div onclick="toggleSoundSettings()" style="display:flex;align-items:center;justify-content:space-between;padding:16px;cursor:pointer;">
+        <div>
+          <div style="font-size:15px;font-weight:600;color:#e8eaed;">Voice alerts</div>
+          <div style="font-size:12px;color:#8b9099;margin-top:3px;" id="sp-voice-sub">Loading...</div>
+        </div>
         <div style="width:50px;height:28px;border-radius:14px;position:relative;transition:background .2s;flex-shrink:0;" id="sp-toggle">
           <div style="width:22px;height:22px;border-radius:50%;position:absolute;top:3px;transition:left .2s;" id="sp-knob"></div>
         </div>
