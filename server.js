@@ -48,7 +48,7 @@ async function sendFCMToRestaurant(restaurantPin, title, body, data, targetRole)
         notification: {
           sound: 'default',
           priority: 'max',
-          channelId: 'tablepulse_alerts',
+          channelId: 'tablepulse_v2',
           defaultSound: true,
           vibrateTimingsMillis: [0, 300, 200, 300],
           notificationCount: 1
