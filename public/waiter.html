@@ -651,11 +651,11 @@ function renderFloor(tables){
 
 function openSettings(){
   var p=document.getElementById('settings-page');
-  if(p){ p.style.display='block'; updateSettingsPage(); }
+  if(p){ p.style.display='block'; p.style.visibility='visible'; updateSettingsPage(); }
 }
 function closeSettings(){
   var p=document.getElementById('settings-page');
-  if(p) p.style.display='none';
+  if(p){ p.style.display='none'; p.style.visibility='hidden'; }
 }
 function updateSettingsPage(){
   var knob=document.getElementById('sp-knob');
@@ -700,7 +700,7 @@ function toggleSoundSettings(){
 </div>
 
 
-<div id="settings-page" style="display:none;position:fixed;inset:0;background:#0e1014;z-index:300;overflow-y:auto;">
+<div id="settings-page" style="display:none;visibility:hidden;position:fixed;top:0;left:0;right:0;bottom:0;background:#0e1014;z-index:500;overflow-y:auto;">
   <div style="max-width:720px;margin:0 auto;padding:20px 16px 60px;">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;">
       <button onclick="closeSettings()" style="width:36px;height:36px;border-radius:50%;background:#161a20;border:1px solid #232830;color:#e8eaed;font-size:20px;cursor:pointer;">←</button>
