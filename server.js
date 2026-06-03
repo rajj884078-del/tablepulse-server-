@@ -509,7 +509,7 @@ app.post('/notify-waiter', writeLimiter, requireAuth, async (req, res) => {
     sendFCMToRestaurant(req.restaurant.pin,
       message,
       'Tap to view table ' + order.table,
-      { table: String(order.table), type: 'bell_alert', role: 'waiter' }
+      { table: String(order.table), type: 'bell_alert', role: 'waiter', orderId: String(order._id) }
     );
   } catch (e) { console.error('[notify-waiter]', e.message); res.status(500).json({ error: 'Failed' }); }
 });
@@ -949,14 +949,29 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Acknowledge alert — called by React Native app when staff taps Acknowledge
 app.post('/acknowledge-alert', async (req, res) => {
-  const { alertId } = req.body;
-  if (!alertId) return res.status(400).json({ error: 'alertId required' });
+  const { alertId, orderId } = req.body;
   try {
-    await db.collection('alerts').updateOne(
-      { _id: toObjectId(alertId) },
-      { $set: { acknowledgedAt: new Date(), status: 'acknowledged' } }
-    );
+    // If orderId provided, block the bell on that order for 2 minutes
+    if (orderId) {
+      const blockUntil = new Date(Date.now() + 2 * 60 * 1000);
+      await db.collection('orders').updateOne(
+        { _id: toObjectId(orderId) },
+        { $set: { bellBlockedUntil: blockUntil, waiterAlert: null } }
+      );
+      console.log('[acknowledge] bell blocked for orderId=' + orderId + ' until ' + blockUntil.toISOString());
+    }
     res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Failed' }); }
+});
+
+// Bell status — kitchen polls to check if bell is blocked after waiter acknowledges
+app.get('/bell-status/:orderId', requireAuth, async (req, res) => {
+  try {
+    const order = await db.collection('orders').findOne({ _id: toObjectId(req.params.orderId) });
+    if (!order) return res.status(404).json({ error: 'Not found' });
+    const blocked = order.bellBlockedUntil && new Date(order.bellBlockedUntil) > new Date();
+    const remaining = blocked ? Math.ceil((new Date(order.bellBlockedUntil) - new Date()) / 1000) : 0;
+    res.json({ blocked: !!blocked, remainingSeconds: remaining });
   } catch (e) { res.status(500).json({ error: 'Failed' }); }
 });
 
