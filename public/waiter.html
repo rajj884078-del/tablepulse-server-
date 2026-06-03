@@ -107,6 +107,7 @@ input:focus{outline:none;border-color:#3b82f6;}
   <div class="tabs">
     <div class="tab" id="tab-tables" onclick="switchTab('tables')">Tables <span class="count" id="tab-count"></span></div>
     <div class="tab" id="tab-new" onclick="switchTab('new')">+ New Order</div>
+    <div class="tab" id="tab-floor" onclick="switchTab('floor')">Floor</div>
   </div>
   <div id="view-tables">
     <div id="waiter-orders"></div>
@@ -206,6 +207,10 @@ function showApp(name, subStatus, subExpiry){
   setInterval(tickTimers,1000);
 }
 function switchTab(tab){
+  if(document.getElementById('view-floor')) document.getElementById('view-floor').style.display=tab==='floor'?'block':'none';
+  if(document.getElementById('tab-floor')) document.getElementById('tab-floor').classList.toggle('on',tab==='floor');
+  if(tab==='floor') loadFloor();
+
   currentTab=tab;
   document.getElementById('view-tables').style.display = tab==='tables'?'block':'none';
   document.getElementById('view-new').style.display = tab==='new'?'block':'none';
@@ -555,6 +560,71 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') requestWakeLock();
 });
 
+var floorLoading=false;
+async function loadFloor(){
+  if(floorLoading)return;floorLoading=true;
+  try{
+    var t=localStorage.getItem('tp_token');
+    var r=await fetch('/table-status',{headers:{'x-auth-token':t}});
+    var data=await r.json();
+    renderFloor(data);
+  }catch(e){}finally{floorLoading=false;}
+}
+function renderFloor(tables){
+  var total=20;
+  var occ=tables.length;
+  var urg=tables.filter(t=>t.status==='urgent').length;
+  var free=Math.max(0,total-occ);
+  var waits=tables.filter(t=>t.minutesElapsed>0).map(t=>t.minutesElapsed);
+  var avg=waits.length?Math.round(waits.reduce((a,b)=>a+b,0)/waits.length):0;
+  document.getElementById('f-occupied').textContent=occ;
+  document.getElementById('f-free').textContent=free;
+  document.getElementById('f-urgent').textContent=urg;
+  document.getElementById('f-avg').textContent=avg+'m';
+  var activeNums=tables.map(t=>parseInt(t.table));
+  var cards=[];
+  var sorted=tables.slice().sort((a,b)=>{var o={urgent:0,ordered:1,eating:2};return (o[a.status]||3)-(o[b.status]||3);});
+  sorted.forEach(function(t){
+    var c={urgent:'#f0635a',ordered:'#5aa2f5',eating:'#d4a017'}[t.status]||'#41c980';
+    var bg={urgent:'#1a0707',ordered:'#0a1526',eating:'#1a1407'}[t.status]||'#0d1a0d';
+    var bd={urgent:'#f0635a',ordered:'#1e3a5a',eating:'#a16207'}[t.status]||'#1a7a45';
+    var lbl={urgent:'URGENT',ordered:'Ordered',eating:'Eating'}[t.status]||'Free';
+    var time=t.minutesElapsed>0?t.minutesElapsed+'m':'';
+    cards.push('<div style="background:'+bg+';border:1px solid '+bd+';border-radius:12px;padding:12px;">'+
+      '<div style="font-size:18px;font-weight:800;color:'+c+';">T'+t.table+'</div>'+
+      '<div style="font-size:10px;font-weight:700;color:'+c+';text-transform:uppercase;margin:2px 0;">'+lbl+'</div>'+
+      (t.name?'<div style="font-size:11px;color:#8b9099;">'+t.name+'</div>':'')+
+      (time?'<div style="font-size:12px;font-weight:600;color:'+c+';">'+time+'</div>':'')+
+      '</div>');
+  });
+  for(var i=1;i<=total;i++){
+    if(!activeNums.includes(i)){
+      cards.push('<div style="background:#0d1a0d;border:1px solid #1a7a45;border-radius:12px;padding:12px;">'+
+        '<div style="font-size:18px;font-weight:800;color:#41c980;">'+i+'</div>'+
+        '<div style="font-size:10px;color:#41c980;text-transform:uppercase;margin-top:2px;">Free</div>'+
+        '</div>');
+    }
+  }
+  document.getElementById('floor-grid').innerHTML=cards.join('');
+}
+
 </script>
+<div id="view-floor" style="display:none;margin-top:0;">
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;">
+    <div style="background:#161a20;border:1px solid #232830;border-radius:11px;padding:10px;text-align:center;">
+      <div style="font-size:22px;font-weight:700;color:#f97316;" id="f-occupied">—</div>
+      <div style="font-size:10px;color:#8b9099;margin-top:2px;">Occupied</div></div>
+    <div style="background:#161a20;border:1px solid #232830;border-radius:11px;padding:10px;text-align:center;">
+      <div style="font-size:22px;font-weight:700;color:#41c980;" id="f-free">—</div>
+      <div style="font-size:10px;color:#8b9099;margin-top:2px;">Free</div></div>
+    <div style="background:#161a20;border:1px solid #232830;border-radius:11px;padding:10px;text-align:center;">
+      <div style="font-size:22px;font-weight:700;color:#f0635a;" id="f-urgent">—</div>
+      <div style="font-size:10px;color:#8b9099;margin-top:2px;">Urgent</div></div>
+    <div style="background:#161a20;border:1px solid #232830;border-radius:11px;padding:10px;text-align:center;">
+      <div style="font-size:22px;font-weight:700;color:#5aa2f5;" id="f-avg">—</div>
+      <div style="font-size:10px;color:#8b9099;margin-top:2px;">Avg wait</div></div>
+  </div>
+  <div id="floor-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;"></div>
+</div>
 </body>
 </html>
