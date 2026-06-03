@@ -432,6 +432,38 @@ app.post('/order', writeLimiter, requireAuth, async (req, res) => {
 });
 
 // ── ACTIVE ORDERS ──────────────────────────────────────────────────────────────
+// ── TABLE STATUS ─────────────────────────────────────────────────────────────
+// Manager screen — aggregated table status from active orders
+app.get('/table-status', requireAuth, async (req, res) => {
+  try {
+    const orders = await db.collection('orders')
+      .find({ status: { $ne: 'done' }, restaurantPin: req.restaurant.pin })
+      .sort({ createdAt: 1 }).toArray();
+    const tables = {};
+    orders.forEach(o => {
+      const t = String(o.table);
+      const courses = o.courses || [];
+      const allReady = courses.length > 0 && courses.every(c => c.status === 'ready' || c.status === 'served');
+      const anyPending = courses.some(c => c.status === 'waiting' || c.status === 'started');
+      const minutesElapsed = Math.round((new Date() - new Date(o.createdAt)) / 60000);
+      const urgent = minutesElapsed > 20 && anyPending;
+      let tableStatus = 'ordered';
+      if (allReady) tableStatus = 'eating';
+      if (urgent) tableStatus = 'urgent';
+      tables[t] = {
+        table: t,
+        status: tableStatus,
+        name: o.orderName || '',
+        minutesElapsed,
+        courses: courses.map(c => c.type),
+        orderId: o._id.toString(),
+        createdAt: o.createdAt,
+      };
+    });
+    res.json(Object.values(tables));
+  } catch(e) { res.status(500).json({ error: 'Failed' }); }
+});
+
 app.get('/active-orders', requireAuth, async (req, res) => {
   try {
     const orders = await db.collection('orders')
@@ -565,6 +597,7 @@ app.post('/order-delay', writeLimiter, requireAuth, async (req, res) => {
 
 // ── ADMIN ROUTES ──────────────────────────────────────────────────────────────
 app.get('/admin', (req, res) => res.sendFile('admin.html', { root: './public' }));
+app.get('/manager', (req, res) => res.sendFile('manager.html', { root: './public' }));
 
 app.get('/admin/restaurants', adminLimiter, requireAdmin, async (req, res) => {
   try {
