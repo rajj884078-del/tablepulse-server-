@@ -7,6 +7,22 @@ const { MongoClient, ObjectId } = require('mongodb');
 const { generateToken, verifyToken, requireAuth, findRestaurantByPin } = require('./middleware/auth');
 const path = require('path');
 const webpush = require('web-push');
+const admin = require('firebase-admin');
+
+// Initialize Firebase Admin SDK from env var
+let firebaseInitialized = false;
+try {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    firebaseInitialized = true;
+    console.log('[firebase] Admin SDK initialized');
+  } else {
+    console.warn('[firebase] FIREBASE_SERVICE_ACCOUNT not set — FCM disabled');
+  }
+} catch (e) {
+  console.error('[firebase] init failed:', e.message);
+}
 
 const app = express();
 // Render runs behind a proxy; needed for correct client IPs in rate limiting.
@@ -14,6 +30,41 @@ app.set('trust proxy', 1);
 app.use(cors());
 
 // Razorpay webhook needs raw body BEFORE express.json() parses it.
+// Send FCM push notification to all registered devices for a restaurant.
+async function sendFCMToRestaurant(restaurantPin, title, body, data) {
+  if (!firebaseInitialized) return;
+  try {
+    const tokens = await db.collection('fcm_tokens').find({ restaurantPin }).toArray();
+    if (!tokens.length) return;
+    console.log('[fcm] sending to ' + tokens.length + ' devices for pin=' + restaurantPin);
+    const tokenList = tokens.map(t => t.token);
+    const message = {
+      notification: { title, body },
+      data: data || {},
+      android: {
+        priority: 'high',
+        notification: {
+          sound: 'default',
+          priority: 'high',
+          channelId: 'tablepulse_alerts'
+        }
+      },
+      tokens: tokenList
+    };
+    const response = await admin.messaging().sendEachForMulticast(message);
+    console.log('[fcm] sent ' + response.successCount + '/' + tokens.length + ' messages');
+    // Remove invalid tokens
+    const dead = [];
+    response.responses.forEach((r, i) => {
+      if (!r.success && (r.error?.code === 'messaging/invalid-registration-token' ||
+          r.error?.code === 'messaging/registration-token-not-registered')) {
+        dead.push(tokenList[i]);
+      }
+    });
+    if (dead.length) await db.collection('fcm_tokens').deleteMany({ token: { $in: dead } });
+  } catch (e) { console.error('[fcm] send error:', e.message); }
+}
+
 // ── RAZORPAY WEBHOOK ──────────────────────────────────────────────────────────
 // Must use raw body for signature verification — mount before express.json().
 // We use a dedicated raw-body parser only on this route.
@@ -354,6 +405,11 @@ app.post('/order', writeLimiter, requireAuth, async (req, res) => {
     orderName + ' · ' + courses.map(c=>c.type).join(', '),
     '/r/' + (rest.slug || '') + '/kitchen'
   );
+  sendFCMToRestaurant(rest.pin,
+    'New Order — Table ' + table,
+    orderName + ' · ' + courses.map(c=>c.type).join(', '),
+    { table: String(table), type: 'new_order', role: 'kitchen' }
+  );
   console.log('[order] sending order_received to phone=' + phone + ' name=' + orderName + ' table=' + table + ' courses=' + JSON.stringify(courses.map(c=>c.type)));
   await sendWhatsApp('table_order_received_v3', phone, orderName,
     getParams('order_received', orderName, { table, restaurantName }));
@@ -442,6 +498,11 @@ app.post('/notify-waiter', writeLimiter, requireAuth, async (req, res) => {
     );
     res.json({ status: 'ok' });
     console.log('[notify-waiter] table=' + order.table + ' msg=' + message);
+    sendFCMToRestaurant(req.restaurant.pin,
+      message,
+      'Tap to view table ' + order.table,
+      { table: String(order.table), type: 'bell_alert', role: 'waiter' }
+    );
   } catch (e) { console.error('[notify-waiter]', e.message); res.status(500).json({ error: 'Failed' }); }
 });
 
@@ -877,5 +938,18 @@ app.get('/admin/restaurant-links/:pin', adminLimiter, requireAdmin, async (req, 
 // Serve static files last — after all routes are registered.
 // Must be last so slug routes (/r/:slug/*) take priority over static files.
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Acknowledge alert — called by React Native app when staff taps Acknowledge
+app.post('/acknowledge-alert', async (req, res) => {
+  const { alertId } = req.body;
+  if (!alertId) return res.status(400).json({ error: 'alertId required' });
+  try {
+    await db.collection('alerts').updateOne(
+      { _id: toObjectId(alertId) },
+      { $set: { acknowledgedAt: new Date(), status: 'acknowledged' } }
+    );
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Failed' }); }
+});
 
 app.listen(3000, () => console.log('TablePulse running on port 3000'));
