@@ -82,16 +82,6 @@ h1 span{font-size:12px;font-weight:500;color:#8b9099;}
     <button onclick="doLogin()" style="width:100%;margin-top:16px;padding:16px;background:#c2660c;border:none;border-radius:11px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;">Enter</button>
     <p id="loginError" style="color:#f0635a;font-size:13px;margin:14px 0 0;display:none;"></p>
  
-  <!-- Bottom settings bar -->
-  <div style="position:fixed;bottom:0;left:0;right:0;background:#0e1014;border-top:1px solid #1a1f26;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;z-index:100;">
-    <button onclick="toggleSettings()" style="display:flex;align-items:center;gap:8px;background:transparent;border:1px solid #2b313a;border-radius:10px;padding:10px 16px;color:#8b9099;font-size:13px;font-weight:600;cursor:pointer;">
-      ⚙️ Settings
-    </button>
-    <div onclick="toggleSound()" style="display:flex;align-items:center;gap:10px;cursor:pointer;background:#161a20;border:1px solid #232830;border-radius:10px;padding:10px 16px;">
-      <span style="font-size:13px;font-weight:600;" id="bottom-voice-label">🔊 Voice ON</span>
-      <div style="width:36px;height:22px;border-radius:11px;position:relative;transition:background .2s;" id="bottom-toggle">
-        <div style="width:16px;height:16px;border-radius:50%;position:absolute;top:3px;transition:left .2s;" id="bottom-knob"></div>
-      </div>
     </div>
     <button onclick="logout()" style="background:transparent;border:1px solid #2b313a;border-radius:10px;padding:10px 16px;color:#8b9099;font-size:13px;font-weight:600;cursor:pointer;">Logout</button>
   </div>
@@ -240,7 +230,7 @@ function toggleSound(){
   status.style.background=soundOn?'#10241a':'#1c2128';
   status.style.color=soundOn?'#41c980':'#8b9099';
   if(soundOn)speak('Voice alerts on');
-  updateSettingsUI();
+  updateSettingsBadge();
 }
 function speak(text){
   if(!soundOn)return;
@@ -435,5 +425,19 @@ document.addEventListener('touchcancel', function(e) {
   el.style.transform=''; el.style.opacity='';
 }, { passive: true });
 </script>
+
+<div id="settings-fab" onclick="toggleSettings()" style="position:fixed;bottom:24px;right:20px;width:48px;height:48px;border-radius:50%;background:#161a20;border:1px solid #2b313a;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;z-index:200;box-shadow:0 4px 16px rgba(0,0,0,0.4);">⚙️</div>
+
+<div id="settings-popup" style="display:none;position:fixed;bottom:82px;right:16px;background:#161a20;border:1px solid #232830;border-radius:16px;padding:8px;z-index:200;min-width:200px;box-shadow:0 8px 24px rgba(0,0,0,0.5);">
+  <div onclick="toggleSound()" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;border-radius:10px;" id="voice-row">
+    <span style="font-size:14px;font-weight:600;color:#e8eaed;" id="voice-row-label">🔊 Voice alerts</span>
+    <span style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;" id="voice-row-badge">ON</span>
+  </div>
+  <div style="height:1px;background:#1a1f26;margin:0 8px;"></div>
+  <div onclick="logout()" style="display:flex;align-items:center;padding:12px 14px;cursor:pointer;border-radius:10px;">
+    <span style="font-size:14px;font-weight:600;color:#f0635a;">Logout</span>
+  </div>
+</div>
+<div id="settings-overlay" onclick="closeSettings()" style="display:none;position:fixed;inset:0;z-index:190;"></div>
 </body>
 </html>
