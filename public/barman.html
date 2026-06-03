@@ -225,17 +225,14 @@ function renderOrders(orders){
       coord+action+'</div>';
   }).join('');
 }
-async function checkBellStatus(orders){
-  for(var i=0;i<orders.length;i++){
-    var o=orders[i];
-    try{
-      var t=localStorage.getItem('tp_token');
-      var r=await fetch('/bell-status/'+o._id,{headers:{'x-auth-token':t}});
-      var d=await r.json();
-      if(d.blocked)bellBlocked[o._id]=Date.now()+d.remainingSeconds*1000;
-      else delete bellBlocked[o._id];
-    }catch(e){}
-  }
+function checkBellStatus(orders){
+  orders.forEach(function(o){
+    if(o.bellBlockedUntil && new Date(o.bellBlockedUntil) > new Date()){
+      bellBlocked[o._id] = new Date(o.bellBlockedUntil).getTime();
+    } else {
+      delete bellBlocked[o._id];
+    }
+  });
 }
 async function drinksReady(id){
   await post('/update-course',{orderId:id,courseType:'drinks',status:'ready'});
