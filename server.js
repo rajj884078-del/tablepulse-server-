@@ -422,9 +422,13 @@ app.post('/order', writeLimiter, requireAuth, async (req, res) => {
     { table: String(table), type: 'new_order', role: 'bar' },
     'bar'
   );
-  console.log('[order] sending order_received to phone=' + phone + ' name=' + orderName + ' table=' + table + ' courses=' + JSON.stringify(courses.map(c=>c.type)));
-  await sendWhatsApp('table_order_received_v3', phone, orderName,
-    getParams('order_received', orderName, { table, restaurantName }));
+  if (phone && phone.length >= 10) {
+    console.log('[order] sending order_received to phone=' + phone + ' name=' + orderName + ' table=' + table + ' courses=' + JSON.stringify(courses.map(c=>c.type)));
+    await sendWhatsApp('table_order_received_v3', phone, orderName,
+      getParams('order_received', orderName, { table, restaurantName }));
+  } else {
+    console.log('[order] no phone — skipping WhatsApp for table=' + table);
+  }
 });
 
 // ── ACTIVE ORDERS ──────────────────────────────────────────────────────────────
@@ -485,9 +489,9 @@ app.post('/update-course', writeLimiter, requireAuth, async (req, res) => {
       sendFCMToRestaurant(pin, 'Table ' + t + ', start main course', 'Begin cooking now', { table: String(t), type: 'main_started', role: 'kitchen' }, 'kitchen');
     }
     if (courseType === 'main' && status === 'started')
-      await sendWhatsApp('table_order_preparing_v2', order.phone, order.orderName, getParams('order_preparing', order.orderName));
+      if (order.phone && order.phone.length >= 10) await sendWhatsApp('table_order_preparing_v2', order.phone, order.orderName, getParams('order_preparing', order.orderName));
     if (courseType === 'main' && status === 'ready')
-      await sendWhatsApp('table_order_arriving_v2', order.phone, order.orderName, getParams('order_arriving', order.orderName));
+      if (order.phone && order.phone.length >= 10) await sendWhatsApp('table_order_arriving_v2', order.phone, order.orderName, getParams('order_arriving', order.orderName));
   } catch (e) {
     console.error('[update-course]', e.message);
     if (!res.headersSent) res.status(500).json({ error: 'Update failed' });
