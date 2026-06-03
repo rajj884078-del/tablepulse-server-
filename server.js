@@ -601,6 +601,28 @@ app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) =
   } catch (e) { console.error('[admin/add]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
 });
 
+app.post('/admin/update-restaurant', adminLimiter, requireAdmin, async (req, res) => {
+  const { pin, newPin, name, googleReviewLink, avgDrinkMins, avgStarterMins, avgMainMins } = req.body;
+  if (!pin) return res.status(400).json({ error: 'PIN required' });
+  try {
+    const update = {};
+    if (newPin && newPin !== pin) {
+      const existing = await db.collection('restaurants').findOne({ pin: newPin });
+      if (existing) return res.status(400).json({ error: 'PIN already in use' });
+      update.pin = newPin;
+    }
+    if (name) update.name = name;
+    if (googleReviewLink) update.googleReviewLink = googleReviewLink;
+    if (avgDrinkMins) update.avgDrinkMins = Number(avgDrinkMins);
+    if (avgStarterMins) update.avgStarterMins = Number(avgStarterMins);
+    if (avgMainMins) update.avgMainMins = Number(avgMainMins);
+    if (!Object.keys(update).length) return res.status(400).json({ error: 'Nothing to update' });
+    await db.collection('restaurants').updateOne({ pin }, { $set: update });
+    console.log('[admin] updated restaurant pin=' + pin + ' changes=' + JSON.stringify(update));
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/admin/delete-restaurant', adminLimiter, requireAdmin, async (req, res) => {
   const oid = toObjectId(req.body.id);
   if (!oid) return res.status(400).json({ ok: false, error: 'Invalid id' });
