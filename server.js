@@ -41,13 +41,17 @@ async function sendFCMToRestaurant(restaurantPin, title, body, data, targetRole)
     const tokenList = tokens.map(t => t.token);
     const message = {
       notification: { title, body },
-      data: data || {},
+      data: { ...(data || {}), title, body },
       android: {
         priority: 'high',
+        ttl: 30000,
         notification: {
           sound: 'default',
-          priority: 'high',
-          channelId: 'tablepulse_alerts'
+          priority: 'max',
+          channelId: 'tablepulse_alerts',
+          defaultSound: true,
+          vibrateTimingsMillis: [0, 300, 200, 300],
+          notificationCount: 1
         }
       },
       tokens: tokenList
