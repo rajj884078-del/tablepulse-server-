@@ -134,6 +134,21 @@ function showApp(name, subStatus, subExpiry){
   initPWA();
   requestWakeLock();
   loadOrders();setInterval(loadOrders,5000);
+  setInterval(function(){
+    var now=Date.now();
+    Object.keys(bellBlocked).forEach(function(id){
+      var btn=document.querySelector('[data-bell-id="'+id+'"]');
+      if(!btn)return;
+      if(bellBlocked[id]>now){
+        var rem=Math.ceil((bellBlocked[id]-now)/1000);
+        btn.textContent='✓ Waiter notified ('+rem+'s)';
+      } else {
+        btn.className='act-btn bell';
+        btn.textContent='🔔 Partial ready — alert waiter';
+        delete bellBlocked[id];
+      }
+    });
+  },1000);
 }
 function toggleSound(){
   soundOn=!soundOn;
