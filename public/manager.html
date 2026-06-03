@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0e1014">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TablePulse Manager">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<title>TablePulse — Manager</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0e1014;color:#e8eaed;min-height:100vh;}
+.wrap{max-width:720px;margin:0 auto;padding:14px 14px 80px;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+h1{font-size:18px;font-weight:700;letter-spacing:-0.2px;}
+h1 span{font-size:12px;font-weight:500;color:#8b9099;}
+.rest{font-size:12px;color:#8b9099;margin-bottom:16px;}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#41c980;display:inline-block;margin-right:6px;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px;}
+.stat{background:#161a20;border:1px solid #232830;border-radius:12px;padding:12px;text-align:center;}
+.stat-val{font-size:24px;font-weight:700;line-height:1;}
+.stat-label{font-size:10px;color:#8b9099;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;}
+.stat.urgent .stat-val{color:#f0635a;}
+.stat.occupied .stat-val{color:#f97316;}
+.stat.free .stat-val{color:#41c980;}
+.stat.avg .stat-val{color:#5aa2f5;}
+.section-label{font-size:11px;font-weight:700;color:#8b9099;text-transform:uppercase;letter-spacing:.8px;margin:0 2px 10px;}
+.tables-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:20px;}
+.table-card{border-radius:14px;padding:14px;cursor:default;position:relative;transition:transform .1s;}
+.table-card:active{transform:scale(0.97);}
+.table-card.free{background:#0d1a0d;border:1px solid #1a7a45;}
+.table-card.ordered{background:#0a1526;border:1px solid #1e3a5a;}
+.table-card.eating{background:#1a1407;border:1px solid #a16207;}
+.table-card.urgent{background:#1a0707;border:1.5px solid #f0635a;animation:urgentpulse 2s infinite;}
+@keyframes urgentpulse{0%,100%{box-shadow:0 0 0 0 rgba(240,99,90,0.3);}60%{box-shadow:0 0 0 8px rgba(240,99,90,0);}}
+.table-num{font-size:20px;font-weight:800;margin-bottom:4px;}
+.table-card.free .table-num{color:#41c980;}
+.table-card.ordered .table-num{color:#5aa2f5;}
+.table-card.eating .table-num{color:#d4a017;}
+.table-card.urgent .table-num{color:#f0635a;}
+.table-status{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.table-card.free .table-status{color:#1a7a45;}
+.table-card.ordered .table-status{color:#1e6ab5;}
+.table-card.eating .table-status{color:#a16207;}
+.table-card.urgent .table-status{color:#c0392b;}
+.table-name{font-size:12px;color:#8b9099;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.table-time{font-size:12px;font-weight:600;}
+.table-card.free .table-time{color:#525965;}
+.table-card.ordered .table-time{color:#5aa2f5;}
+.table-card.eating .table-time{color:#d4a017;}
+.table-card.urgent .table-time{color:#f0635a;}
+.table-courses{font-size:10px;color:#525965;margin-top:4px;}
+.urgent-badge{position:absolute;top:10px;right:10px;background:#f0635a;color:#fff;font-size:9px;font-weight:800;padding:2px 7px;border-radius:20px;letter-spacing:.3px;}
+.empty{text-align:center;padding:3rem 1rem;color:#525965;font-size:15px;}
+.free-table{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#161a20;border:1px solid #1a7a45;border-radius:11px;margin-bottom:8px;}
+.free-table-num{font-size:15px;font-weight:700;color:#41c980;}
+.free-tables-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;margin-bottom:20px;}
+.free-chip{background:#0d1a0d;border:1px solid #1a7a45;border-radius:10px;padding:10px;text-align:center;font-size:14px;font-weight:700;color:#41c980;}
+.conn-banner{display:none;padding:10px 14px;border-radius:10px;margin-bottom:12px;font-size:13px;font-weight:600;text-align:center;background:#241011;border:1px solid #6e1a1a;color:#f0635a;}
+.time-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;}
+</style>
+</head>
+<body>
+<div id="loginScreen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0e1014;">
+  <div style="background:#161a20;border:1px solid #232830;border-radius:18px;padding:44px 32px;width:320px;text-align:center;">
+    <div style="font-size:34px;margin-bottom:10px;">📊</div>
+    <h2 style="color:#e8eaed;margin:0 0 4px;font-size:21px;">Manager View</h2>
+    <p style="color:#8b9099;font-size:13px;margin:0 0 26px;">Enter restaurant PIN</p>
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="••••"
+      style="width:100%;padding:16px;font-size:24px;text-align:center;background:#0e1014;border:1px solid #2b313a;border-radius:11px;color:#fff;letter-spacing:10px;box-sizing:border-box;"/>
+    <button onclick="doLogin()" style="width:100%;margin-top:16px;padding:16px;background:#f97316;border:none;border-radius:11px;color:#000;font-size:16px;font-weight:700;cursor:pointer;">View Tables</button>
+    <p id="loginError" style="color:#f0635a;font-size:13px;margin:14px 0 0;display:none;"></p>
+  </div>
+</div>
+
+<div id="mainApp" style="display:none;">
+ <div class="wrap">
+  <div class="topbar">
+    <h1>TablePulse <span>Manager</span></h1>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:11px;color:#41c980;display:flex;align-items:center;"><span class="live-dot"></span>Live</span>
+      <span style="font-size:11px;color:#8b9099;" id="last-update"></span>
+      <button onclick="logout()" style="padding:4px 10px;background:transparent;border:1px solid #2b313a;border-radius:6px;color:#8b9099;font-size:11px;font-weight:600;cursor:pointer;">Logout</button>
+    </div>
+  </div>
+  <div class="rest" id="restName"></div>
+  <div id="conn-banner" class="conn-banner">⚠️ Connection lost — retrying...</div>
+
+  <!-- Summary stats -->
+  <div class="summary">
+    <div class="stat occupied"><div class="stat-val" id="s-occupied">—</div><div class="stat-label">Occupied</div></div>
+    <div class="stat free"><div class="stat-val" id="s-free">—</div><div class="stat-label">Free</div></div>
+    <div class="stat urgent"><div class="stat-val" id="s-urgent">—</div><div class="stat-label">Urgent</div></div>
+    <div class="stat avg"><div class="stat-val" id="s-avg">—</div><div class="stat-label">Avg wait</div></div>
+  </div>
+
+  <!-- Urgent tables first -->
+  <div id="urgent-section" style="display:none;">
+    <div class="section-label">⚠️ Needs attention</div>
+    <div class="tables-grid" id="urgent-tables"></div>
+  </div>
+
+  <!-- Active tables -->
+  <div id="active-section" style="display:none;">
+    <div class="section-label">Active tables</div>
+    <div class="tables-grid" id="active-tables"></div>
+  </div>
+
+  <!-- Free tables -->
+  <div id="free-section" style="display:none;">
+    <div class="section-label">Free tables</div>
+    <div class="free-tables-row" id="free-tables"></div>
+  </div>
+
+  <div id="empty-state" class="empty" style="display:none;">
+    All clear — no active orders 🎉
+  </div>
+ </div>
+</div>
+
+<script>
+var authToken = null;
+var totalTables = 20; // default, can be configured
+
+(async function(){
+  var token = localStorage.getItem('tp_manager_token');
+  if(!token) return;
+  try {
+    var r = await fetch('/verify', {headers:{'x-auth-token':token}});
+    if(r.ok){var d=await r.json();showApp(d.restaurantName,token);}
+    else localStorage.removeItem('tp_manager_token');
+  } catch(e) {}
+})();
+
+async function doLogin(){
+  var pin = document.getElementById('pinInput').value.trim();
+  var err = document.getElementById('loginError'); err.style.display='none';
+  if(!pin) return;
+  try {
+    var r = await fetch('/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});
+    var d = await r.json();
+    if(!r.ok){err.textContent=d.error||'Wrong PIN';err.style.display='block';return;}
+    localStorage.setItem('tp_manager_token', d.token);
+    showApp(d.restaurantName, d.token);
+  } catch(e){err.textContent='Server error.';err.style.display='block';}
+}
+document.addEventListener('DOMContentLoaded',function(){
+  document.getElementById('pinInput').addEventListener('keypress',function(e){if(e.key==='Enter')doLogin();});
+});
+
+function showApp(name, token){
+  authToken = token;
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('mainApp').style.display='block';
+  if(name) document.getElementById('restName').textContent = name;
+  loadStatus();
+  setInterval(loadStatus, 8000);
+}
+
+function logout(){
+  localStorage.removeItem('tp_manager_token');
+  location.reload();
+}
+
+async function loadStatus(){
+  try {
+    var r = await fetch('/table-status', {headers:{'x-auth-token':authToken}});
+    if(r.status===401){localStorage.removeItem('tp_manager_token');location.reload();return;}
+    var activeTables = await r.json();
+    renderStatus(activeTables);
+    document.getElementById('conn-banner').style.display='none';
+    var now = new Date();
+    document.getElementById('last-update').textContent = now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  } catch(e) {
+    document.getElementById('conn-banner').style.display='block';
+  }
+}
+
+function statusLabel(s){
+  if(s==='ordered') return 'Ordered';
+  if(s==='eating') return 'Eating';
+  if(s==='urgent') return 'URGENT';
+  return 'Free';
+}
+
+function coursesText(courses){
+  return courses.map(c => c==='drinks'?'Drinks':c==='starters'?'Starters':'Main').join(' · ');
+}
+
+function tableCard(t){
+  var urgentBadge = t.status==='urgent' ? '<span class="urgent-badge">URGENT</span>' : '';
+  var timeText = t.minutesElapsed > 0 ? t.minutesElapsed+'m' : 'just now';
+  return '<div class="table-card '+t.status+'">' +
+    urgentBadge +
+    '<div class="table-num">T'+t.table+'</div>' +
+    '<div class="table-status">'+statusLabel(t.status)+'</div>' +
+    (t.name ? '<div class="table-name">'+t.name+'</div>' : '') +
+    '<div class="table-time">'+timeText+'</div>' +
+    (t.courses.length ? '<div class="table-courses">'+coursesText(t.courses)+'</div>' : '') +
+    '</div>';
+}
+
+function renderStatus(activeTables){
+  var urgent = activeTables.filter(t=>t.status==='urgent');
+  var active = activeTables.filter(t=>t.status!=='urgent');
+  var occupiedCount = activeTables.length;
+  var freeCount = Math.max(0, totalTables - occupiedCount);
+  var urgentCount = urgent.length;
+  var waitTimes = activeTables.filter(t=>t.minutesElapsed>0).map(t=>t.minutesElapsed);
+  var avgWait = waitTimes.length ? Math.round(waitTimes.reduce((a,b)=>a+b,0)/waitTimes.length) : 0;
+
+  document.getElementById('s-occupied').textContent = occupiedCount;
+  document.getElementById('s-free').textContent = freeCount;
+  document.getElementById('s-urgent').textContent = urgentCount;
+  document.getElementById('s-avg').textContent = avgWait+'m';
+
+  // Urgent section
+  var urgentSection = document.getElementById('urgent-section');
+  if(urgent.length){
+    urgentSection.style.display='block';
+    document.getElementById('urgent-tables').innerHTML = urgent.map(tableCard).join('');
+  } else {
+    urgentSection.style.display='none';
+  }
+
+  // Active section
+  var activeSection = document.getElementById('active-section');
+  if(active.length){
+    activeSection.style.display='block';
+    document.getElementById('active-tables').innerHTML = active.map(tableCard).join('');
+  } else {
+    activeSection.style.display='none';
+  }
+
+  // Free tables — show as chips
+  var freeSection = document.getElementById('free-section');
+  var activeTableNums = activeTables.map(t=>parseInt(t.table));
+  var freeTables = [];
+  for(var i=1;i<=totalTables;i++){
+    if(!activeTableNums.includes(i)) freeTables.push(i);
+  }
+  if(freeTables.length){
+    freeSection.style.display='block';
+    document.getElementById('free-tables').innerHTML = freeTables.map(n=>'<div class="free-chip">'+n+'</div>').join('');
+  } else {
+    freeSection.style.display='none';
+  }
+
+  // Empty state
+  document.getElementById('empty-state').style.display = activeTables.length===0 ? 'block' : 'none';
+}
+</script>
+</body>
+</html>
