@@ -75,7 +75,7 @@ h1 span{font-size:12px;font-weight:500;color:#8b9099;}
     <p id="loginError" style="color:#f0635a;font-size:13px;margin:14px 0 0;display:none;"></p>
  
     </div>
-    <button onclick="logout()" style="background:transparent;border:1px solid #2b313a;border-radius:10px;padding:10px 16px;color:#8b9099;font-size:13px;font-weight:600;cursor:pointer;">Logout</button>
+    <button onclick="DISABLED" style="display:none;border:1px solid #2b313a;border-radius:10px;padding:10px 16px;color:#8b9099;font-size:13px;font-weight:600;cursor:pointer;">Logout</button>
   </div>
  </div>
 </div>
@@ -91,22 +91,6 @@ h1 span{font-size:12px;font-weight:500;color:#8b9099;}
   </div>
   <div class="rest" id="restName">Bar</div>
   
-  <!-- Settings panel -->
-  <div id="settings-panel" style="display:none;background:#161a20;border:1px solid #232830;border-radius:14px;padding:16px;margin-bottom:14px;">
-    <div style="font-size:13px;font-weight:700;color:#8b9099;text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;">Settings</div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #1a1f26;">
-      <div>
-        <div style="font-size:14px;font-weight:600;color:#e8eaed;">Voice alerts</div>
-        <div style="font-size:12px;color:#8b9099;" id="settings-voice-hint">Speak alert when order/food is ready</div>
-      </div>
-      <div onclick="toggleSound()" style="cursor:pointer;width:44px;height:26px;border-radius:13px;background:#1c2128;border:1px solid #2b313a;position:relative;transition:background .2s;" id="settings-toggle">
-        <div style="width:20px;height:20px;border-radius:50%;background:#8b9099;position:absolute;top:2px;left:2px;transition:left .2s,background .2s;" id="settings-knob"></div>
-      </div>
-    </div>
-    <div style="padding:12px 0 0;">
-      <div style="font-size:12px;color:#525965;">Version 1.0 · TablePulse</div>
-    </div>
-  </div>
   <div id="sub-banner" style="display:none;padding:12px 14px;border-radius:11px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;"></div>
   <div id="conn-banner" style="display:none;padding:12px 14px;border-radius:11px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;background:#241011;border:1px solid #6e1a1a;color:#f0635a;">⚠️ Connection lost — retrying...</div>
 
@@ -157,8 +141,7 @@ function showApp(name, subStatus, subExpiry){
   if(name)document.getElementById('restName').textContent=name+' — Bar';
   initPWA();
   requestWakeLock();
-  updateSettingsUI();
-  loadOrders();setInterval(loadOrders,5000);
+    loadOrders();setInterval(loadOrders,5000);
   setInterval(function(){
     Object.keys(bellBlocked).forEach(function(id){
       var btn=document.querySelector('[data-bell-id="'+id+'"]');
@@ -175,11 +158,7 @@ function showApp(name, subStatus, subExpiry){
     });
   },1000);
 }
-function toggleSettings(){
-  var panel=document.getElementById("settings-panel");
-  panel.style.display=panel.style.display==="none"?"block":"none";
-  updateSettingsUI();
-}
+
 function updateSettingsUI(){
   var knob=document.getElementById("settings-knob");
   var toggle=document.getElementById("settings-toggle");
@@ -330,26 +309,51 @@ document.addEventListener('touchstart',function(){if(!audioUnlocked&&soundOn){au
 document.addEventListener('touchstart',function(e){var el=e.target.closest('button');if(!el)return;el.style.transform='scale(0.94)';el.style.opacity='0.8';},{passive:true});
 document.addEventListener('touchend',function(e){var el=e.target.closest('button');if(!el)return;setTimeout(function(){el.style.transform='';el.style.opacity='';},110);},{passive:true});
 document.addEventListener('touchcancel',function(e){var el=e.target.closest('button');if(!el)return;el.style.transform='';el.style.opacity='';},{passive:true});
+
+function openSettings(){
+  var p=document.getElementById('settings-page');
+  if(p){ p.style.display='block'; p.style.visibility='visible'; updateSettingsPage(); }
+}
+function closeSettings(){
+  var p=document.getElementById('settings-page');
+  if(p){ p.style.display='none'; p.style.visibility='hidden'; }
+}
+function updateSettingsPage(){
+  var knob=document.getElementById('sp-knob');
+  var toggle=document.getElementById('sp-toggle');
+  var sub=document.getElementById('sp-voice-sub');
+  if(!knob)return;
+  if(soundOn){
+    knob.style.left='25px';knob.style.background='#3b82f6';
+    toggle.style.background='#10241a';toggle.style.border='1px solid #1a7a45';
+    if(sub)sub.textContent='Active — tap to disable';
+  }else{
+    knob.style.left='3px';knob.style.background='#525965';
+    toggle.style.background='#1c2128';toggle.style.border='1px solid #2b313a';
+    if(sub)sub.textContent='Off — tap to enable';
+  }
+}
+function toggleSoundSettings(){
+  soundOn=!soundOn;
+  localStorage.setItem('tp_sound',soundOn?'on':'off');
+  updateSettingsPage();
+  if(soundOn)speak('Voice alerts on');
+}
 </script>
 
 
   <div style="height:1px;background:#1a1f26;margin:0 8px;"></div>
-  <div onclick="logout()" style="display:flex;align-items:center;padding:12px 14px;cursor:pointer;border-radius:10px;">
-    <span style="font-size:14px;font-weight:600;color:#f0635a;">Logout</span>
-  </div>
+
 </div>
 
 
-<div id="settings-page" style="display:none;position:fixed;inset:0;background:#0e1014;z-index:300;overflow-y:auto;">
+<div id="settings-page" style="display:none;visibility:hidden;position:fixed;top:0;left:0;right:0;bottom:0;background:#0e1014;z-index:500;overflow-y:auto;">
   <div style="max-width:720px;margin:0 auto;padding:20px 16px 60px;">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;">
       <button onclick="closeSettings()" style="width:36px;height:36px;border-radius:50%;background:#161a20;border:1px solid #232830;color:#e8eaed;font-size:20px;cursor:pointer;">←</button>
       <h2 style="font-size:18px;font-weight:700;color:#e8eaed;margin:0;">Settings</h2>
     </div>
     <div style="background:#161a20;border:1px solid #232830;border-radius:16px;overflow:hidden;margin-bottom:16px;">
-      <div style="padding:10px 16px;border-bottom:1px solid #1a1f26;">
-        <div style="font-size:11px;font-weight:700;color:#525965;text-transform:uppercase;letter-spacing:.8px;">Sound</div>
-      </div>
       <div onclick="toggleSoundSettings()" style="display:flex;align-items:center;justify-content:space-between;padding:16px;cursor:pointer;">
         <div>
           <div style="font-size:15px;font-weight:600;color:#e8eaed;">Voice alerts</div>
