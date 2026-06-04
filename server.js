@@ -171,6 +171,7 @@ MongoClient.connect(MONGODB_URI).then(client => {
   scheduleWeeklyReports();
   scheduleSubscriptionChecks();
   scheduleAutoArchive();
+  scheduleCustomerLogClear();
 }).catch(err => {
   console.error('[boot] MongoDB connection failed:', err.message);
 });
@@ -403,6 +404,13 @@ app.post('/order', writeLimiter, requireAuth, async (req, res) => {
     console.error('[order] insert failed:', e.message);
     return res.status(500).json({ error: 'Could not save order' });
   }
+  db.collection('customer_log').insertOne({
+    restaurantPin: rest.pin,
+    name: orderName,
+    phone: String(phone || '').replace(/\D/g, ''),
+    table,
+    timestamp: new Date()
+  }).catch(e => console.error('[customer-log] insert failed:', e.message));
   res.json({ status: 'ok' });
   // Push notification to kitchen + bar devices
   sendPushToRestaurant(rest.pin,
@@ -932,6 +940,45 @@ function scheduleAutoArchive() {
   runAutoArchive();
   setInterval(runAutoArchive, 60 * 60 * 1000);
   console.log('[auto-archive] scheduler started — archiving orders older than 6h');
+}
+
+// ── CUSTOMER LOG ─────────────────────────────────────────────────────────────
+app.get('/customer-log', requireAuth, async (req, res) => {
+  try {
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istNow = new Date(Date.now() + istOffset);
+    const todayMidnight = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate()) - istOffset);
+    const entries = await db.collection('customer_log')
+      .find({ restaurantPin: req.restaurant.pin, timestamp: { $gte: todayMidnight } })
+      .sort({ timestamp: -1 })
+      .toArray();
+    res.json(entries.map(e => ({ name: e.name, phone: e.phone, table: e.table, timestamp: e.timestamp })));
+  } catch (e) {
+    console.error('[customer-log] fetch failed:', e.message);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
+function scheduleCustomerLogClear() {
+  function msUntilNext2am() {
+    const ist = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    const target = new Date(ist);
+    target.setHours(2, 0, 0, 0);
+    if (target <= ist) target.setDate(target.getDate() + 1);
+    return target.getTime() - ist.getTime();
+  }
+  async function run() {
+    try {
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const istNow = new Date(Date.now() + istOffset);
+      const todayMidnight = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate()) - istOffset);
+      const result = await db.collection('customer_log').deleteMany({ timestamp: { $lt: todayMidnight } });
+      console.log('[customer-log] cleared ' + result.deletedCount + ' old entries at 2am');
+    } catch (e) { console.error('[customer-log] clear failed:', e.message); }
+    setTimeout(run, 24 * 60 * 60 * 1000);
+  }
+  setTimeout(run, msUntilNext2am());
+  console.log('[customer-log] clear scheduled for 2am IST');
 }
 
 // ── FCM TOKEN ROUTES ─────────────────────────────────────────────────────────
