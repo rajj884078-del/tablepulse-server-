@@ -172,7 +172,7 @@ var currentTab='tables';
   var token=localStorage.getItem('tp_token');
   if(!token)return;
   try{var r=await fetch('/verify',{headers:{'x-auth-token':token}});
-  if(r.ok){var d=await r.json();showApp(d.restaurantName,d.subscriptionStatus,d.subscriptionExpiry);}
+  if(r.ok){var d=await r.json();if(d.totalTables)localStorage.setItem('tp_total_tables',d.totalTables);showApp(d.restaurantName,d.subscriptionStatus,d.subscriptionExpiry);}
   else localStorage.removeItem('tp_token');}catch(e){}
 })();
 
@@ -189,6 +189,7 @@ async function doLogin(){
   localStorage.setItem('tp_review_link',d.googleReviewLink||'');
   if(d.avgStarterMins)localStorage.setItem('tp_avg_starter',d.avgStarterMins);
   if(d.avgMainMins)localStorage.setItem('tp_avg_main',d.avgMainMins);
+  if(d.totalTables)localStorage.setItem('tp_total_tables',d.totalTables);
   showApp(d.restaurantName,d.subscriptionStatus,d.subscriptionExpiry);}catch(e){err.textContent='Server error.';err.style.display='block';}
 }
 document.addEventListener('DOMContentLoaded',function(){
@@ -646,11 +647,13 @@ async function loadFloor(){
     var t=localStorage.getItem('tp_token');
     var r=await fetch('/table-status',{headers:{'x-auth-token':t}});
     var data=await r.json();
-    renderFloor(data);
+    var tables=Array.isArray(data)?data:(data.tables||[]);
+    var totalTables=data.totalTables||parseInt(localStorage.getItem('tp_total_tables'))||20;
+    renderFloor(tables,totalTables);
   }catch(e){}finally{floorLoading=false;}
 }
-function renderFloor(tables){
-  var total=20;
+function renderFloor(tables,totalTables){
+  var total=totalTables||20;
   var occ=tables.length;
   var urg=tables.filter(t=>t.status==='urgent').length;
   var free=Math.max(0,total-occ);

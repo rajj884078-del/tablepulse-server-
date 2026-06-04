@@ -470,7 +470,7 @@ app.get('/table-status', requireAuth, async (req, res) => {
         createdAt: o.createdAt,
       };
     });
-    res.json(Object.values(tables));
+    res.json({ tables: Object.values(tables), totalTables: req.restaurant.totalTables || 20 });
   } catch(e) { res.status(500).json({ error: 'Failed' }); }
 });
 
@@ -627,6 +627,7 @@ app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) =
   const ownerPhone = isValidPhone(req.body.ownerPhone) ? String(req.body.ownerPhone).replace(/\D/g, '') : '';
   const googleReviewLink = cleanStr(req.body.googleReviewLink, 300) || '';
   const num = (v, d) => Math.min(Math.max(parseInt(v, 10) || d, 1), 240);
+  const numTables = (v) => Math.min(Math.max(parseInt(v, 10) || 20, 1), 100);
   try {
     if (await db.collection('restaurants').findOne({ pin })) {
       return res.status(409).json({ ok: false, error: 'PIN already exists' });
@@ -639,6 +640,7 @@ app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) =
       avgDrinkMins: num(req.body.avgDrinkMins, 8),
       avgStarterMins: num(req.body.avgStarterMins, 18),
       avgMainMins: num(req.body.avgMainMins, 30),
+      totalTables: numTables(req.body.totalTables),
       createdAt: new Date()
     });
     console.log('[admin] added restaurant: ' + name + ' slug=' + slug);
@@ -655,7 +657,7 @@ app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) =
 });
 
 app.post('/admin/update-restaurant', adminLimiter, requireAdmin, async (req, res) => {
-  const { pin, newPin, name, googleReviewLink, avgDrinkMins, avgStarterMins, avgMainMins } = req.body;
+  const { pin, newPin, name, googleReviewLink, avgDrinkMins, avgStarterMins, avgMainMins, totalTables } = req.body;
   if (!pin) return res.status(400).json({ error: 'PIN required' });
   try {
     const update = {};
@@ -669,6 +671,7 @@ app.post('/admin/update-restaurant', adminLimiter, requireAdmin, async (req, res
     if (avgDrinkMins) update.avgDrinkMins = Number(avgDrinkMins);
     if (avgStarterMins) update.avgStarterMins = Number(avgStarterMins);
     if (avgMainMins) update.avgMainMins = Number(avgMainMins);
+    if (totalTables != null) update.totalTables = Math.min(Math.max(parseInt(totalTables, 10) || 20, 1), 100);
     if (!Object.keys(update).length) return res.status(400).json({ error: 'Nothing to update' });
     await db.collection('restaurants').updateOne({ pin }, { $set: update });
     console.log('[admin] updated restaurant pin=' + pin + ' changes=' + JSON.stringify(update));
@@ -730,6 +733,7 @@ app.post('/login', loginLimiter, async (req, res) => {
     avgDrinkMins: restaurant.avgDrinkMins,
     avgStarterMins: restaurant.avgStarterMins,
     avgMainMins: restaurant.avgMainMins,
+    totalTables: restaurant.totalTables || 20,
     subscriptionStatus: restaurant.subscriptionStatus || 'active',
     subscriptionExpiry: restaurant.subscriptionExpiry || null
   });
@@ -778,6 +782,7 @@ app.get('/verify', requireAuth, (req, res) => {
   const r = req.restaurant;
   res.json({
     restaurantName: r.name,
+    totalTables: r.totalTables || 20,
     subscriptionStatus: r.subscriptionStatus || 'active',
     subscriptionExpiry: r.subscriptionExpiry || null
   });
@@ -1194,6 +1199,7 @@ app.post('/r/:slug/login', loginLimiter, async (req, res) => {
     avgDrinkMins: restaurant.avgDrinkMins,
     avgStarterMins: restaurant.avgStarterMins,
     avgMainMins: restaurant.avgMainMins,
+    totalTables: restaurant.totalTables || 20,
     subscriptionStatus: restaurant.subscriptionStatus || 'active',
     subscriptionExpiry: restaurant.subscriptionExpiry || null
   });
