@@ -241,7 +241,7 @@ function updateSyncAvailability(){
 }
 function toggleCourse(c){
   if(c==='d'){cD=!cD;document.getElementById('chk-d').classList.toggle('on',cD);document.getElementById('chk-d').textContent=cD?'✓':'';dB=cD;var destB=document.getElementById('dest-b');destB.classList.toggle('on',dB);destB.style.opacity=cD?'1':'0.4';destB.style.pointerEvents=cD?'auto':'none';updateSyncAvailability();}
-  if(c==='s'){cS=!cS;document.getElementById('chk-s').classList.toggle('on',cS);document.getElementById('chk-s').textContent=cS?'✓':'';}
+  if(c==='s'){cS=!cS;document.getElementById('chk-s').classList.toggle('on',cS);document.getElementById('chk-s').textContent=cS?'✓':'';updateSyncAvailability();}
   if(c==='m'){cM=!cM;document.getElementById('chk-m').classList.toggle('on',cM);document.getElementById('chk-m').textContent=cM?'✓':'';}
 }
 function toggleSync(){sync=!sync;document.getElementById('sync-box').classList.toggle('on',sync);document.getElementById('sync-box').textContent=sync?'✓':'';}
