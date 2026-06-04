@@ -164,9 +164,10 @@ var dK=true,dB=true,sync=false,cD=true,cS=true,cM=true;
 var activeOrders=[];
 var spokenAlerts={};
 var soundOn=localStorage.getItem('tp_sound')!=='off';
-var prevCourseStates={}; // track previous course statuses to detect changes
+var prevCourseStates={};
 var avgStarter=18, avgMain=30;
 var currentTab='tables';
+var delaySentOrders=new Set();
 
 (async function(){
   var token=localStorage.getItem('tp_token');
@@ -424,7 +425,9 @@ function renderOrders(orders){
     } else if(showStartMain){
       btns+='<button class="btn-sm primary orange" onclick="startMain(\''+o._id+'\',\''+esc(o.orderName)+'\')">▶ Start main</button>';
     }
-    btns+='<button class="btn-sm" onclick="sendDelay(\''+o._id+'\')">⏰ Delay</button>';
+    var minsOld=Math.floor((new Date()-new Date(o.createdAt))/60000);
+    var showDelay=minsOld>=20&&st&&st.status==='waiting'&&!delaySentOrders.has(o._id)&&o.phone&&o.phone.length>=10;
+    if(showDelay)btns+='<button class="btn-sm" onclick="sendDelay(\''+o._id+'\')">⏰ Delay</button>';
     btns+='<button class="btn-sm" onclick="openDoneSheet(\''+o._id+'\',\''+esc(o.orderName)+'\',\''+esc(o.phone||'')+'\')">✓ Done</button>';
     return '<div class="card"><div class="order-top"><div>'+
       '<div class="table-name">Table '+o.table+'</div>'+
@@ -467,7 +470,10 @@ async function sendReview(id){
   else toast('Review send failed — try again','orange');
   loadOrders();
 }
-async function sendDelay(id){await post('/order-delay',{orderId:id});toast('⏰ Delay message sent','orange');}
+async function sendDelay(id){
+  var res=await post('/order-delay',{orderId:id});
+  if(res&&res.status==='ok'){delaySentOrders.add(id);toast('⏰ Delay message sent','orange');renderOrders(activeOrders);}
+}
 var _doneOrderId=null;
 function openDoneSheet(id,name,phone){
   if(!phone||phone.length<10){
