@@ -144,7 +144,7 @@ input:focus{outline:none;border-color:#3b82f6;}
       </div>
       <div class="toggle-row" onclick="toggleSync()">
         <div class="toggle-box" id="sync-box"></div>
-        <span class="toggle-label">⏱ Drinks + starters together</span>
+        <span class="toggle-label" id="sync-label">⏱ Drinks + starters together</span>
       </div>
       <label>Send to</label>
       <div class="dest-row">
@@ -230,19 +230,26 @@ function toast(msg,cls){
 function updateSyncAvailability(){
   var syncRow=document.querySelector('.toggle-row');
   if(!syncRow)return;
-  var available=cD&&cS;
-  syncRow.style.opacity=available?'1':'0.4';
-  syncRow.style.pointerEvents=available?'auto':'none';
+  // Visible only when drinks are selected alongside at least one other course
+  var available=cD&&(cS||cM);
+  syncRow.style.display=available?'flex':'none';
   if(!available&&sync){
     sync=false;
     document.getElementById('sync-box').classList.remove('on');
     document.getElementById('sync-box').textContent='';
   }
+  if(available){
+    var lbl=document.getElementById('sync-label');
+    if(lbl){
+      if(cD&&cS)      lbl.textContent='⏱ Drinks + starters together';
+      else if(cD&&cM) lbl.textContent='⏱ Drinks + main together';
+    }
+  }
 }
 function toggleCourse(c){
   if(c==='d'){cD=!cD;document.getElementById('chk-d').classList.toggle('on',cD);document.getElementById('chk-d').textContent=cD?'✓':'';dB=cD;var destB=document.getElementById('dest-b');destB.classList.toggle('on',dB);destB.style.opacity=cD?'1':'0.4';destB.style.pointerEvents=cD?'auto':'none';updateSyncAvailability();}
   if(c==='s'){cS=!cS;document.getElementById('chk-s').classList.toggle('on',cS);document.getElementById('chk-s').textContent=cS?'✓':'';updateSyncAvailability();}
-  if(c==='m'){cM=!cM;document.getElementById('chk-m').classList.toggle('on',cM);document.getElementById('chk-m').textContent=cM?'✓':'';}
+  if(c==='m'){cM=!cM;document.getElementById('chk-m').classList.toggle('on',cM);document.getElementById('chk-m').textContent=cM?'✓':'';updateSyncAvailability();}
 }
 function toggleSync(){sync=!sync;document.getElementById('sync-box').classList.toggle('on',sync);document.getElementById('sync-box').textContent=sync?'✓':'';}
 function toggleDest(d,e){e.stopPropagation();
