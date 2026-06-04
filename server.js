@@ -169,9 +169,11 @@ MongoClient.connect(MONGODB_URI).then(client => {
   db = client.db('tablepulse');
   console.log('MongoDB connected');
   scheduleWeeklyReports();
+  scheduleWeeklyAnalytics();
   scheduleSubscriptionChecks();
   scheduleAutoArchive();
   scheduleCustomerLogClear();
+  scheduleAnalyticsCleanup();
 }).catch(err => {
   console.error('[boot] MongoDB connection failed:', err.message);
 });
@@ -503,8 +505,10 @@ app.post('/update-course', writeLimiter, requireAuth, async (req, res) => {
   if (!order) return;
   try {
     const upd = { $set: { 'courses.$.status': status } };
-    if (courseType === 'main' && status === 'started') upd.$set.mainStartedAt = new Date();
-    if (courseType === 'main' && status === 'ready')   upd.$set.mainStartedAt = null;
+    if (courseType === 'main'     && status === 'started') upd.$set.mainStartedAt  = new Date();
+    if (courseType === 'main'     && status === 'ready')   { upd.$set.mainStartedAt = null; upd.$set.mainReadyAt = new Date(); }
+    if (courseType === 'starters' && status === 'ready')   upd.$set.startersReadyAt = new Date();
+    if (courseType === 'drinks'   && status === 'ready')   upd.$set.drinksReadyAt   = new Date();
     await db.collection('orders').updateOne({ _id: order._id, 'courses.type': courseType }, upd);
     res.json({ status: 'ok' });
     const pin = req.restaurant.pin;
@@ -979,6 +983,118 @@ function scheduleCustomerLogClear() {
   }
   setTimeout(run, msUntilNext2am());
   console.log('[customer-log] clear scheduled for 2am IST');
+}
+
+// ── WEEKLY ANALYTICS REPORT ───────────────────────────────────────────────────
+async function buildWeeklyAnalytics(restaurant) {
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const orders = await db.collection('orders')
+    .find({ restaurantPin: restaurant.pin, createdAt: { $gte: weekAgo } })
+    .toArray();
+  const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+  return {
+    total:      orders.length,
+    avgStarter: avg(orders.filter(o => o.startersReadyAt).map(o => (new Date(o.startersReadyAt) - new Date(o.createdAt)) / 60000)),
+    avgMain:    avg(orders.filter(o => o.mainReadyAt).map(o => (new Date(o.mainReadyAt) - new Date(o.createdAt)) / 60000)),
+    avgDrinks:  avg(orders.filter(o => o.drinksReadyAt).map(o => (new Date(o.drinksReadyAt) - new Date(o.createdAt)) / 60000))
+  };
+}
+
+function scheduleWeeklyAnalytics() {
+  function msUntilNextMonday10am() {
+    const ist = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    const day = ist.getDay();
+    const daysUntilMon = day === 1 ? (ist.getHours() < 10 ? 0 : 7) : (8 - day) % 7 || 7;
+    const next = new Date(ist);
+    next.setDate(ist.getDate() + daysUntilMon);
+    next.setHours(10, 0, 0, 0);
+    return next.getTime() - ist.getTime();
+  }
+  async function run() {
+    console.log('[analytics] Sending Monday weekly analytics reports...');
+    try {
+      const restaurants = await db.collection('restaurants').find({}).toArray();
+      for (const r of restaurants) {
+        if (!r.ownerPhone) { console.log('[analytics] no ownerPhone for ' + r.name + ', skipping'); continue; }
+        try {
+          const s = await buildWeeklyAnalytics(r);
+          await sendWhatsApp('weekly_analytics_v1', r.ownerPhone, r.name,
+            [r.name, String(s.total), String(s.avgStarter), String(s.avgMain), String(s.avgDrinks)]);
+          console.log('[analytics] report sent to ' + r.name);
+        } catch (e) { console.error('[analytics] report failed for ' + r.name + ':', e.message); }
+      }
+    } catch (e) { console.error('[analytics] weekly scheduler error:', e.message); }
+    setTimeout(run, 7 * 24 * 60 * 60 * 1000);
+  }
+  setTimeout(run, msUntilNextMonday10am());
+  console.log('[analytics] weekly report scheduled for Monday 10am IST');
+}
+
+// ── ANALYTICS ────────────────────────────────────────────────────────────────
+app.get('/admin/analytics/:pin', adminLimiter, requireAdmin, async (req, res) => {
+  const pin = cleanStr(req.params.pin, 6);
+  if (!pin) return res.status(400).json({ ok: false, error: 'PIN required' });
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const orders = await db.collection('orders')
+      .find({ restaurantPin: pin, createdAt: { $gte: thirtyDaysAgo } })
+      .toArray();
+
+    const avg = arr => arr.length
+      ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length)
+      : null;
+
+    const starterTimes = orders.filter(o => o.startersReadyAt)
+      .map(o => (new Date(o.startersReadyAt) - new Date(o.createdAt)) / 60000);
+    const mainTimes = orders.filter(o => o.mainReadyAt)
+      .map(o => (new Date(o.mainReadyAt) - new Date(o.createdAt)) / 60000);
+    const drinksTimes = orders.filter(o => o.drinksReadyAt)
+      .map(o => (new Date(o.drinksReadyAt) - new Date(o.createdAt)) / 60000);
+
+    // Build daily counts with all 30 slots pre-filled as 0
+    const dailyCounts = {};
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      dailyCounts[d.toISOString().slice(0, 10)] = 0;
+    }
+    orders.forEach(o => {
+      const key = new Date(o.createdAt).toISOString().slice(0, 10);
+      if (key in dailyCounts) dailyCounts[key]++;
+    });
+
+    res.json({
+      ok: true,
+      totalOrders: orders.length,
+      avgStarterMins:  avg(starterTimes),
+      avgMainMins:     avg(mainTimes),
+      avgDrinksMins:   avg(drinksTimes),
+      starterSamples:  starterTimes.length,
+      mainSamples:     mainTimes.length,
+      drinksSamples:   drinksTimes.length,
+      dailyCounts
+    });
+  } catch (e) {
+    console.error('[analytics]', e.message);
+    res.status(500).json({ ok: false, error: 'Failed' });
+  }
+});
+
+function scheduleAnalyticsCleanup() {
+  async function run() {
+    try {
+      const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const result = await db.collection('orders').deleteMany({ createdAt: { $lt: cutoff } });
+      if (result.deletedCount > 0)
+        console.log('[analytics] purged ' + result.deletedCount + ' orders older than 30 days');
+    } catch (e) { console.error('[analytics] cleanup failed:', e.message); }
+    setTimeout(run, 24 * 60 * 60 * 1000);
+  }
+  const ist = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const target = new Date(ist);
+  target.setHours(3, 0, 0, 0);
+  if (target <= ist) target.setDate(target.getDate() + 1);
+  setTimeout(run, target.getTime() - ist.getTime());
+  console.log('[analytics] order cleanup scheduled for 3am IST');
 }
 
 // ── FCM TOKEN ROUTES ─────────────────────────────────────────────────────────

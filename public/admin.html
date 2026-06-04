@@ -38,6 +38,18 @@ input[type=range]{padding:0;height:6px;}
 .range-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
 .range-row label{margin:0;min-width:110px;}
 .range-out{font-size:14px;font-weight:600;min-width:45px;text-align:right;}
+.an-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#0f0f0f;z-index:500;overflow-y:auto;}
+.an-inner{max-width:640px;margin:0 auto;padding:20px 16px 60px;}
+.an-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+.an-stat{background:#111;border:1px solid #2a2a2a;border-radius:10px;padding:14px;text-align:center;}
+.an-val{font-size:26px;font-weight:700;color:#4a9eff;margin-bottom:4px;}
+.an-lbl{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.5px;}
+.an-sub{font-size:11px;color:#444;margin-top:3px;}
+.bar-row{display:flex;align-items:flex-end;gap:3px;height:60px;margin:10px 0 4px;}
+.bar{flex:1;background:#1e3a5a;border-radius:3px 3px 0 0;min-height:2px;transition:background .2s;}
+.bar:hover{background:#4a9eff;}
+.bar-labels{display:flex;gap:3px;}
+.bar-lbl{flex:1;text-align:center;font-size:9px;color:#444;overflow:hidden;}
 </style>
 </head>
 <body>
@@ -236,7 +248,9 @@ async function loadRestaurants() {
         '<div class="act blue" onclick="sendReport(\''+r.pin+'\')">📊 Report</div>' +
         '<div class="act" onclick="editRestaurant(\''+r.pin+'\',\''+r.name+'\')" style="background:#1a1407;border-color:#a16207;color:#d4a017;">✏️ Edit</div>' +
         '<div class="act red" onclick="deleteRestaurant(\''+r._id+'\',\''+r.name+'\')">🗑 Delete</div>' +
-        '</div></div>';
+        '</div>' +
+        '<div onclick="showAnalytics(\''+r.pin+'\',\''+r.name+'\')" style="margin-top:8px;padding:9px;background:#0d1a26;border:1px solid #1e3a5a;border-radius:8px;color:#4a9eff;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">📈 View Analytics (last 30 days)</div>' +
+        '</div>';
     }).join('');
   } catch(e) { document.getElementById('rest-list').innerHTML = '<div style="color:#ff5555;font-size:13px;">Failed to load</div>'; }
 }
@@ -313,6 +327,70 @@ async function renewSub(pin, plan) {
 
 calc();
 loadRestaurants();
+
+async function showAnalytics(pin, name) {
+  var modal = document.getElementById('an-modal');
+  var body  = document.getElementById('an-body');
+  modal.style.display = 'block';
+  body.innerHTML = '<div style="color:#666;text-align:center;padding:3rem;">Loading…</div>';
+  document.getElementById('an-title').textContent = name;
+
+  try {
+    var r = await fetch('/admin/analytics/' + pin, { headers: { 'x-admin-key': adminKey() } });
+    var d = await r.json();
+    if (!d.ok) { body.innerHTML = '<div style="color:#ff5555;text-align:center;padding:2rem;">' + (d.error || 'Failed') + '</div>'; return; }
+
+    function fmt(v, samples) {
+      if (v === null) return '<div class="an-val" style="color:#444;">—</div><div class="an-sub">no data yet</div>';
+      return '<div class="an-val">' + v + ' min</div><div class="an-sub">' + samples + ' order' + (samples !== 1 ? 's' : '') + '</div>';
+    }
+
+    // Bar chart: last 30 days
+    var days = Object.keys(d.dailyCounts).sort();
+    var last7 = days.slice(-7);
+    var counts = last7.map(function(k){ return d.dailyCounts[k]; });
+    var max = Math.max.apply(null, counts) || 1;
+    var bars = counts.map(function(c, i) {
+      var h = Math.round((c / max) * 56) + 4;
+      var label = last7[i].slice(5); // MM-DD
+      return { h: h, c: c, label: label };
+    });
+
+    body.innerHTML =
+      '<div class="an-grid">' +
+        '<div class="an-stat">' + fmt(d.avgStarterMins, d.starterSamples) + '<div class="an-lbl">Avg Starters</div></div>' +
+        '<div class="an-stat">' + fmt(d.avgMainMins,    d.mainSamples)    + '<div class="an-lbl">Avg Main</div></div>' +
+        '<div class="an-stat">' + fmt(d.avgDrinksMins,  d.drinksSamples)  + '<div class="an-lbl">Avg Drinks</div></div>' +
+      '</div>' +
+      '<div style="background:#111;border:1px solid #2a2a2a;border-radius:10px;padding:14px;">' +
+        '<div style="display:flex;justify-content:space-between;margin-bottom:10px;">' +
+          '<span style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;">Orders last 7 days</span>' +
+          '<span style="font-size:13px;font-weight:700;color:#fff;">' + d.totalOrders + ' total (30d)</span>' +
+        '</div>' +
+        '<div class="bar-row">' +
+          bars.map(function(b){ return '<div class="bar" style="height:' + b.h + 'px;" title="' + b.c + ' orders"></div>'; }).join('') +
+        '</div>' +
+        '<div class="bar-labels">' +
+          bars.map(function(b){ return '<div class="bar-lbl">' + b.label + '<br>' + b.c + '</div>'; }).join('') +
+        '</div>' +
+      '</div>';
+  } catch(e) { body.innerHTML = '<div style="color:#ff5555;text-align:center;padding:2rem;">Network error</div>'; }
+}
+function closeAnalytics() { document.getElementById('an-modal').style.display = 'none'; }
 </script>
+
+<div class="an-modal" id="an-modal">
+  <div class="an-inner">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px;">
+      <button onclick="closeAnalytics()" style="width:36px;height:36px;border-radius:50%;background:#1a1a1a;border:1px solid #2a2a2a;color:#fff;font-size:20px;cursor:pointer;">←</button>
+      <div>
+        <div style="font-size:17px;font-weight:700;color:#fff;" id="an-title"></div>
+        <div style="font-size:12px;color:#666;margin-top:1px;">Last 30 days</div>
+      </div>
+    </div>
+    <div id="an-body"></div>
+  </div>
+</div>
+
 </body>
 </html>
