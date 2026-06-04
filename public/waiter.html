@@ -123,33 +123,37 @@ input:focus{outline:none;border-color:#3b82f6;}
       <!-- Full details -->
       <div id="full-details">
         <label>Customer name</label><input type="text" id="w-name" placeholder="Enter name"/>
-        <label>WhatsApp number</label><input type="tel" id="w-phone" placeholder="91XXXXXXXXXX"/>
+        <label>WhatsApp number</label>
+        <div style="display:flex;align-items:center;border:1px solid #2b313a;border-radius:11px;background:#0e1014;margin-bottom:14px;">
+          <span style="padding:14px 6px 14px 14px;font-size:16px;color:#525965;user-select:none;flex-shrink:0;">+91</span>
+          <input type="tel" id="w-phone" placeholder="XXXXXXXXXX" maxlength="10" inputmode="numeric" style="flex:1;padding:14px 14px 14px 4px;border:none;border-radius:0;font-size:16px;background:transparent;color:#e8eaed;width:auto;margin-bottom:0;outline:none;"/>
+        </div>
       </div>
       <label>Table number</label><input type="number" id="w-table" placeholder="e.g. 5"/>
       <label style="margin-top:4px;">Courses ordered</label>
       <div class="course-row">
-        <div class="course-check on" id="chk-d" onclick="toggleCourse('d')">✓</div>
+        <div class="course-check" id="chk-d" onclick="toggleCourse('d')"></div>
         <span class="course-label">🍹 Drinks</span>
         <input class="qty" id="qty-d" type="number" value="1" min="1"/>
       </div>
       <div class="course-row">
-        <div class="course-check on" id="chk-s" onclick="toggleCourse('s')">✓</div>
+        <div class="course-check" id="chk-s" onclick="toggleCourse('s')"></div>
         <span class="course-label">🥗 Starters</span>
         <input class="qty" id="qty-s" type="number" value="1" min="1"/>
       </div>
       <div class="course-row">
-        <div class="course-check on" id="chk-m" onclick="toggleCourse('m')">✓</div>
+        <div class="course-check" id="chk-m" onclick="toggleCourse('m')"></div>
         <span class="course-label">🍛 Main course</span>
         <input class="qty" id="qty-m" type="number" value="1" min="1"/>
       </div>
-      <div class="toggle-row" onclick="toggleSync()">
+      <div class="toggle-row" onclick="toggleSync()" style="display:none;">
         <div class="toggle-box" id="sync-box"></div>
         <span class="toggle-label" id="sync-label">⏱ Drinks + starters together</span>
       </div>
       <label>Send to</label>
       <div class="dest-row">
         <div class="chip on" id="dest-k" onclick="toggleDest('k',event)">🔥 Kitchen</div>
-        <div class="chip on" id="dest-b" onclick="toggleDest('b',event)">🍹 Bar</div>
+        <div class="chip" id="dest-b" onclick="toggleDest('b',event)" style="opacity:0.4;pointer-events:none;">🍹 Bar</div>
       </div>
       <button class="btn" id="place-btn" onclick="placeOrder()">Send order</button>
     </div>
@@ -160,7 +164,7 @@ input:focus{outline:none;border-color:#3b82f6;}
 <div id="w-toast" class="toast green"></div>
 
 <script>
-var dK=true,dB=true,sync=false,cD=true,cS=true,cM=true;
+var dK=true,dB=false,sync=false,cD=false,cS=false,cM=false;
 var activeOrders=[];
 var spokenAlerts={};
 var soundOn=localStorage.getItem('tp_sound')!=='off';
@@ -276,7 +280,7 @@ function setOrderMode(mode){
 }
 async function placeOrder(){
   var name=orderMode==='quick'?'Table '+document.getElementById('w-table').value.trim():document.getElementById('w-name').value.trim();
-  var phone=orderMode==='quick'?'':document.getElementById('w-phone').value.trim().replace(/\D/g,'');
+  var phone=orderMode==='quick'?'':('91'+document.getElementById('w-phone').value.trim().replace(/\D/g,''));
   var table=document.getElementById('w-table').value.trim();
   if(!table){toast('Enter table number','orange');return;}
   if(orderMode==='full'&&!name){toast('Enter customer name','orange');return;}
@@ -295,7 +299,11 @@ async function placeOrder(){
   var res=await post('/order',{phone:phone,orderName:name,table:table,courses:courses,sameTime:sync&&hasBoth,toK:dK,toB:dB});
   btn.disabled=false;btn.textContent='Send order';
   document.getElementById('w-name').value='';document.getElementById('w-phone').value='';document.getElementById('w-table').value='';
+  cD=false;cS=false;cM=false;
+  ['chk-d','chk-s','chk-m'].forEach(function(id){var el=document.getElementById(id);el.classList.remove('on');el.textContent='';});
+  dB=false;var destB=document.getElementById('dest-b');destB.classList.remove('on');destB.style.opacity='0.4';destB.style.pointerEvents='none';
   sync=false;document.getElementById('sync-box').classList.remove('on');document.getElementById('sync-box').textContent='';
+  updateSyncAvailability();
   if(res){toast(orderMode==='quick'?'Order sent to kitchen ✅':'WhatsApp sent to '+name+' ji! ✅','green');switchTab('tables');}else toast('Server busy — try again','orange');
   loadOrders();
   loadCustomerLog();
