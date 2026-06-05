@@ -281,7 +281,7 @@ function getParams(stage, name, extras) {
   extras = extras || {};
   const rName = extras.restaurantName || DEFAULT_RESTAURANT;
   const rLink = extras.reviewLink     || DEFAULT_REVIEW_LINK;
-  if (stage === 'order_received')  return [name, String(extras.table || ''), rName];
+  if (stage === 'order_received')  return [name, rName, String(extras.table || '')];
   if (stage === 'order_preparing') return [name];
   if (stage === 'order_arriving')  return [name];
   if (stage === 'order_delay')     return [name];
