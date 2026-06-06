@@ -599,7 +599,7 @@ async function subscribeToPush(reg) {
     await fetch('/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-      body: JSON.stringify({ endpoint: sub.endpoint, keys: { p256dh: arrayBufferToBase64(sub.getKey('p256dh')), auth: arrayBufferToBase64(sub.getKey('auth')) } })
+      body: JSON.stringify({ role: 'waiter', endpoint: sub.endpoint, keys: { p256dh: arrayBufferToBase64(sub.getKey('p256dh')), auth: arrayBufferToBase64(sub.getKey('auth')) } })
     });
     console.log('[pwa] push subscription registered');
   } catch (e) { console.log('[pwa] push subscribe failed:', e.message); }
