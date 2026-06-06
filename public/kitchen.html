@@ -369,7 +369,7 @@ async function subscribeToPush(reg) {
     }
     const token = localStorage.getItem('tp_token');
     if (!token) return;
-    await fetch('/subscribe', {method: 'POST',headers: {'Content-Type': 'application/json','x-auth-token': token},body: JSON.stringify({endpoint: sub.endpoint, keys: {p256dh: arrayBufferToBase64(sub.getKey('p256dh')), auth: arrayBufferToBase64(sub.getKey('auth'))}})});
+    await fetch('/subscribe', {method: 'POST',headers: {'Content-Type': 'application/json','x-auth-token': token},body: JSON.stringify({role: 'kitchen', endpoint: sub.endpoint, keys: {p256dh: arrayBufferToBase64(sub.getKey('p256dh')), auth: arrayBufferToBase64(sub.getKey('auth'))}})});
   } catch (e) { console.log('[pwa] push failed:', e.message); }
 }
 function urlBase64ToUint8Array(base64String) {
