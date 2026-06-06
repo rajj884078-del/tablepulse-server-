@@ -1145,16 +1145,17 @@ app.get('/vapid-public-key', (req, res) => {
 });
 
 app.post('/subscribe', writeLimiter, requireAuth, async (req, res) => {
-  const { endpoint, keys } = req.body;
+  const { endpoint, keys, role } = req.body;
   if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
     return res.status(400).json({ error: 'Invalid subscription' });
   }
   try {
     // Upsert by endpoint — avoid duplicate subs for same device
+    const setFields = { endpoint, keys, restaurantPin: req.restaurant.pin, updatedAt: new Date() };
+    if (role) setFields.role = role;
     await db.collection('subscriptions').updateOne(
       { endpoint },
-      { $set: { endpoint, keys, restaurantPin: req.restaurant.pin, updatedAt: new Date() },
-        $setOnInsert: { createdAt: new Date() } },
+      { $set: setFields, $setOnInsert: { createdAt: new Date() } },
       { upsert: true }
     );
     res.json({ ok: true });
