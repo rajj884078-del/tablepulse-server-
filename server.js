@@ -552,6 +552,7 @@ app.post('/notify-bar', writeLimiter, requireAuth, async (req, res) => {
     if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
       const pin = req.restaurant.pin;
       const subs = await db.collection('subscriptions').find({ restaurantPin: pin, role: 'bar' }).toArray();
+      console.log('[notify-bar] pin=' + pin + ' bar_subs_found=' + subs.length);
       const payload = JSON.stringify({ title: 'Coordinate Now', body: 'Table ' + order.table + ' — serve drinks with kitchen, starters almost ready', tag: 'bar-coord' });
       const dead = [];
       await Promise.all(subs.map(async sub => {
