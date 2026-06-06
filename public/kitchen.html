@@ -61,6 +61,9 @@ h1 span{font-size:12px;font-weight:500;color:#8b9099;}
 }
 .act-btn:active{transform:scale(0.96);opacity:0.85;}
 .act-btn.secondary{background:#12161c;border-color:#2b313a;color:#5aa2f5;font-size:14px;font-weight:600;}
+.act-row{display:flex;gap:8px;}
+.act-row .act-btn{flex:1;}
+.act-btn.outline{background:transparent;border-color:#2b313a;color:#8b9099;font-size:13px;font-weight:600;padding:12px 8px;}
 .status-line{font-size:14px;font-weight:600;padding:6px 0;color:#41c980;}
 .wait-line{font-size:13px;color:#8b9099;padding:5px 0;}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;padding:13px 20px;border-radius:10px;font-size:14px;font-weight:600;display:none;z-index:50;max-width:90%;box-shadow:0 8px 24px rgba(0,0,0,.4);}
@@ -262,8 +265,10 @@ function renderOrders(orders){
     var isUrgent=main&&main.status==='started';
     var sameTimeNotify=o.sameTime&&st&&st.status==='waiting'&&!o.bNotified;
     var actions='';
-    if(sameTimeNotify) actions+='<button class="act-btn secondary" onclick="notifyBar(\''+o._id+'\')">🔔 Notify barman — same-time order</button>';
-    if(st&&st.status==='waiting'){
+    if(sameTimeNotify){
+      actions+='<button class="act-btn primary" onclick="updateCourse(\''+o._id+'\',\'starters\',\'ready\')">✅ Starters ready — all done</button>';
+      actions+='<div class="act-row"><button class="act-btn outline" onclick="notifyBar(\''+o._id+'\')">🔔 Notify barman — same-time order</button><button class="act-btn outline" onclick="notifyWaiter(\''+o._id+'\',\''+o.table+'\',\'starters\')">🔔 Partial ready — alert waiter</button></div>';
+    } else if(st&&st.status==='waiting'){
       actions+='<button class="act-btn primary" onclick="updateCourse(\''+o._id+'\',\'starters\',\'ready\')">✅ Starters ready — all done</button>';
       actions+='<button class="act-btn bell" onclick="notifyWaiter(\''+o._id+'\',\''+o.table+'\',\'starters\')">🔔 Partial ready — alert waiter</button>';
     }
