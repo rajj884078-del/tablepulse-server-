@@ -34,7 +34,6 @@ h1 span{font-size:12px;font-weight:500;color:#8b9099;}
 .sync-tag{display:inline-block;font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;background:#1a1407;color:#d4a017;margin-top:5px;letter-spacing:.3px;}
 .coord-notice{background:#101826;border:1px solid #1e3a5a;border-radius:9px;padding:11px 13px;margin-bottom:10px;font-size:13px;font-weight:600;color:#5aa2f5;}
 .act-btn{width:100%;padding:16px;border:1.5px solid #1a7a45;border-radius:11px;background:#1a7a45;color:#fff;font-size:15px;font-weight:700;cursor:pointer;text-align:center;transition:transform .1s,opacity .1s;margin-bottom:8px;}
-.act-btn.bell{background:#101826;border-color:#1e3a5a;color:#5aa2f5;font-size:14px;font-weight:600;}
 .act-btn.blocked{
   background:#0d1a0d;
   border-color:#1a7a45;
@@ -142,21 +141,6 @@ function showApp(name, subStatus, subExpiry){
   initPWA();
   requestWakeLock();
     loadOrders();setInterval(loadOrders,5000);
-  setInterval(function(){
-    Object.keys(bellBlocked).forEach(function(id){
-      var btn=document.querySelector('[data-bell-id="'+id+'"]');
-      if(!btn)return;
-      var now=Date.now();
-      if(bellBlocked[id]>now){
-        var rem=Math.ceil((bellBlocked[id]-now)/1000);
-        btn.textContent='✓ Waiter notified ('+rem+'s)';
-      } else {
-        btn.className='act-btn bell';
-        btn.textContent='🔔 Partial ready — alert waiter';
-        delete bellBlocked[id];
-      }
-    });
-  },1000);
 }
 
 function updateSettingsUI(){
@@ -231,7 +215,7 @@ async function loadOrders(){
       delete announcedBarCoord[o._id];
     }
   });
-  checkBellStatus(orders);renderOrders(orders);firstLoad=false;
+  renderOrders(orders);firstLoad=false;
   showConn(true);
   }catch(e){showConn(false);}
 }
@@ -242,14 +226,8 @@ function renderOrders(orders){
     var drinks=(o.courses||[]).find(function(c){return c.type==='drinks';});
     if(!drinks)return '';
     var coord=o.bNotified?'<div class="coord-notice">Drinks pickup — coordinate with kitchen</div>':'';
-    var isBlocked=bellBlocked[o._id]&&bellBlocked[o._id]>Date.now();
-    var rem=isBlocked?Math.ceil((bellBlocked[o._id]-Date.now())/1000):0;
-    var bellCls=isBlocked?'act-btn blocked':'act-btn bell';
-    var bellTxt=isBlocked?'✓ Waiter notified ('+rem+'s)':'Partial ready — alert waiter';
-    var bellClk=isBlocked?'':'onclick="notifyWaiterBar(\''+o._id+'\',\''+o.table+'\'"';
     var action=drinks.status==='waiting'
-      ?'<button class="act-btn" onclick="drinksReady(\''+o._id+'\')">Drinks ready — all done</button>'+
-       '<button class="'+bellCls+'" data-bell-id="'+o._id+'" '+bellClk+'>'+bellTxt+'</button>'
+      ?'<button class="act-btn" onclick="drinksReady(\''+o._id+'\')">Drinks ready — all done</button>'
       :'<div class="status-line">Drinks served</div>';
     return '<div class="card"><div class="order-top"><div>'+
       '<div class="table-name">Table '+o.table+'</div>'+
@@ -259,29 +237,9 @@ function renderOrders(orders){
       coord+action+'</div>';
   }).join('');
 }
-function checkBellStatus(orders){
-  orders.forEach(function(o){
-    if(o.bellBlockedUntil && new Date(o.bellBlockedUntil) > new Date()){
-      bellBlocked[o._id] = new Date(o.bellBlockedUntil).getTime();
-    } else {
-      delete bellBlocked[o._id];
-    }
-  });
-}
 async function drinksReady(id){
   await post('/update-course',{orderId:id,courseType:'drinks',status:'ready'});
   toast('Drinks marked ready','green');loadOrders();
-}
-var bellBlocked={};
-async function notifyWaiterBar(id, table){
-  if(bellBlocked[id]&&bellBlocked[id]>Date.now()){
-    var rem=Math.ceil((bellBlocked[id]-Date.now())/1000);
-    toast('Waiter acknowledged — bell blocked ('+rem+'s)','green');
-    return;
-  }
-  var msg='Table '+table+', drinks ready';
-  await post('/notify-waiter',{orderId:id,message:msg});
-  toast('🔔 Waiter notified — '+msg,'blue');
 }
 function showSubBanner(status, expiry){
   var el=document.getElementById('sub-banner');if(!el)return;
