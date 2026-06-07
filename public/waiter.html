@@ -492,8 +492,10 @@ async function sendDelay(id){
 var _doneOrderId=null;
 function openDoneSheet(id,name,phone){
   if(!phone||phone.length<10){
-    _doneOrderId=id;
-    doneWithoutReview();
+    activeOrders=activeOrders.filter(function(o){return o._id!==id;});
+    renderOrders(activeOrders);
+    toast('Table closed ✓','green');
+    post('/order-done',{orderId:id}).then(function(){loadOrders();});
     return;
   }
   _doneOrderId=id;
