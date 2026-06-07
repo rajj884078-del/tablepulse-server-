@@ -549,6 +549,7 @@ app.post('/notify-bar', writeLimiter, requireAuth, async (req, res) => {
   try {
     await db.collection('orders').updateOne({ _id: order._id }, { $set: { bNotified: true } });
     res.json({ status: 'ok' });
+    setTimeout(() => db.collection('orders').updateOne({ _id: order._id }, { $set: { bNotified: false } }).catch(() => {}), 3000);
     if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
       const pin = req.restaurant.pin;
       const subs = await db.collection('subscriptions').find({ restaurantPin: pin, role: 'bar' }).toArray();

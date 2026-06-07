@@ -227,6 +227,8 @@ async function loadOrders(){
     if(o.bNotified&&!announcedBarCoord[o._id]){
       announcedBarCoord[o._id]=true;
       if(!firstLoad)speak('Table '+o.table+', coordinate with kitchen — serve drinks with starters');
+    } else if(!o.bNotified){
+      delete announcedBarCoord[o._id];
     }
   });
   checkBellStatus(orders);renderOrders(orders);firstLoad=false;
