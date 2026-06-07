@@ -121,7 +121,7 @@ input:focus{outline:none;border-color:#3b82f6;}
         <button id="mode-quick-btn" ontouchstart="setOrderMode('quick');event.preventDefault()" onclick="setOrderMode('quick')" style="flex:1;padding:10px;border-radius:10px;background:#1c2128;border:1px solid #2b313a;color:#8b9099;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;">Quick Order</button>
       </div>
       <!-- Full details -->
-      <div id="full-details">
+      <div id="full-details" style="transition:opacity 0.1s ease;">
         <label>Customer name</label><input type="text" id="w-name" placeholder="Enter name"/>
         <label>WhatsApp number</label>
         <div style="display:flex;align-items:center;border:1px solid #2b313a;border-radius:11px;background:#0e1014;margin-bottom:14px;">
@@ -269,13 +269,16 @@ function setOrderMode(mode){
   var fullBtn=document.getElementById('mode-full-btn');
   var quickBtn=document.getElementById('mode-quick-btn');
   if(mode==='quick'){
-    fullDetails.style.display='none';
     fullBtn.style.background='#1c2128';fullBtn.style.color='#8b9099';fullBtn.style.border='1px solid #2b313a';
     quickBtn.style.background='#f97316';quickBtn.style.color='#000';quickBtn.style.border='none';
+    fullDetails.style.opacity='0';
+    setTimeout(function(){fullDetails.style.display='none';},100);
   } else {
-    fullDetails.style.display='block';
     fullBtn.style.background='#f97316';fullBtn.style.color='#000';fullBtn.style.border='none';
     quickBtn.style.background='#1c2128';quickBtn.style.color='#8b9099';quickBtn.style.border='1px solid #2b313a';
+    fullDetails.style.opacity='0';
+    fullDetails.style.display='block';
+    requestAnimationFrame(function(){requestAnimationFrame(function(){fullDetails.style.opacity='1';});});
   }
 }
 async function placeOrder(){
