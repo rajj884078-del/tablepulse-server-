@@ -263,7 +263,7 @@ function renderOrders(orders){
   el.innerHTML=orders.map(function(o){
     var st=gc(o,'starters');var main=gc(o,'main');
     var isUrgent=main&&main.status==='started';
-    var sameTimeNotify=o.sameTime&&st&&st.status==='waiting'&&!o.bNotified;
+    var sameTimeNotify=o.sameTime&&st&&st.status==='waiting';
     var actions='';
     if(sameTimeNotify){
       actions+='<button class="act-btn primary" onclick="updateCourse(\''+o._id+'\',\'starters\',\'ready\')">✅ Starters ready — all done</button>';
