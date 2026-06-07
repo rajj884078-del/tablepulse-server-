@@ -553,7 +553,6 @@ app.post('/notify-bar', writeLimiter, requireAuth, async (req, res) => {
     if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
       const pin = req.restaurant.pin;
       const subs = await db.collection('subscriptions').find({ restaurantPin: pin, role: 'bar' }).toArray();
-      console.log('[notify-bar] pin=' + pin + ' bar_subs_found=' + subs.length);
       const payload = JSON.stringify({ title: 'Coordinate Now', body: 'Table ' + order.table + ' — serve drinks with kitchen, starters almost ready', tag: 'bar-coord' });
       const dead = [];
       await Promise.all(subs.map(async sub => {
@@ -1153,9 +1152,8 @@ app.get('/vapid-public-key', (req, res) => {
   res.json({ key: VAPID_PUBLIC_KEY || null });
 });
 
-app.post('/subscribe', writeLimiter, (req, res, next) => { console.log('[subscribe-raw] request received, role=', req.body.role); next(); }, requireAuth, async (req, res) => {
+app.post('/subscribe', writeLimiter, requireAuth, async (req, res) => {
   const { endpoint, keys, role } = req.body;
-  console.log(`[subscribe] role=${role} endpoint=${endpoint}`);
   if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
     return res.status(400).json({ error: 'Invalid subscription' });
   }
