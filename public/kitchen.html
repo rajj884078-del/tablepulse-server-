@@ -361,12 +361,11 @@ async function subscribeToPush(reg) {
     const keyRes = await fetch('/vapid-public-key');
     const { key } = await keyRes.json();
     if (!key) return;
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      const perm = await Notification.requestPermission();
-      if (perm !== 'granted') return;
-      sub = await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(key)});
-    }
+    const existingSub = await reg.pushManager.getSubscription();
+    if (existingSub) { await existingSub.unsubscribe(); }
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') return;
+    const sub = await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(key)});
     const token = localStorage.getItem('tp_token');
     if (!token) return;
     await fetch('/subscribe', {method: 'POST',headers: {'Content-Type': 'application/json','x-auth-token': token},body: JSON.stringify({role: 'kitchen', endpoint: sub.endpoint, keys: {p256dh: arrayBufferToBase64(sub.getKey('p256dh')), auth: arrayBufferToBase64(sub.getKey('auth'))}})});
