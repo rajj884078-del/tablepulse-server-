@@ -210,7 +210,7 @@ function showApp(name, subStatus, subExpiry){
   avgStarter=parseInt(localStorage.getItem('tp_avg_starter'))||18;
   avgMain=parseInt(localStorage.getItem('tp_avg_main'))||30;
   switchTab('tables');
-  loadOrders();setInterval(loadOrders,8000);
+  loadOrders();setInterval(loadOrders,2000);
   setInterval(tickTimers,1000);
 }
 function switchTab(tab){

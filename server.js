@@ -585,6 +585,17 @@ app.post('/notify-waiter', writeLimiter, requireAuth, async (req, res) => {
     );
     res.json({ status: 'ok' });
     console.log('[notify-waiter] table=' + order.table + ' msg=' + message);
+    if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+      const pin = req.restaurant.pin;
+      const subs = await db.collection('subscriptions').find({ restaurantPin: pin, role: 'waiter' }).toArray();
+      const payload = JSON.stringify({ title: 'Waiter Alert', body: 'Table ' + order.table + ' — kitchen needs attention', tag: 'waiter-alert' });
+      const dead = [];
+      await Promise.all(subs.map(async sub => {
+        try { await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload); }
+        catch (e) { if (e.statusCode === 410 || e.statusCode === 404) dead.push(sub._id); }
+      }));
+      if (dead.length) await db.collection('subscriptions').deleteMany({ _id: { $in: dead } });
+    }
     sendFCMToRestaurant(req.restaurant.pin,
       message,
       'Tap to view table ' + order.table,
