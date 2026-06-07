@@ -241,7 +241,7 @@ function renderOrders(orders){
   el.innerHTML=orders.map(function(o){
     var drinks=(o.courses||[]).find(function(c){return c.type==='drinks';});
     if(!drinks)return '';
-    var coord=o.bNotified?'<div class="coord-notice">Coordinate with kitchen — serve drinks + food together</div>':'';
+    var coord=o.bNotified?'<div class="coord-notice">Drinks pickup — coordinate with kitchen</div>':'';
     var isBlocked=bellBlocked[o._id]&&bellBlocked[o._id]>Date.now();
     var rem=isBlocked?Math.ceil((bellBlocked[o._id]-Date.now())/1000):0;
     var bellCls=isBlocked?'act-btn blocked':'act-btn bell';
