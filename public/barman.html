@@ -109,7 +109,7 @@ h1 span{font-size:12px;font-weight:500;color:#8b9099;}
 <div id="b-toast" class="toast green"></div>
 
 <script>
-var soundOn=localStorage.getItem('tp_sound')!=='off', announcedNew={}, firstLoad=true;
+var soundOn=localStorage.getItem('tp_sound')!=='off', announcedNew={}, announcedBarCoord={}, firstLoad=true;
 (async function(){
   var token=localStorage.getItem('tp_token');
   if(!token)return;
@@ -223,6 +223,10 @@ async function loadOrders(){
     if(dr&&dr.status==='waiting'&&!announcedNew[o._id]){
       announcedNew[o._id]=true;
       if(!firstLoad)speak('Table '+o.table+', drinks order'+(o.sameTime?', same time with starters':''));
+    }
+    if(o.bNotified&&!announcedBarCoord[o._id]){
+      announcedBarCoord[o._id]=true;
+      if(!firstLoad)speak('Table '+o.table+', coordinate with kitchen — serve drinks with starters');
     }
   });
   checkBellStatus(orders);renderOrders(orders);firstLoad=false;
