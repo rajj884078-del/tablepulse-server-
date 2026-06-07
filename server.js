@@ -1148,6 +1148,7 @@ app.get('/vapid-public-key', (req, res) => {
 
 app.post('/subscribe', writeLimiter, requireAuth, async (req, res) => {
   const { endpoint, keys, role } = req.body;
+  console.log(`[subscribe] role=${role} endpoint=${endpoint}`);
   if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
     return res.status(400).json({ error: 'Invalid subscription' });
   }
