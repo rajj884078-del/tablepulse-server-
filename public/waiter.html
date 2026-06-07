@@ -117,8 +117,8 @@ input:focus{outline:none;border-color:#3b82f6;}
     <div class="card">
       <!-- Mode toggle -->
       <div style="display:flex;gap:8px;margin-bottom:16px;">
-        <button id="mode-full-btn" onclick="setOrderMode('full')" style="flex:1;padding:10px;border-radius:10px;background:#f97316;border:none;color:#000;font-size:13px;font-weight:700;cursor:pointer;">With WhatsApp</button>
-        <button id="mode-quick-btn" onclick="setOrderMode('quick')" style="flex:1;padding:10px;border-radius:10px;background:#1c2128;border:1px solid #2b313a;color:#8b9099;font-size:13px;font-weight:700;cursor:pointer;">Quick Order</button>
+        <button id="mode-full-btn" ontouchstart="setOrderMode('full');event.preventDefault()" onclick="setOrderMode('full')" style="flex:1;padding:10px;border-radius:10px;background:#f97316;border:none;color:#000;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;">With WhatsApp</button>
+        <button id="mode-quick-btn" ontouchstart="setOrderMode('quick');event.preventDefault()" onclick="setOrderMode('quick')" style="flex:1;padding:10px;border-radius:10px;background:#1c2128;border:1px solid #2b313a;color:#8b9099;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;">Quick Order</button>
       </div>
       <!-- Full details -->
       <div id="full-details">
