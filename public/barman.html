@@ -226,7 +226,7 @@ async function loadOrders(){
     }
     if(o.bNotified&&!announcedBarCoord[o._id]){
       announcedBarCoord[o._id]=true;
-      if(!firstLoad)speak('Table '+o.table+', coordinate with kitchen — serve drinks with starters');
+      if(!firstLoad)speak('Table '+o.table+', drinks pickup');
     } else if(!o.bNotified){
       delete announcedBarCoord[o._id];
     }
