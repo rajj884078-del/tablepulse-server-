@@ -562,6 +562,13 @@ app.post('/notify-bar', writeLimiter, requireAuth, async (req, res) => {
       }));
       if (dead.length) await db.collection('subscriptions').deleteMany({ _id: { $in: dead } });
     }
+    sendFCMToRestaurant(req.restaurant.pin,
+      'Coordinate Now',
+      'Table ' + order.table + ' — serve drinks with kitchen, starters almost ready',
+      { table: String(order.table), type: 'bar_coord', role: 'bar' },
+      'bar'
+    );
+    console.log('[notify-bar-fcm] sent to bar devices');
   } catch (e) { console.error('[notify-bar]', e.message); res.status(500).json({ error: 'Failed' }); }
 });
 
