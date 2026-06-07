@@ -1146,7 +1146,7 @@ app.get('/vapid-public-key', (req, res) => {
   res.json({ key: VAPID_PUBLIC_KEY || null });
 });
 
-app.post('/subscribe', writeLimiter, requireAuth, async (req, res) => {
+app.post('/subscribe', writeLimiter, (req, res, next) => { console.log('[subscribe-raw] request received, role=', req.body.role); next(); }, requireAuth, async (req, res) => {
   const { endpoint, keys, role } = req.body;
   console.log(`[subscribe] role=${role} endpoint=${endpoint}`);
   if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
