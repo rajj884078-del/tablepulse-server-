@@ -39,6 +39,16 @@ input[type=range]{padding:0;height:6px;}
 .range-row label{margin:0;min-width:110px;}
 .range-out{font-size:14px;font-weight:600;min-width:45px;text-align:right;}
 .an-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#0f0f0f;z-index:500;overflow-y:auto;}
+.menu-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#0f0f0f;z-index:500;overflow-y:auto;}
+.menu-inner{max-width:640px;margin:0 auto;padding:20px 16px 80px;}
+.menu-cat{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:12px;margin-bottom:10px;}
+.menu-cat-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.menu-cat-name{font-size:14px;font-weight:600;color:#fff;}
+.menu-dish-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid #222;}
+.menu-dish-name{flex:1;font-size:13px;color:#ccc;}
+.menu-dish-price{font-size:13px;color:#3fb950;min-width:60px;text-align:right;}
+.menu-x{background:none;border:none;color:#555;font-size:14px;cursor:pointer;padding:0 4px;line-height:1;}
+.menu-x:hover{color:#ff5555;}
 .an-inner{max-width:640px;margin:0 auto;padding:20px 16px 60px;}
 .an-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
 .an-stat{background:#111;border:1px solid #2a2a2a;border-radius:10px;padding:14px;text-align:center;}
@@ -251,7 +261,10 @@ async function loadRestaurants() {
         '<div class="act" onclick="editRestaurant(\''+r.pin+'\',\''+r.name+'\',\''+(r.totalTables||20)+'\')" style="background:#1a1407;border-color:#a16207;color:#d4a017;">✏️ Edit</div>' +
         '<div class="act red" onclick="deleteRestaurant(\''+r._id+'\',\''+r.name+'\')">🗑 Delete</div>' +
         '</div>' +
-        '<div onclick="showAnalytics(\''+r.pin+'\',\''+r.name+'\')" style="margin-top:8px;padding:9px;background:#0d1a26;border:1px solid #1e3a5a;border-radius:8px;color:#4a9eff;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">📈 View Analytics (last 30 days)</div>' +
+        '<div style="display:flex;gap:6px;margin-top:8px;">' +
+        '<div onclick="showAnalytics(\''+r.pin+'\',\''+r.name+'\')" style="flex:1;padding:9px;background:#0d1a26;border:1px solid #1e3a5a;border-radius:8px;color:#4a9eff;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">📈 Analytics</div>' +
+        '<div onclick="openMenu(\''+r.pin+'\',\''+r.name+'\')" style="flex:1;padding:9px;background:#1a0d26;border:1px solid #3a1e5a;border-radius:8px;color:#a78bfa;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">🍽 Menu</div>' +
+        '</div>' +
         '</div>';
     }).join('');
   } catch(e) { document.getElementById('rest-list').innerHTML = '<div style="color:#ff5555;font-size:13px;">Failed to load</div>'; }
@@ -383,6 +396,120 @@ async function showAnalytics(pin, name) {
   } catch(e) { body.innerHTML = '<div style="color:#ff5555;text-align:center;padding:2rem;">Network error</div>'; }
 }
 function closeAnalytics() { document.getElementById('an-modal').style.display = 'none'; }
+
+// ── Menu management ──
+var menuPin = '';
+var menuCategories = [];
+var menuImportCategories = [];
+
+function openMenu(pin, name) {
+  menuPin = pin; menuCategories = []; menuImportCategories = [];
+  document.getElementById('menu-title').textContent = name;
+  document.getElementById('menu-confirm-section').style.display = 'none';
+  document.getElementById('menu-import-section').style.display = 'block';
+  document.getElementById('menu-modal').style.display = 'block';
+  loadMenu();
+}
+function closeMenu() { document.getElementById('menu-modal').style.display = 'none'; menuPin = ''; menuCategories = []; }
+async function loadMenu() {
+  var r = await fetch('/admin/menu/' + menuPin, { headers: { 'x-admin-key': adminKey() } });
+  var d = await r.json();
+  if (d.ok) menuCategories = d.categories || [];
+  renderCurrentMenu();
+}
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function renderCurrentMenu() {
+  var el = document.getElementById('menu-body');
+  if (!menuCategories.length) {
+    el.innerHTML = '<div style="color:#444;font-size:13px;text-align:center;padding:1.5rem 0;">No menu items yet. Import from photo or add a category below.</div>';
+    return;
+  }
+  el.innerHTML = menuCategories.map(function(cat, ci) {
+    var dishes = (cat.dishes || []).map(function(d, di) {
+      return '<div class="menu-dish-row">' +
+        '<span class="menu-dish-name">' + escHtml(d.name) + '</span>' +
+        '<span class="menu-dish-price">' + (d.price != null ? '₹' + d.price : '—') + '</span>' +
+        '<button class="menu-x" onclick="removeMenuDish(' + ci + ',' + di + ')">✕</button>' +
+      '</div>';
+    }).join('');
+    var addRow = '<div style="display:flex;gap:6px;margin-top:8px;">' +
+      '<input type="text" placeholder="Dish name" id="dn-' + ci + '" style="flex:2;padding:8px;border:1px solid #333;border-radius:8px;background:#111;color:#fff;font-size:12px;"/>' +
+      '<input type="number" placeholder="Price" id="dp-' + ci + '" style="flex:1;padding:8px;border:1px solid #333;border-radius:8px;background:#111;color:#fff;font-size:12px;"/>' +
+      '<button onclick="addMenuDish(' + ci + ')" style="padding:8px 10px;background:#1e3a5a;border:none;border-radius:8px;color:#4a9eff;font-size:12px;cursor:pointer;">+ Add</button>' +
+    '</div>';
+    return '<div class="menu-cat">' +
+      '<div class="menu-cat-head"><span class="menu-cat-name">' + escHtml(cat.name) + '</span><button class="menu-x" onclick="removeMenuCategory(' + ci + ')">✕</button></div>' +
+      dishes + addRow + '</div>';
+  }).join('');
+}
+function addMenuCategory() {
+  var n = document.getElementById('new-cat-name').value.trim();
+  if (!n) return;
+  menuCategories.push({ name: n, dishes: [] });
+  document.getElementById('new-cat-name').value = '';
+  renderCurrentMenu();
+}
+function addMenuDish(ci) {
+  var name = document.getElementById('dn-' + ci).value.trim();
+  if (!name) return;
+  var priceStr = document.getElementById('dp-' + ci).value.trim();
+  var price = priceStr ? parseFloat(priceStr) : null;
+  menuCategories[ci].dishes.push({ name: name, price: price });
+  renderCurrentMenu();
+}
+function removeMenuDish(ci, di) { menuCategories[ci].dishes.splice(di, 1); renderCurrentMenu(); }
+function removeMenuCategory(ci) {
+  if (!confirm('Remove category "' + menuCategories[ci].name + '"?')) return;
+  menuCategories.splice(ci, 1); renderCurrentMenu();
+}
+async function saveMenu() {
+  var btn = document.getElementById('menu-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  var res = await post('/admin/menu/save', { pin: menuPin, categories: menuCategories });
+  btn.disabled = false; btn.textContent = 'Save';
+  if (res.ok) { menuCategories = res.categories; renderCurrentMenu(); toast('Menu saved ✓', 'green'); }
+  else toast('Save failed: ' + (res.error || 'unknown'), 'red');
+}
+async function handlePhotoImport(file) {
+  if (!file) return;
+  document.getElementById('menu-photo-input').value = '';
+  var btn = document.getElementById('menu-import-btn');
+  btn.textContent = '⏳ Analyzing photo…'; btn.disabled = true;
+  var form = new FormData();
+  form.append('photo', file);
+  try {
+    var r = await fetch('/admin/menu/parse-image', { method: 'POST', headers: { 'x-admin-key': adminKey() }, body: form });
+    var d = await r.json();
+    btn.textContent = '📷 Import from Photo'; btn.disabled = false;
+    if (!d.ok) { toast('Import failed: ' + (d.error || 'unknown'), 'red'); return; }
+    menuImportCategories = d.categories || [];
+    if (!menuImportCategories.length) { toast('No menu items found in photo', 'red'); return; }
+    showImportConfirmation();
+  } catch(e) {
+    btn.textContent = '📷 Import from Photo'; btn.disabled = false;
+    toast('Network error', 'red');
+  }
+}
+function showImportConfirmation() {
+  document.getElementById('menu-confirm-body').innerHTML = menuImportCategories.map(function(cat) {
+    var dishes = (cat.dishes || []).map(function(d) {
+      return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid #1a2a3a;">' +
+        '<span style="font-size:12px;color:#ccc;">' + escHtml(d.name) + '</span>' +
+        '<span style="font-size:12px;color:#3fb950;">' + (d.price != null ? '₹' + d.price : '—') + '</span>' +
+      '</div>';
+    }).join('');
+    return '<div style="margin-bottom:10px;">' +
+      '<div style="font-size:13px;font-weight:600;color:#fff;margin-bottom:4px;">' + escHtml(cat.name) + ' (' + (cat.dishes||[]).length + ' items)</div>' +
+      dishes + '</div>';
+  }).join('');
+  document.getElementById('menu-confirm-section').style.display = 'block';
+}
+async function confirmImport() {
+  var res = await post('/admin/menu/save', { pin: menuPin, categories: menuImportCategories });
+  if (res.ok) { menuCategories = res.categories; renderCurrentMenu(); cancelImport(); toast('Menu imported ✓', 'green'); }
+  else toast('Save failed: ' + (res.error || 'unknown'), 'red');
+}
+function cancelImport() { document.getElementById('menu-confirm-section').style.display = 'none'; menuImportCategories = []; }
 </script>
 
 <div class="an-modal" id="an-modal">
@@ -398,5 +525,38 @@ function closeAnalytics() { document.getElementById('an-modal').style.display = 
   </div>
 </div>
 
+<div class="menu-modal" id="menu-modal">
+  <div class="menu-inner">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="font-size:16px;font-weight:700;color:#fff;" id="menu-title"></div>
+      <button onclick="closeMenu()" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer;line-height:1;">✕</button>
+    </div>
+
+    <div id="menu-import-section">
+      <label id="menu-import-btn" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:#1a1a2e;border:1px dashed #3a3a6a;border-radius:10px;color:#a78bfa;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:16px;">
+        📷 Import from Photo
+        <input type="file" id="menu-photo-input" accept="image/*" style="display:none;" onchange="handlePhotoImport(this.files[0])"/>
+      </label>
+    </div>
+
+    <div id="menu-confirm-section" style="display:none;background:#0d1a0d;border:1px solid #1e5a1e;border-radius:10px;padding:14px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;color:#3fb950;margin-bottom:10px;">Detected menu items — confirm to merge:</div>
+      <div id="menu-confirm-body" style="max-height:260px;overflow-y:auto;"></div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button onclick="confirmImport()" style="flex:1;padding:10px;background:#1e5a1e;border:none;border-radius:8px;color:#3fb950;font-size:13px;font-weight:600;cursor:pointer;">Confirm &amp; Merge</button>
+        <button onclick="cancelImport()" style="flex:1;padding:10px;background:#2a1a1a;border:none;border-radius:8px;color:#ff5555;font-size:13px;font-weight:600;cursor:pointer;">Cancel</button>
+      </div>
+    </div>
+
+    <div id="menu-body"></div>
+
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <input type="text" id="new-cat-name" placeholder="Category name (e.g. Starters)" style="flex:1;padding:10px;border:1px solid #333;border-radius:8px;background:#111;color:#fff;font-size:13px;"/>
+      <button onclick="addMenuCategory()" style="padding:10px 14px;background:#1e3a5a;border:none;border-radius:8px;color:#4a9eff;font-size:13px;font-weight:600;cursor:pointer;">+ Category</button>
+    </div>
+
+    <button id="menu-save-btn" onclick="saveMenu()" style="width:100%;margin-top:12px;padding:13px;background:#0d2a0d;border:1px solid #1e5a1e;border-radius:10px;color:#3fb950;font-size:14px;font-weight:700;cursor:pointer;">Save</button>
+  </div>
+</div>
 </body>
 </html>

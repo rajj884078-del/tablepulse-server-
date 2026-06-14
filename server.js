@@ -8,6 +8,8 @@ const { generateToken, verifyToken, requireAuth, findRestaurantByPin } = require
 const path = require('path');
 const webpush = require('web-push');
 const admin = require('firebase-admin');
+const multer = require('multer');
+const Anthropic = require('@anthropic-ai/sdk');
 
 // Initialize Firebase Admin SDK from env var
 let firebaseInitialized = false;
@@ -141,6 +143,7 @@ const RAZORPAY_KEY_SECRET     = process.env.RAZORPAY_KEY_SECRET;
 const VAPID_PUBLIC_KEY  = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
 const VAPID_EMAIL       = process.env.VAPID_EMAIL || 'mailto:rajj884078@gmail.com';
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 // Configure web-push VAPID
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
@@ -152,6 +155,8 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 
 if (!ADMIN_KEY)               console.warn('[boot] ADMIN_KEY not set — admin API routes will reject all requests.');
 if (!RAZORPAY_WEBHOOK_SECRET) console.warn('[boot] RAZORPAY_WEBHOOK_SECRET not set — payment webhooks will be rejected.');
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // Razorpay subscription plans
 const PLAN_AMOUNT  = { monthly: 210000, yearly: 2100000 }; // paise
@@ -285,7 +290,7 @@ function getParams(stage, name, extras) {
   if (stage === 'order_preparing') return [name];
   if (stage === 'order_arriving')  return [name];
   if (stage === 'order_delay')     return [name];
-  if (stage === 'review_request')  return [name, rLink];
+  if (stage === 'review_request')  return [name, rName, rLink, rName];
   return [name];
 }
 
@@ -619,13 +624,15 @@ app.post('/order-done', writeLimiter, requireAuth, async (req, res) => {
 app.post('/review', writeLimiter, requireAuth, async (req, res) => {
   const order = await loadOwnedOrder(req, res);
   if (!order) return;
+  console.log('[review] called for order', req.body.orderId, 'restaurant:', order.restaurantName || req.restaurant.name);
   try {
     await db.collection('orders').updateOne({ _id: order._id }, { $set: { reviewSent: true } });
     res.json({ status: 'ok' });
     const reviewLink = order.reviewLink || req.restaurant.googleReviewLink || DEFAULT_REVIEW_LINK;
-    const reviewParams = getParams('review_request', order.orderName, { reviewLink });
+    const restaurantName = order.restaurantName || req.restaurant.name || DEFAULT_RESTAURANT;
+    const reviewParams = getParams('review_request', order.orderName, { reviewLink, restaurantName });
     console.log('[review] sending to phone=' + order.phone + ' name=' + order.orderName + ' link=' + reviewLink + ' params=' + JSON.stringify(reviewParams));
-    await sendWhatsApp('table_review_request_v2', order.phone, order.orderName, reviewParams);
+    await sendWhatsApp('review_request_v4', order.phone, order.orderName, reviewParams);
   } catch (e) { console.error('[review]', e.message); if (!res.headersSent) res.status(500).json({ error: 'Failed' }); }
 });
 
@@ -740,7 +747,7 @@ app.get('/test-whatsapp', adminLimiter, requireAdmin, async (req, res) => {
   const campaigns = {
     order_received: 'table_order_received_v3', order_preparing: 'table_order_preparing_v2',
     order_arriving: 'table_order_arriving_v2', order_delay: 'table_order_delay_v2',
-    review_request: 'table_review_request_v2'
+    review_request: 'review_request_v4'
   };
   const campaignName = campaigns[stage];
   if (!campaignName) return res.status(400).json({ error: 'Unknown stage' });
@@ -1252,6 +1259,67 @@ app.get('/admin/restaurant-links/:pin', adminLimiter, requireAdmin, async (req, 
       bar:     base + '/r/' + restaurant.slug + '/bar'
     }
   });
+});
+
+// ── Menu endpoints ──
+
+// GET /admin/menu/:pin — return existing menu for a restaurant
+app.get('/admin/menu/:pin', adminLimiter, requireAdmin, async (req, res) => {
+  const pin = cleanStr(req.params.pin, 6);
+  if (!pin) return res.status(400).json({ ok: false, error: 'PIN required' });
+  const menu = await db.collection('menus').findOne({ pin });
+  res.json({ ok: true, categories: (menu && menu.categories) || [] });
+});
+
+// POST /admin/menu/parse-image — upload photo, parse with Claude vision
+app.post('/admin/menu/parse-image', adminLimiter, requireAdmin, upload.single('photo'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ ok: false, error: 'No file uploaded' });
+  if (!ANTHROPIC_API_KEY) return res.status(500).json({ ok: false, error: 'Anthropic API key not configured' });
+  try {
+    const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+    const base64 = req.file.buffer.toString('base64');
+    const mediaType = req.file.mimetype || 'image/jpeg';
+    const message = await client.messages.create({
+      model: 'claude-opus-4-6',
+      max_tokens: 2048,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+          { type: 'text', text: 'Extract all menu items from this image. Categorize each item into one of: Starters, Main Course, Drinks, Desserts, or Other. For each item, extract the name and price if visible (use null if price is not readable). Return ONLY valid JSON in this exact format with no other text:\n{"categories":[{"name":"Starters","dishes":[{"name":"Item Name","price":null}]},{"name":"Main Course","dishes":[]},{"name":"Drinks","dishes":[]},{"name":"Desserts","dishes":[]},{"name":"Other","dishes":[]}]}' }
+        ]
+      }]
+    });
+    const text = message.content[0] && message.content[0].type === 'text' ? message.content[0].text : '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return res.status(422).json({ ok: false, error: 'Could not parse menu from image' });
+    const parsed = JSON.parse(jsonMatch[0]);
+    parsed.categories = (parsed.categories || []).filter(c => c.dishes && c.dishes.length > 0);
+    res.json({ ok: true, categories: parsed.categories });
+  } catch (e) {
+    console.error('[menu-parse]', e.message);
+    res.status(500).json({ ok: false, error: e.message || 'Failed to parse image' });
+  }
+});
+
+// POST /admin/menu/save — merge new categories into existing menu
+app.post('/admin/menu/save', adminLimiter, requireAdmin, async (req, res) => {
+  const { pin, categories } = req.body;
+  if (!pin || !Array.isArray(categories)) return res.status(400).json({ ok: false, error: 'pin and categories required' });
+  const existing = await db.collection('menus').findOne({ pin });
+  let merged = (existing && existing.categories) ? existing.categories.map(c => ({ ...c, dishes: [...(c.dishes || [])] })) : [];
+  for (const newCat of categories) {
+    const existingCat = merged.find(c => c.name === newCat.name);
+    if (existingCat) {
+      for (const dish of (newCat.dishes || [])) {
+        if (!existingCat.dishes.find(d => d.name === dish.name)) existingCat.dishes.push(dish);
+      }
+    } else {
+      merged.push({ name: newCat.name, dishes: newCat.dishes || [] });
+    }
+  }
+  await db.collection('menus').updateOne({ pin }, { $set: { pin, categories: merged, updatedAt: new Date() } }, { upsert: true });
+  res.json({ ok: true, categories: merged });
 });
 
 // Serve static files last — after all routes are registered.
