@@ -737,6 +737,41 @@ app.post('/admin/send-report', adminLimiter, requireAdmin, async (req, res) => {
   } catch (e) { console.error('[admin/send-report]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
 });
 
+// ── WEEKLY REPORT PREVIEW (admin-only, no sending) ───────────────────────────
+app.get('/admin/weekly-report/:pin', adminLimiter, requireAdmin, async (req, res) => {
+  const { pin } = req.params;
+  try {
+    const restaurant = await db.collection('restaurants').findOne({ pin });
+    if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' });
+
+    const weekEnd   = new Date();
+    const weekStart = new Date(weekEnd.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const [orders, logEntries] = await Promise.all([
+      db.collection('orders').find({ restaurantPin: pin, createdAt: { $gte: weekStart } }).toArray(),
+      db.collection('customer_log').find({ restaurantPin: pin, timestamp: { $gte: weekStart } }).toArray(),
+    ]);
+
+    const reviewsSent      = orders.filter(o => o.reviewSent).length;
+    const customersReached = orders.filter(o => o.phone && o.phone.length >= 10).length;
+    const newCustomers     = logEntries.length;
+
+    const phoneCounts = {};
+    logEntries.forEach(e => { if (e.phone) phoneCounts[e.phone] = (phoneCounts[e.phone] || 0) + 1; });
+    const repeatCustomers = Object.values(phoneCounts).filter(c => c > 1).length;
+
+    res.json({
+      restaurantName: restaurant.name,
+      reviewsSent,
+      customersReached,
+      newCustomers,
+      repeatCustomers,
+      weekStart,
+      weekEnd,
+    });
+  } catch (e) { console.error('[admin/weekly-report]', e.message); res.status(500).json({ error: 'Failed' }); }
+});
+
 // ── TEST ENDPOINT (admin-only) ─────────────────────────────────────────────────
 app.get('/test-whatsapp', adminLimiter, requireAdmin, async (req, res) => {
   const { stage } = req.query;
