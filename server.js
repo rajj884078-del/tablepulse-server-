@@ -286,7 +286,7 @@ function getParams(stage, name, extras) {
   extras = extras || {};
   const rName = extras.restaurantName || DEFAULT_RESTAURANT;
   const rLink = extras.reviewLink     || DEFAULT_REVIEW_LINK;
-  if (stage === 'order_received')  return [name, rName, String(extras.table || '')];
+  if (stage === 'order_received')  return [name, rName, String(extras.table || ''), rName];
   if (stage === 'order_preparing') return [name];
   if (stage === 'order_arriving')  return [name];
   if (stage === 'order_delay')     return [name];
@@ -439,7 +439,7 @@ app.post('/order', writeLimiter, requireAuth, async (req, res) => {
   );
   if (phone && phone.length >= 10) {
     console.log('[order] sending order_received to phone=' + phone + ' name=' + orderName + ' table=' + table + ' courses=' + JSON.stringify(courses.map(c=>c.type)));
-    await sendWhatsApp('table_order_received_v3', phone, orderName,
+    await sendWhatsApp('table_order_received_v4', phone, orderName,
       getParams('order_received', orderName, { table, restaurantName }));
   } else {
     console.log('[order] no phone — skipping WhatsApp for table=' + table);
@@ -745,7 +745,7 @@ app.get('/test-whatsapp', adminLimiter, requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Required: valid phone, name, stage' });
   }
   const campaigns = {
-    order_received: 'table_order_received_v3', order_preparing: 'table_order_preparing_v2',
+    order_received: 'table_order_received_v4', order_preparing: 'table_order_preparing_v2',
     order_arriving: 'table_order_arriving_v2', order_delay: 'table_order_delay_v2',
     review_request: 'review_request_v4'
   };
