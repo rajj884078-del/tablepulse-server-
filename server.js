@@ -1202,6 +1202,26 @@ function scheduleAnalyticsCleanup() {
   async function run() {
     try {
       const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+      // Copy-before-delete: preserve everything in order_history before it's
+      // removed from the live collection. Upsert by the original _id so a
+      // retry after a crash never creates duplicates. Same safety pattern as
+      // the Stage 1 customer_log job.
+      const stale = await db.collection('orders').find({ createdAt: { $lt: cutoff } }).toArray();
+      if (stale.length > 0) {
+        const BATCH_SIZE = 500;
+        for (let i = 0; i < stale.length; i += BATCH_SIZE) {
+          const batch = stale.slice(i, i + BATCH_SIZE);
+          const ops = batch.map(entry => ({
+            updateOne: { filter: { _id: entry._id }, update: { $set: entry }, upsert: true }
+          }));
+          await db.collection('order_history').bulkWrite(ops, { ordered: false });
+        }
+        console.log('[analytics] copied ' + stale.length + ' orders to order_history');
+      }
+
+      // Only delete from the live collection once the copy above has
+      // succeeded without throwing.
       const result = await db.collection('orders').deleteMany({ createdAt: { $lt: cutoff } });
       if (result.deletedCount > 0)
         console.log('[analytics] purged ' + result.deletedCount + ' orders older than 30 days');
