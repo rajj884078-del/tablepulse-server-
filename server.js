@@ -453,7 +453,7 @@ app.post('/order', writeLimiter, requireAuth, async (req, res) => {
 app.get('/table-status', requireAuth, async (req, res) => {
   try {
     const orders = await db.collection('orders')
-      .find({ status: { $ne: 'done' }, restaurantPin: req.restaurant.pin })
+      .find({ status: { $nin: ['done', 'auto-archived'] }, restaurantPin: req.restaurant.pin })
       .sort({ createdAt: 1 }).toArray();
     const tables = {};
     orders.forEach(o => {
@@ -483,7 +483,7 @@ app.get('/table-status', requireAuth, async (req, res) => {
 app.get('/active-orders', requireAuth, async (req, res) => {
   try {
     const orders = await db.collection('orders')
-      .find({ status: { $ne: 'done' }, restaurantPin: req.restaurant.pin })
+      .find({ status: { $nin: ['done', 'auto-archived'] }, restaurantPin: req.restaurant.pin })
       .sort({ createdAt: 1 }).limit(ACTIVE_ORDERS_LIMIT).toArray();
     res.json(orders.map(o => Object.assign({}, o, { _id: o._id.toString() })));
   } catch (e) {
