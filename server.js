@@ -173,6 +173,7 @@ let db;
 MongoClient.connect(MONGODB_URI).then(client => {
   db = client.db('tablepulse');
   console.log('MongoDB connected');
+  ensureHistoryCollections();
   scheduleWeeklyReports();
   scheduleWeeklyAnalytics();
   scheduleSubscriptionChecks();
@@ -1023,6 +1024,28 @@ function scheduleAutoArchive() {
   console.log('[auto-archive] scheduler started — archiving orders older than 6h');
 }
 
+// ── HISTORY COLLECTIONS (STAGE 1) ────────────────────────────────────────────
+// Permanent 3-6 month record of customer/order activity, kept separate from
+// the live collections so live screens never have to scan it. TTL indexes
+// auto-expire old docs in the background — no manual cleanup job needed.
+// order_history is created here too (indexes ready) but nothing writes to it
+// yet — orders/auto-archive are untouched in this stage.
+const HISTORY_RETENTION_SECONDS = 180 * 24 * 60 * 60; // 6 months
+
+async function ensureHistoryCollections() {
+  try {
+    await db.collection('order_history').createIndex({ restaurantPin: 1, createdAt: -1 });
+    await db.collection('order_history').createIndex({ createdAt: 1 }, { expireAfterSeconds: HISTORY_RETENTION_SECONDS });
+
+    await db.collection('customer_visit_history').createIndex({ restaurantPin: 1, timestamp: -1 });
+    await db.collection('customer_visit_history').createIndex({ timestamp: 1 }, { expireAfterSeconds: HISTORY_RETENTION_SECONDS });
+
+    console.log('[history] order_history and customer_visit_history collections + indexes ready');
+  } catch (e) {
+    console.error('[history] failed to set up history collections:', e.message);
+  }
+}
+
 // ── CUSTOMER LOG ─────────────────────────────────────────────────────────────
 app.get('/customer-log', requireAuth, async (req, res) => {
   try {
@@ -1053,6 +1076,25 @@ function scheduleCustomerLogClear() {
       const istOffset = 5.5 * 60 * 60 * 1000;
       const istNow = new Date(Date.now() + istOffset);
       const todayMidnight = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate()) - istOffset);
+
+      // Copy-before-delete: preserve everything in customer_visit_history
+      // before it's removed from the live collection. Upsert by the
+      // original _id so a retry after a crash never creates duplicates.
+      const stale = await db.collection('customer_log').find({ timestamp: { $lt: todayMidnight } }).toArray();
+      if (stale.length > 0) {
+        const BATCH_SIZE = 500;
+        for (let i = 0; i < stale.length; i += BATCH_SIZE) {
+          const batch = stale.slice(i, i + BATCH_SIZE);
+          const ops = batch.map(entry => ({
+            updateOne: { filter: { _id: entry._id }, update: { $set: entry }, upsert: true }
+          }));
+          await db.collection('customer_visit_history').bulkWrite(ops, { ordered: false });
+        }
+        console.log('[customer-log] copied ' + stale.length + ' entries to customer_visit_history');
+      }
+
+      // Only delete from the live collection once the copy above has
+      // succeeded without throwing.
       const result = await db.collection('customer_log').deleteMany({ timestamp: { $lt: todayMidnight } });
       console.log('[customer-log] cleared ' + result.deletedCount + ' old entries at 2am');
     } catch (e) { console.error('[customer-log] clear failed:', e.message); }
