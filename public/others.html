@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>TablePulse — Attendance</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0e1014;color:#e8eaed;}
+
+/* Shared card screens */
+.screen{position:fixed;top:0;left:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;padding:20px;overflow-y:auto;}
+.screen.active{display:flex;}
+.panel{background:#161a20;border:1px solid #232830;border-radius:18px;padding:36px 28px;width:100%;max-width:360px;}
+.panel-center{text-align:center;}
+.big-emoji{font-size:36px;margin-bottom:12px;}
+.panel-h2{font-size:20px;font-weight:700;color:#e8eaed;margin:0 0 6px;}
+.panel-sub{color:#8b9099;font-size:13px;margin:0 0 24px;line-height:1.5;}
+.field-lbl{display:block;font-size:12px;color:#8b9099;margin-bottom:6px;font-weight:500;}
+input.field{width:100%;padding:14px;border:1px solid #2b313a;border-radius:11px;font-size:16px;margin-bottom:14px;background:#0e1014;color:#e8eaed;outline:none;}
+input.field:focus{border-color:#3b82f6;}
+input.field::placeholder{color:#525965;}
+.btn-main{width:100%;padding:16px;background:#2563eb;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;transition:opacity .1s;margin-top:4px;}
+.btn-main:disabled{opacity:0.5;cursor:default;}
+.field-err{color:#f0635a;font-size:13px;margin:10px 0 0;display:none;text-align:center;}
+
+/* Attendance screen */
+#att-screen{position:fixed;top:0;left:0;right:0;bottom:0;background:#0e1014;display:none;overflow-y:auto;}
+.att-wrap{max-width:420px;margin:0 auto;padding:20px 16px 60px;}
+.att-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.att-title{font-size:15px;font-weight:700;color:#e8eaed;}
+.change-btn{font-size:12px;color:#525965;background:none;border:none;cursor:pointer;padding:4px 8px;}
+
+.profile-card{background:#161a20;border:1px solid #232830;border-radius:16px;padding:20px;text-align:center;margin-bottom:16px;}
+.profile-name{font-size:22px;font-weight:800;color:#e8eaed;letter-spacing:-0.3px;}
+.profile-meta{font-size:13px;color:#8b9099;margin-top:4px;}
+.profile-date{font-size:12px;color:#525965;margin-top:8px;}
+
+.action-btn{width:100%;padding:24px 16px;border:none;border-radius:16px;font-size:20px;font-weight:800;cursor:pointer;transition:transform .08s;margin-bottom:12px;letter-spacing:-0.3px;}
+.action-btn:active{transform:scale(0.97);}
+.action-btn:disabled{cursor:default;transform:none;}
+.btn-in{background:#1a7a45;color:#fff;}
+.btn-break-out{background:#a16207;color:#fff;}
+.btn-break-in{background:#1d4ed8;color:#fff;}
+.btn-out{background:#6e2020;color:#fff;}
+.btn-done{background:#1c2128;color:#525965;}
+
+.log-card{background:#161a20;border:1px solid #232830;border-radius:14px;padding:16px;}
+.log-hdr{font-size:11px;font-weight:700;color:#525965;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;}
+.log-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #1c2128;}
+.log-row:last-child{border-bottom:none;}
+.log-time{font-size:13px;color:#8b9099;white-space:nowrap;min-width:74px;}
+.log-label{flex:1;font-size:14px;font-weight:600;color:#e8eaed;}
+.log-icon{font-size:15px;}
+.log-empty{text-align:center;color:#525965;font-size:14px;padding:16px 0;}
+
+/* GPS overlay */
+#gps-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(14,16,20,.94);display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:28px;text-align:center;z-index:300;}
+.gps-spin{width:42px;height:42px;border:3px solid #232830;border-top-color:#3b82f6;border-radius:50%;animation:sp .8s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.gps-msg{font-size:17px;font-weight:700;color:#e8eaed;}
+.gps-sub{font-size:13px;color:#8b9099;max-width:300px;line-height:1.6;}
+.gps-dismiss{padding:12px 28px;background:#1c2128;border:1px solid #2b313a;border-radius:10px;color:#9aa0aa;font-size:14px;font-weight:600;cursor:pointer;display:none;}
+
+/* Toast */
+#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);padding:13px 20px;border-radius:10px;font-size:14px;font-weight:600;display:none;z-index:400;max-width:90%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.5);}
+#toast.g{background:#10241a;color:#41c980;border:1px solid #1a7a45;}
+#toast.r{background:#241011;color:#f0635a;border:1px solid #6e1a1a;}
+#toast.o{background:#1f1810;color:#d4a017;border:1px solid #a16207;}
+</style>
+</head>
+<body>
+
+<!-- Screen: Login -->
+<div class="screen active" id="s-login">
+  <div class="panel panel-center">
+    <div class="big-emoji">📋</div>
+    <h2 class="panel-h2">Attendance</h2>
+    <p class="panel-sub">Enter the restaurant PIN to continue</p>
+    <input class="field" id="pin-in" type="password" inputmode="numeric" maxlength="6" placeholder="••••"
+      style="font-size:24px;text-align:center;letter-spacing:8px;"/>
+    <button class="btn-main" id="login-btn" onclick="doLogin()">Enter</button>
+    <div class="field-err" id="login-err"></div>
+  </div>
+</div>
+
+<!-- Screen: Setup (first time only) -->
+<div class="screen" id="s-setup">
+  <div class="panel">
+    <div class="big-emoji" style="text-align:center;">👤</div>
+    <h2 class="panel-h2" style="text-align:center;">Who are you?</h2>
+    <p class="panel-sub" style="text-align:center;">Saved on this device — only asked once</p>
+    <label class="field-lbl">Your Name</label>
+    <input class="field" id="setup-name" type="text" placeholder="e.g. Ramesh Kumar"/>
+    <label class="field-lbl">Your Position</label>
+    <input class="field" id="setup-pos" type="text" placeholder="e.g. Chef, Helper, Cashier, Waiter"/>
+    <button class="btn-main" onclick="saveSetup()">Start Attendance</button>
+    <div class="field-err" id="setup-err"></div>
+  </div>
+</div>
+
+<!-- Attendance screen -->
+<div id="att-screen">
+  <div class="att-wrap">
+    <div class="att-topbar">
+      <span class="att-title">TablePulse</span>
+      <button class="change-btn" onclick="changeStaff()">Change Staff ↩</button>
+    </div>
+    <div class="profile-card">
+      <div class="profile-name" id="p-name"></div>
+      <div class="profile-meta" id="p-meta"></div>
+      <div class="profile-date" id="p-date"></div>
+    </div>
+    <button class="action-btn btn-in" id="action-btn" data-next="in" onclick="handleTap()">Tap In</button>
+    <div class="log-card">
+      <div class="log-hdr">Today's Log</div>
+      <div id="log-list"><div class="log-empty">No entries yet today</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- GPS overlay -->
+<div id="gps-overlay">
+  <div class="gps-spin" id="gps-spin"></div>
+  <div class="gps-msg" id="gps-msg">Getting your location…</div>
+  <div class="gps-sub" id="gps-sub"></div>
+  <button class="gps-dismiss" id="gps-dismiss" onclick="hideGps()">Dismiss</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+var _token='', _restLat=null, _restLng=null, _restName='';
+var _name='', _pos='';
+var _entries=[];
+
+var ACTION_NEXT={'in':'break_out','break_out':'break_in','break_in':'out','out':'done'};
+var ACTION_META={
+  'in':        {label:'Tap In',           cls:'btn-in'},
+  'break_out': {label:'Break Out',         cls:'btn-break-out'},
+  'break_in':  {label:'Break In',          cls:'btn-break-in'},
+  'out':       {label:'Tap Out',           cls:'btn-out'},
+  'done':      {label:'Shift Complete ✓', cls:'btn-done'}
+};
+var LOG_LABELS={
+  'in':'🟢 Tapped In','break_out':'🟡 Break Out',
+  'break_in':'🔵 Back from Break','out':'🔴 Tapped Out'
+};
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+(function boot(){
+  _token   = localStorage.getItem('tp_others_token')||'';
+  _name    = localStorage.getItem('tp_staff_name')||'';
+  _pos     = localStorage.getItem('tp_staff_position')||'';
+  var sLat = localStorage.getItem('tp_others_lat');
+  var sLng = localStorage.getItem('tp_others_lng');
+  _restLat = sLat ? parseFloat(sLat) : null; if(isNaN(_restLat))_restLat=null;
+  _restLng = sLng ? parseFloat(sLng) : null; if(isNaN(_restLng))_restLng=null;
+  _restName= localStorage.getItem('tp_others_rest')||'';
+  document.getElementById('pin-in').addEventListener('keypress',function(e){if(e.key==='Enter')doLogin();});
+  document.getElementById('setup-name').addEventListener('keypress',function(e){if(e.key==='Enter')document.getElementById('setup-pos').focus();});
+  document.getElementById('setup-pos').addEventListener('keypress',function(e){if(e.key==='Enter')saveSetup();});
+  if(_token&&_name&&_pos) showAtt();
+  else if(_token) showScreen('s-setup');
+  else showScreen('s-login');
+})();
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function showScreen(id){
+  ['s-login','s-setup'].forEach(function(s){document.getElementById(s).className='screen';});
+  document.getElementById('att-screen').style.display='none';
+  if(id==='att-screen') document.getElementById('att-screen').style.display='block';
+  else document.getElementById(id).className='screen active';
+}
+
+function toast(msg,cls){
+  var el=document.getElementById('toast');el.className=cls||'g';el.textContent=msg;el.style.display='block';
+  clearTimeout(el._t);el._t=setTimeout(function(){el.style.display='none';},3500);
+}
+
+async function apiFetch(method,ep,body){
+  var h={'x-auth-token':_token};
+  if(body)h['Content-Type']='application/json';
+  var r=await fetch(ep,{method:method,headers:h,body:body?JSON.stringify(body):undefined});
+  if(r.status===401){localStorage.removeItem('tp_others_token');_token='';showScreen('s-login');throw new Error('Session expired');}
+  return r.json();
+}
+
+function haversine(lat1,lon1,lat2,lon2){
+  var R=6371000,f=Math.PI/180;
+  var dLat=(lat2-lat1)*f,dLon=(lon2-lon1)*f;
+  var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*f)*Math.cos(lat2*f)*Math.sin(dLon/2)*Math.sin(dLon/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function fmtTime(ts){
+  return new Date(ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true,timeZone:'Asia/Kolkata'});
+}
+
+// ── Login ─────────────────────────────────────────────────────────────────────
+async function doLogin(){
+  var pin=document.getElementById('pin-in').value.trim();
+  var err=document.getElementById('login-err'); err.style.display='none';
+  if(!pin)return;
+  var btn=document.getElementById('login-btn'); btn.disabled=true; btn.textContent='Checking…';
+  try{
+    var url=window.__SLUG__?'/r/'+window.__SLUG__+'/login':'/login';
+    var r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin})});
+    var d=await r.json();
+    btn.disabled=false; btn.textContent='Enter';
+    if(!r.ok){err.textContent=d.error||'Wrong PIN';err.style.display='block';return;}
+    _token=d.token; _restName=d.restaurantName||'';
+    _restLat=d.lat!=null?parseFloat(d.lat):null; if(isNaN(_restLat))_restLat=null;
+    _restLng=d.lng!=null?parseFloat(d.lng):null; if(isNaN(_restLng))_restLng=null;
+    localStorage.setItem('tp_others_token',_token);
+    localStorage.setItem('tp_others_rest',_restName);
+    if(_restLat!==null)localStorage.setItem('tp_others_lat',String(_restLat));
+    if(_restLng!==null)localStorage.setItem('tp_others_lng',String(_restLng));
+    _name=localStorage.getItem('tp_staff_name')||'';
+    _pos =localStorage.getItem('tp_staff_position')||'';
+    if(_name&&_pos) showAtt(); else showScreen('s-setup');
+  }catch(e){
+    btn.disabled=false; btn.textContent='Enter';
+    if(e.message!=='Session expired'){err.textContent='Server error — try again';err.style.display='block';}
+  }
+}
+
+// ── Setup ─────────────────────────────────────────────────────────────────────
+function saveSetup(){
+  var name=document.getElementById('setup-name').value.trim();
+  var pos =document.getElementById('setup-pos').value.trim();
+  var err =document.getElementById('setup-err'); err.style.display='none';
+  if(!name){err.textContent='Enter your name';err.style.display='block';return;}
+  if(!pos) {err.textContent='Enter your position';err.style.display='block';return;}
+  _name=name; _pos=pos;
+  localStorage.setItem('tp_staff_name',name);
+  localStorage.setItem('tp_staff_position',pos);
+  showAtt();
+}
+
+// ── Attendance screen ─────────────────────────────────────────────────────────
+async function showAtt(){
+  showScreen('att-screen');
+  document.getElementById('p-name').textContent=_name;
+  document.getElementById('p-meta').textContent=_pos+(_restName?' · '+_restName:'');
+  document.getElementById('p-date').textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',timeZone:'Asia/Kolkata'});
+  await loadEntries();
+}
+
+async function loadEntries(){
+  try{
+    var d=await apiFetch('GET','/attendance/today?staffName='+encodeURIComponent(_name));
+    _entries=Array.isArray(d)?d:[];
+  }catch(e){if(_entries===undefined)_entries=[];}
+  renderLog(); updateBtn();
+}
+
+function nextAction(){
+  if(!_entries.length)return 'in';
+  return ACTION_NEXT[_entries[_entries.length-1].action]||'done';
+}
+
+function updateBtn(){
+  var next=nextAction();
+  var meta=ACTION_META[next]||ACTION_META['done'];
+  var btn=document.getElementById('action-btn');
+  btn.textContent=meta.label;
+  btn.className='action-btn '+meta.cls;
+  btn.disabled=(next==='done');
+  btn.setAttribute('data-next',next);
+}
+
+function renderLog(){
+  var el=document.getElementById('log-list');
+  if(!_entries.length){el.innerHTML='<div class="log-empty">No entries yet today</div>';return;}
+  el.innerHTML=_entries.map(function(e){
+    var icon=e.locationVerified?'📍':(e.manualOverride?'✏️':'⚠️');
+    return '<div class="log-row">'+
+      '<span class="log-time">'+fmtTime(e.timestamp)+'</span>'+
+      '<span class="log-label">'+(LOG_LABELS[e.action]||e.action)+'</span>'+
+      '<span class="log-icon">'+icon+'</span></div>';
+  }).join('');
+}
+
+// ── Tap + GPS ─────────────────────────────────────────────────────────────────
+function handleTap(){
+  var action=document.getElementById('action-btn').getAttribute('data-next');
+  if(!action||action==='done')return;
+  geoCheck(action);
+}
+
+function showGps(msg,sub,done){
+  var ov=document.getElementById('gps-overlay'); ov.style.display='flex';
+  document.getElementById('gps-spin').style.display=done?'none':'block';
+  document.getElementById('gps-msg').textContent=msg;
+  document.getElementById('gps-sub').textContent=sub||'';
+  document.getElementById('gps-dismiss').style.display=done?'block':'none';
+}
+function hideGps(){document.getElementById('gps-overlay').style.display='none';}
+
+function geoCheck(action){
+  if(!('geolocation' in navigator)){
+    showGps('Location unavailable','This device does not support GPS. Enable location access and restart.',true);
+    saveTap(action,null,null,null,false);
+    return;
+  }
+  showGps('Getting your location…','Please allow location access when prompted.',false);
+  navigator.geolocation.getCurrentPosition(
+    function(pos){
+      var lat=pos.coords.latitude, lng=pos.coords.longitude;
+      var dist=null, verified=false;
+      if(_restLat!==null&&_restLng!==null){
+        dist=Math.round(haversine(lat,lng,_restLat,_restLng));
+        if(dist>100){
+          showGps('Too far from restaurant',
+            'You are '+dist+'m away. You must be within 100m of the restaurant to mark attendance.',true);
+          return; // blocked — do NOT record
+        }
+        verified=true;
+      }
+      // No geofence configured: allow but flag as unverified
+      hideGps();
+      saveTap(action,lat,lng,dist,verified);
+    },
+    function(gpsErr){
+      var msg='Location permission denied';
+      var sub='Enable location in your browser/phone settings, then refresh this page.';
+      if(gpsErr.code===2){msg='Location unavailable';sub='GPS could not get a fix. Enable GPS and try again.';}
+      if(gpsErr.code===3){msg='Location timed out';sub='GPS took too long. Move to an open area and try again.';}
+      showGps(msg,sub,true);
+      saveTap(action,null,null,null,false); // record attempt with locationVerified:false
+    },
+    {timeout:12000,maximumAge:30000,enableHighAccuracy:true}
+  );
+}
+
+async function saveTap(action,lat,lng,dist,verified){
+  try{
+    var res=await apiFetch('POST','/attendance',{
+      staffName:_name, position:_pos, action:action,
+      lat:lat, lng:lng, distanceMeters:dist, locationVerified:verified
+    });
+    if(res&&res.ok){
+      await loadEntries();
+      if(verified){
+        var labels={in:'Tapped In ✅',break_out:'Break started',break_in:'Back from break ✅',out:'Shift ended ✅'};
+        toast(labels[action]||'Recorded','g');
+      }
+    } else { toast('Failed to save — try again','r'); }
+  }catch(e){ if(e.message!=='Session expired') toast('Server error — try again','r'); }
+}
+
+function changeStaff(){
+  if(!confirm('Clear your name from this device?\nThe next person to open this page will be asked for their details.'))return;
+  localStorage.removeItem('tp_staff_name');
+  localStorage.removeItem('tp_staff_position');
+  _name=''; _pos='';
+  document.getElementById('setup-name').value='';
+  document.getElementById('setup-pos').value='';
+  showScreen('s-setup');
+}
+</script>
+</body>
+</html>

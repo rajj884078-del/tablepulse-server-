@@ -670,6 +670,10 @@ app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) =
   const captains = typeof req.body.captains === 'string'
     ? req.body.captains.split(',').map(s => s.trim()).filter(Boolean)
     : (Array.isArray(req.body.captains) ? req.body.captains : []);
+  const latVal = parseFloat(req.body.lat);
+  const lngVal = parseFloat(req.body.lng);
+  const lat = !isNaN(latVal) ? latVal : null;
+  const lng = !isNaN(lngVal) ? lngVal : null;
   const num = (v, d) => Math.min(Math.max(parseInt(v, 10) || d, 1), 240);
   const numTables = (v) => Math.min(Math.max(parseInt(v, 10) || 20, 1), 100);
   try {
@@ -685,7 +689,7 @@ app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) =
       avgStarterMins: num(req.body.avgStarterMins, 18),
       avgMainMins: num(req.body.avgMainMins, 30),
       totalTables: numTables(req.body.totalTables),
-      captains,
+      captains, lat, lng,
       createdAt: new Date()
     });
     console.log('[admin] added restaurant: ' + name + ' slug=' + slug);
@@ -722,6 +726,8 @@ app.post('/admin/update-restaurant', adminLimiter, requireAdmin, async (req, res
         ? req.body.captains.split(',').map(s => s.trim()).filter(Boolean)
         : (Array.isArray(req.body.captains) ? req.body.captains : []);
     }
+    if (req.body.lat !== undefined) { const v = parseFloat(req.body.lat); if (!isNaN(v)) update.lat = v; }
+    if (req.body.lng !== undefined) { const v = parseFloat(req.body.lng); if (!isNaN(v)) update.lng = v; }
     if (!Object.keys(update).length) return res.status(400).json({ error: 'Nothing to update' });
     await db.collection('restaurants').updateOne({ pin }, { $set: update });
     console.log('[admin] updated restaurant pin=' + pin + ' changes=' + JSON.stringify(update));
@@ -821,7 +827,9 @@ app.post('/login', loginLimiter, async (req, res) => {
     totalTables: restaurant.totalTables || 20,
     subscriptionStatus: restaurant.subscriptionStatus || 'active',
     subscriptionExpiry: restaurant.subscriptionExpiry || null,
-    captains: restaurant.captains || []
+    captains: restaurant.captains || [],
+    lat: restaurant.lat != null ? restaurant.lat : null,
+    lng: restaurant.lng != null ? restaurant.lng : null
   });
 });
 
@@ -1354,6 +1362,7 @@ function serveStaffScreen(screen) {
 app.get('/r/:slug/waiter',  serveStaffScreen('waiter'));
 app.get('/r/:slug/kitchen', serveStaffScreen('kitchen'));
 app.get('/r/:slug/bar',     serveStaffScreen('barman'));
+app.get('/r/:slug/others',  serveStaffScreen('others'));
 
 // Slug-based login: validates PIN against this specific restaurant only.
 app.post('/r/:slug/login', loginLimiter, async (req, res) => {
@@ -1374,7 +1383,9 @@ app.post('/r/:slug/login', loginLimiter, async (req, res) => {
     totalTables: restaurant.totalTables || 20,
     subscriptionStatus: restaurant.subscriptionStatus || 'active',
     subscriptionExpiry: restaurant.subscriptionExpiry || null,
-    captains: restaurant.captains || []
+    captains: restaurant.captains || [],
+    lat: restaurant.lat != null ? restaurant.lat : null,
+    lng: restaurant.lng != null ? restaurant.lng : null
   });
 });
 
@@ -1487,6 +1498,85 @@ app.get('/bell-status/:orderId', requireAuth, async (req, res) => {
     const remaining = blocked ? Math.ceil((new Date(order.bellBlockedUntil) - new Date()) / 1000) : 0;
     res.json({ blocked: !!blocked, remainingSeconds: remaining });
   } catch (e) { res.status(500).json({ error: 'Failed' }); }
+});
+
+// ── ATTENDANCE ────────────────────────────────────────────────────────────────
+app.post('/attendance', writeLimiter, requireAuth, async (req, res) => {
+  const staffName = cleanStr(req.body.staffName, 80);
+  const position  = cleanStr(req.body.position, 60);
+  const action    = req.body.action;
+  if (!staffName || !position) return res.status(400).json({ error: 'staffName and position required' });
+  if (!['in','break_out','break_in','out'].includes(action)) return res.status(400).json({ error: 'Invalid action' });
+  const lat            = (req.body.lat != null && !isNaN(parseFloat(req.body.lat))) ? parseFloat(req.body.lat) : null;
+  const lng            = (req.body.lng != null && !isNaN(parseFloat(req.body.lng))) ? parseFloat(req.body.lng) : null;
+  const distanceMeters = (req.body.distanceMeters != null && !isNaN(Number(req.body.distanceMeters))) ? Math.round(Number(req.body.distanceMeters)) : null;
+  const locationVerified = req.body.locationVerified === true;
+  try {
+    await db.collection('attendance').insertOne({
+      restaurantPin: req.restaurant.pin, staffName, position, action,
+      timestamp: new Date(), lat, lng, distanceMeters, locationVerified
+    });
+    console.log('[attendance] ' + staffName + ' ' + action + ' pin=' + req.restaurant.pin + ' verified=' + locationVerified + (distanceMeters != null ? ' dist=' + distanceMeters + 'm' : ''));
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[attendance] insert failed:', e.message);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
+app.get('/attendance/today', requireAuth, async (req, res) => {
+  const staffName = cleanStr(String(req.query.staffName || ''), 80);
+  if (!staffName) return res.status(400).json({ error: 'staffName required' });
+  try {
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istNow = new Date(Date.now() + istOffset);
+    const todayMidnight = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate()) - istOffset);
+    const entries = await db.collection('attendance').find({
+      restaurantPin: req.restaurant.pin, staffName, timestamp: { $gte: todayMidnight }
+    }).sort({ timestamp: 1 }).toArray();
+    res.json(entries.map(e => Object.assign({}, e, { _id: e._id.toString() })));
+  } catch (e) { console.error('[attendance/today]', e.message); res.status(500).json({ error: 'Failed' }); }
+});
+
+app.get('/admin/attendance/:pin', adminLimiter, requireAdmin, async (req, res) => {
+  const pin = cleanStr(req.params.pin, 6);
+  if (!pin) return res.status(400).json({ ok: false, error: 'PIN required' });
+  try {
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istNow = new Date(Date.now() + istOffset);
+    const todayMidnight = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate()) - istOffset);
+    const entries = await db.collection('attendance').find({
+      restaurantPin: pin, timestamp: { $gte: todayMidnight }
+    }).sort({ timestamp: 1 }).toArray();
+    const byStaff = {};
+    entries.forEach(e => {
+      if (!byStaff[e.staffName]) byStaff[e.staffName] = { staffName: e.staffName, position: e.position, entries: [] };
+      byStaff[e.staffName].entries.push(Object.assign({}, e, { _id: e._id.toString() }));
+    });
+    res.json({ ok: true, date: todayMidnight.toISOString(), staff: Object.values(byStaff) });
+  } catch (e) { console.error('[admin/attendance]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
+});
+
+app.post('/admin/attendance/override', adminLimiter, requireAdmin, async (req, res) => {
+  const pin       = cleanStr(String(req.body.restaurantPin || ''), 6);
+  const staffName = cleanStr(req.body.staffName, 80);
+  const position  = cleanStr(req.body.position, 60);
+  const action    = req.body.action;
+  if (!pin || !staffName || !position) return res.status(400).json({ ok: false, error: 'restaurantPin, staffName, position required' });
+  if (!['in','break_out','break_in','out'].includes(action)) return res.status(400).json({ ok: false, error: 'Invalid action' });
+  const overrideReason = cleanStr(req.body.overrideReason, 200) || 'Admin override';
+  let timestamp;
+  try { timestamp = req.body.timestamp ? new Date(req.body.timestamp) : new Date(); } catch(e) { timestamp = new Date(); }
+  if (isNaN(timestamp.getTime())) timestamp = new Date();
+  try {
+    await db.collection('attendance').insertOne({
+      restaurantPin: pin, staffName, position, action, timestamp,
+      lat: null, lng: null, distanceMeters: null,
+      locationVerified: false, manualOverride: true, overrideReason
+    });
+    console.log('[attendance/override] ' + staffName + ' ' + action + ' pin=' + pin);
+    res.json({ ok: true });
+  } catch (e) { console.error('[admin/attendance/override]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
 });
 
 app.listen(3000, () => console.log('TablePulse running on port 3000'));

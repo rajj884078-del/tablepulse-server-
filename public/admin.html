@@ -60,6 +60,15 @@ input[type=range]{padding:0;height:6px;}
 .bar:hover{background:#4a9eff;}
 .bar-labels{display:flex;gap:3px;}
 .bar-lbl{flex:1;text-align:center;font-size:9px;color:#444;overflow:hidden;}
+.att-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#0f0f0f;z-index:500;overflow-y:auto;}
+.att-inner{max-width:640px;margin:0 auto;padding:20px 16px 80px;}
+.att-staff{background:#111;border:1px solid #2a2a2a;border-radius:10px;padding:12px;margin-bottom:10px;}
+.att-sname{font-size:14px;font-weight:600;color:#fff;margin-bottom:2px;}
+.att-spos{font-size:12px;color:#666;margin-bottom:8px;}
+.att-entry{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #1a1a1a;font-size:13px;}
+.att-time{min-width:70px;color:#888;}
+.att-action{flex:1;color:#ccc;}
+.att-icon{font-size:14px;}
 </style>
 </head>
 <body>
@@ -134,6 +143,10 @@ input[type=range]{padding:0;height:6px;}
   <input type="number" id="a-main" placeholder="30" value="30"/>
   <label>Total Tables</label>
   <input type="number" id="a-tables" placeholder="20" value="20" min="1" max="100"/>
+  <label>Latitude (for GPS geofencing — optional)</label>
+  <input type="number" id="a-lat" placeholder="e.g. 28.6139" step="any"/>
+  <label>Longitude (for GPS geofencing — optional)</label>
+  <input type="number" id="a-lng" placeholder="e.g. 77.2090" step="any"/>
   <label>Captain Names (comma-separated)</label>
   <input type="text" id="a-captains" placeholder="e.g. Amit, Suresh, Raj"/>
   <button class="btn" id="add-btn" onclick="addRestaurant()">+ Add Restaurant</button>
@@ -245,11 +258,13 @@ async function loadRestaurants() {
       var subIcon = subStatus==='expired'?'⛔':subStatus==='warning'?'⚠️':'✅';
       var subLabel = subIcon + ' ' + (subStatus==='expired'?'Expired':subStatus==='warning'?'Expires '+expiry:'Active until '+expiry);
       var base = window.location.origin;
+      var gpsLabel = (r.lat != null && r.lng != null) ? '📍 GPS: '+r.lat.toFixed(4)+', '+r.lng.toFixed(4) : '📍 GPS: not set';
       var links = r.slug ? (
         '<div style="display:flex;gap:6px;margin:10px 0 4px;flex-wrap:wrap;">' +
         '<a href="' + base + '/r/' + r.slug + '/waiter" target="_blank" style="flex:1;min-width:80px;padding:8px 10px;background:#101826;border:1px solid #1e3a5a;border-radius:8px;color:#5aa2f5;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">🧑‍🍽️ Waiter</a>' +
         '<a href="' + base + '/r/' + r.slug + '/kitchen" target="_blank" style="flex:1;min-width:80px;padding:8px 10px;background:#1a1206;border:1px solid #5a2c0a;border-radius:8px;color:#ff9f43;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">🔥 Kitchen</a>' +
         '<a href="' + base + '/r/' + r.slug + '/bar" target="_blank" style="flex:1;min-width:80px;padding:8px 10px;background:#101826;border:1px solid #1e3a5a;border-radius:8px;color:#5aa2f5;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">🍹 Bar</a>' +
+        '<a href="' + base + '/r/' + r.slug + '/others" target="_blank" style="flex:1;min-width:80px;padding:8px 10px;background:#0d1a0d;border:1px solid #1a5a1a;border-radius:8px;color:#41c980;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">📋 Others</a>' +
         '</div>'
       ) : '<div style="font-size:12px;color:#525965;margin:8px 0;">No slug — re-add to get links</div>';
       return '<div class="rest-card">' +
@@ -258,6 +273,7 @@ async function loadRestaurants() {
         ((r.captains && r.captains.length) ? '<div class="rest-meta" style="color:#a78bfa;">👤 ' + r.captains.join(', ') + '</div>' : '') +
         '<div class="rest-meta" style="color:#25D366;">📱 ' + (r.ownerPhone || 'No owner phone') + '</div>' +
         '<div class="rest-meta" style="color:' + subColor + ';">📅 ' + subLabel + '</div>' +
+        '<div class="rest-meta" style="color:#525965;">' + gpsLabel + '</div>' +
         links +
         '<div class="rest-actions">' +
         '<div class="act green" onclick="renewSub(\''+r.pin+'\',' + "'monthly'" + ')">🔄 +1 Month</div>' +
@@ -269,6 +285,7 @@ async function loadRestaurants() {
         '<div style="display:flex;gap:6px;margin-top:8px;">' +
         '<div onclick="showAnalytics(\''+r.pin+'\',\''+r.name+'\')" style="flex:1;padding:9px;background:#0d1a26;border:1px solid #1e3a5a;border-radius:8px;color:#4a9eff;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">📈 Analytics</div>' +
         '<div onclick="openMenu(\''+r.pin+'\',\''+r.name+'\')" style="flex:1;padding:9px;background:#1a0d26;border:1px solid #3a1e5a;border-radius:8px;color:#a78bfa;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">🍽 Menu</div>' +
+        '<div onclick="showAttendance(\''+r.pin+'\',\''+r.name+'\')" style="flex:1;padding:9px;background:#0d1a0d;border:1px solid #1a5a1a;border-radius:8px;color:#41c980;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">📋 Attendance</div>' +
         '</div>' +
         '</div>';
     }).join('');
@@ -283,16 +300,22 @@ async function addRestaurant() {
   var starter = parseInt(document.getElementById('a-starter').value) || 18;
   var main = parseInt(document.getElementById('a-main').value) || 30;
   var tables = parseInt(document.getElementById('a-tables').value) || 20;
+  var latStr = document.getElementById('a-lat').value.trim();
+  var lngStr = document.getElementById('a-lng').value.trim();
+  var lat = latStr ? parseFloat(latStr) : null;
+  var lng = lngStr ? parseFloat(lngStr) : null;
   var captains = document.getElementById('a-captains').value.trim();
   if (!name || !pin) { toast('Name and PIN required', 'red'); return; }
   var btn = document.getElementById('add-btn'); btn.disabled = true; btn.textContent = 'Adding...';
-  var res = await post('/admin/add-restaurant', { name, pin, ownerPhone: phone, googleReviewLink: review, avgDrinkMins: drink, avgStarterMins: starter, avgMainMins: main, totalTables: tables, captains: captains });
+  var res = await post('/admin/add-restaurant', { name, pin, ownerPhone: phone, googleReviewLink: review, avgDrinkMins: drink, avgStarterMins: starter, avgMainMins: main, totalTables: tables, lat: lat, lng: lng, captains: captains });
   btn.disabled = false; btn.textContent = '+ Add Restaurant';
   if (res.ok) {
     document.getElementById('a-name').value = '';
     document.getElementById('a-pin').value = '';
     document.getElementById('a-phone').value = '';
     document.getElementById('a-review').value = '';
+    document.getElementById('a-lat').value = '';
+    document.getElementById('a-lng').value = '';
     document.getElementById('a-captains').value = '';
     if (res.links) {
       var lc = document.getElementById('links-content');
@@ -325,11 +348,19 @@ async function editRestaurant(pin) {
   var currentCaptains = (r.captains || []).join(', ');
   var newCaptains = prompt('Captain names (comma-separated):\nCurrent: ' + (currentCaptains || 'none'), currentCaptains);
   if (newCaptains === null) return;
+  var currentLat = r.lat != null ? String(r.lat) : '';
+  var newLat = prompt('Latitude for GPS geofencing (leave blank to keep):\nCurrent: ' + (currentLat || 'not set'), currentLat);
+  if (newLat === null) return;
+  var currentLng = r.lng != null ? String(r.lng) : '';
+  var newLng = prompt('Longitude for GPS geofencing (leave blank to keep):\nCurrent: ' + (currentLng || 'not set'), currentLng);
+  if (newLng === null) return;
   var body = { pin: pin };
   if (newPin && newPin !== pin) body.newPin = newPin;
   if (newName && newName !== r.name) body.name = newName;
   var t = parseInt(newTables); if (t >= 1 && t <= 100 && t !== parseInt(r.totalTables)) body.totalTables = t;
   if (newCaptains !== currentCaptains) body.captains = newCaptains;
+  if (newLat && newLat !== currentLat) { var lv = parseFloat(newLat); if (!isNaN(lv)) body.lat = lv; }
+  if (newLng && newLng !== currentLng) { var lv2 = parseFloat(newLng); if (!isNaN(lv2)) body.lng = lv2; }
   if (Object.keys(body).length === 1) { alert('Nothing changed.'); return; }
   var res = await post('/admin/update-restaurant', body);
   if (res && res.ok) { alert('Updated!'); loadRestaurants(); }
@@ -359,6 +390,60 @@ async function renewSub(pin, plan) {
 
 calc();
 loadRestaurants();
+
+// ── Attendance modal ──
+var attPin = '';
+async function showAttendance(pin, name) {
+  attPin = pin;
+  document.getElementById('att-title').textContent = name;
+  document.getElementById('att-modal').style.display = 'block';
+  document.getElementById('att-body').innerHTML = '<div style="color:#444;text-align:center;padding:2rem;">Loading…</div>';
+  // Pre-fill datetime to now in local time
+  var now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  document.getElementById('ov-time').value = now.toISOString().slice(0,16);
+  loadAttendance();
+}
+function closeAttendance() { document.getElementById('att-modal').style.display = 'none'; attPin = ''; }
+async function loadAttendance() {
+  try {
+    var r = await fetch('/admin/attendance/' + attPin, { headers: { 'x-admin-key': adminKey() } });
+    var d = await r.json();
+    var el = document.getElementById('att-body');
+    if (!d.ok) { el.innerHTML = '<div style="color:#ff5555;text-align:center;padding:2rem;">' + (d.error||'Failed') + '</div>'; return; }
+    var dateLabel = new Date(d.date).toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:'Asia/Kolkata'});
+    document.getElementById('att-date-label').textContent = dateLabel;
+    if (!d.staff.length) { el.innerHTML = '<div style="color:#444;text-align:center;padding:2rem;">No attendance recorded today</div>'; return; }
+    var actionLabels = {in:'🟢 Tap In',break_out:'🟡 Break Out',break_in:'🔵 Break In',out:'🔴 Tap Out'};
+    el.innerHTML = d.staff.map(function(s) {
+      var rows = s.entries.map(function(e) {
+        var t = new Date(e.timestamp).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true,timeZone:'Asia/Kolkata'});
+        var icon = e.locationVerified ? '📍' : (e.manualOverride ? '✏️' : '⚠️');
+        var dist = e.distanceMeters != null ? ' ('+e.distanceMeters+'m)' : '';
+        return '<div class="att-entry"><span class="att-time">'+t+'</span><span class="att-action">'+(actionLabels[e.action]||e.action)+dist+'</span><span class="att-icon">'+icon+'</span></div>';
+      }).join('');
+      return '<div class="att-staff"><div class="att-sname">'+escHtml(s.staffName)+'</div><div class="att-spos">'+escHtml(s.position)+'</div>'+rows+'</div>';
+    }).join('');
+  } catch(e) { document.getElementById('att-body').innerHTML = '<div style="color:#ff5555;text-align:center;padding:2rem;">Network error</div>'; }
+}
+async function submitOverride() {
+  var name   = document.getElementById('ov-name').value.trim();
+  var pos    = document.getElementById('ov-pos').value.trim();
+  var action = document.getElementById('ov-action').value;
+  var time   = document.getElementById('ov-time').value;
+  var reason = document.getElementById('ov-reason').value.trim();
+  if (!name || !pos) { toast('Name and position required', 'red'); return; }
+  var res = await post('/admin/attendance/override', {
+    restaurantPin: attPin, staffName: name, position: pos, action: action,
+    timestamp: time ? new Date(time).toISOString() : new Date().toISOString(),
+    overrideReason: reason || 'Admin override'
+  });
+  if (res.ok) {
+    toast('Override added ✓', 'green');
+    document.getElementById('ov-name').value = '';
+    document.getElementById('ov-reason').value = '';
+    loadAttendance();
+  } else { toast('Failed: ' + (res.error || 'unknown'), 'red'); }
+}
 
 async function showAnalytics(pin, name) {
   var modal = document.getElementById('an-modal');
@@ -569,6 +654,39 @@ function cancelImport() { document.getElementById('menu-confirm-section').style.
     </div>
 
     <button id="menu-save-btn" onclick="saveMenu()" style="width:100%;margin-top:12px;padding:13px;background:#0d2a0d;border:1px solid #1e5a1e;border-radius:10px;color:#3fb950;font-size:14px;font-weight:700;cursor:pointer;">Save</button>
+  </div>
+</div>
+<div class="att-modal" id="att-modal">
+  <div class="att-inner">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+      <button onclick="closeAttendance()" style="width:36px;height:36px;border-radius:50%;background:#1a1a1a;border:1px solid #2a2a2a;color:#fff;font-size:20px;cursor:pointer;">←</button>
+      <div>
+        <div style="font-size:17px;font-weight:700;color:#fff;" id="att-title"></div>
+        <div style="font-size:12px;color:#666;" id="att-date-label">Today's Attendance</div>
+      </div>
+    </div>
+    <div id="att-body" style="margin-bottom:20px;"></div>
+
+    <!-- Manual override form -->
+    <div style="background:#111;border:1px solid #2a2a2a;border-radius:10px;padding:14px;">
+      <div style="font-size:12px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;">Manual Override / Correction</div>
+      <label style="display:block;font-size:12px;color:#888;margin-bottom:4px;">Staff Name</label>
+      <input type="text" id="ov-name" placeholder="e.g. Ramesh Kumar" style="width:100%;padding:9px;background:#0f0f0f;border:1px solid #333;border-radius:8px;color:#fff;font-size:13px;margin-bottom:10px;"/>
+      <label style="display:block;font-size:12px;color:#888;margin-bottom:4px;">Position</label>
+      <input type="text" id="ov-pos" placeholder="e.g. Chef" style="width:100%;padding:9px;background:#0f0f0f;border:1px solid #333;border-radius:8px;color:#fff;font-size:13px;margin-bottom:10px;"/>
+      <label style="display:block;font-size:12px;color:#888;margin-bottom:4px;">Action</label>
+      <select id="ov-action" style="width:100%;padding:9px;background:#0f0f0f;border:1px solid #333;border-radius:8px;color:#fff;font-size:13px;margin-bottom:10px;">
+        <option value="in">🟢 Tap In</option>
+        <option value="break_out">🟡 Break Out</option>
+        <option value="break_in">🔵 Break In</option>
+        <option value="out">🔴 Tap Out</option>
+      </select>
+      <label style="display:block;font-size:12px;color:#888;margin-bottom:4px;">Date &amp; Time</label>
+      <input type="datetime-local" id="ov-time" style="width:100%;padding:9px;background:#0f0f0f;border:1px solid #333;border-radius:8px;color:#fff;font-size:13px;margin-bottom:10px;"/>
+      <label style="display:block;font-size:12px;color:#888;margin-bottom:4px;">Reason</label>
+      <input type="text" id="ov-reason" placeholder="e.g. GPS failed, forgot to tap in" style="width:100%;padding:9px;background:#0f0f0f;border:1px solid #333;border-radius:8px;color:#fff;font-size:13px;margin-bottom:12px;"/>
+      <button onclick="submitOverride()" style="width:100%;padding:11px;background:#1e3a1e;border:1px solid #3fb950;border-radius:8px;color:#3fb950;font-size:13px;font-weight:600;cursor:pointer;">✏️ Add Override Entry</button>
+    </div>
   </div>
 </div>
 </body>
