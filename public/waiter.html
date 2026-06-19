@@ -172,13 +172,41 @@ var prevCourseStates={};
 var avgStarter=18, avgMain=30;
 var currentTab='tables';
 var delaySentOrders=new Set();
+var _pendingShowApp=null;
+
+function showCaptainScreen(captains){
+  var screen=document.getElementById('captainScreen');
+  screen.style.display='flex';
+  var list=document.getElementById('captain-list');
+  list.innerHTML=captains.map(function(n){
+    return '<button onclick="selectCaptain(\''+n.replace(/'/g,"\\'")+'\')" style="width:100%;padding:16px;background:#1c2128;border:1px solid #2b313a;border-radius:12px;color:#e8eaed;font-size:16px;font-weight:600;cursor:pointer;">'+n+'</button>';
+  }).join('');
+}
+function selectCaptain(name){
+  localStorage.setItem('tp_captain',name);
+  document.getElementById('captainScreen').style.display='none';
+  var p=_pendingShowApp||{};
+  _pendingShowApp=null;
+  showApp(p.name||localStorage.getItem('tp_restaurant_name')||'',p.subStatus||'active',p.subExpiry||null);
+}
 
 (async function(){
   var token=localStorage.getItem('tp_token');
   if(!token)return;
-  try{var r=await fetch('/verify',{headers:{'x-auth-token':token}});
-  if(r.ok){var d=await r.json();if(d.totalTables)localStorage.setItem('tp_total_tables',d.totalTables);showApp(d.restaurantName,d.subscriptionStatus,d.subscriptionExpiry);}
-  else localStorage.removeItem('tp_token');}catch(e){}
+  try{
+    var r=await fetch('/verify',{headers:{'x-auth-token':token}});
+    if(r.ok){
+      var d=await r.json();
+      if(d.totalTables)localStorage.setItem('tp_total_tables',d.totalTables);
+      var savedCaptain=localStorage.getItem('tp_captain');
+      if(!savedCaptain){
+        var capsStr=localStorage.getItem('tp_captains');
+        if(capsStr){try{var caps=JSON.parse(capsStr);if(caps&&caps.length){_pendingShowApp={name:d.restaurantName,subStatus:d.subscriptionStatus,subExpiry:d.subscriptionExpiry};showCaptainScreen(caps);return;}}catch(e){}}
+      }
+      showApp(d.restaurantName,d.subscriptionStatus,d.subscriptionExpiry);
+    }
+    else localStorage.removeItem('tp_token');
+  }catch(e){}
 })();
 
 async function doLogin(){
@@ -195,7 +223,16 @@ async function doLogin(){
   if(d.avgStarterMins)localStorage.setItem('tp_avg_starter',d.avgStarterMins);
   if(d.avgMainMins)localStorage.setItem('tp_avg_main',d.avgMainMins);
   if(d.totalTables)localStorage.setItem('tp_total_tables',d.totalTables);
-  showApp(d.restaurantName,d.subscriptionStatus,d.subscriptionExpiry);}catch(e){err.textContent='Server error.';err.style.display='block';}
+  var caps=d.captains||[];
+  localStorage.setItem('tp_captains',JSON.stringify(caps));
+  localStorage.removeItem('tp_captain');
+  if(caps.length){
+    _pendingShowApp={name:d.restaurantName,subStatus:d.subscriptionStatus,subExpiry:d.subscriptionExpiry};
+    showCaptainScreen(caps);
+  } else {
+    showApp(d.restaurantName,d.subscriptionStatus,d.subscriptionExpiry);
+  }
+  }catch(e){err.textContent='Server error.';err.style.display='block';}
 }
 document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('pinInput').addEventListener('keypress',function(e){if(e.key==='Enter')doLogin();});
@@ -299,7 +336,8 @@ async function placeOrder(){
   if(!courses.length){toast('Select at least one course','orange');return;}
   var btn=document.getElementById('place-btn');btn.disabled=true;btn.textContent='Sending...';
   var hasBoth=cD&&cS;
-  var res=await post('/order',{phone:phone,orderName:name,table:table,courses:courses,sameTime:sync&&hasBoth,toK:dK,toB:dB});
+  var captainName=localStorage.getItem('tp_captain')||'';
+  var res=await post('/order',{phone:phone,orderName:name,table:table,courses:courses,sameTime:sync&&hasBoth,toK:dK,toB:dB,captainName:captainName});
   btn.disabled=false;btn.textContent='Send order';
   document.getElementById('w-name').value='';document.getElementById('w-phone').value='';document.getElementById('w-table').value='';
   cD=false;cS=false;cM=false;
@@ -483,7 +521,8 @@ async function serveTogether(id,name){
 }
 async function sendReview(id){
   var link=localStorage.getItem('tp_review_link')||'';
-  var res=await post('/review',{orderId:id,reviewLink:link});
+  var captainName=localStorage.getItem('tp_captain')||'';
+  var res=await post('/review',{orderId:id,reviewLink:link,captainName:captainName});
   if(res&&res.status==='ok') toast('⭐ Review request sent! ✅','green');
   else toast('Review send failed — try again','orange');
   loadOrders();
@@ -516,7 +555,8 @@ async function doneWithReview(){
   var id=_doneOrderId;
   closeDoneSheet();
   var link=localStorage.getItem('tp_review_link')||'';
-  await post('/review',{orderId:id,reviewLink:link});
+  var captainName=localStorage.getItem('tp_captain')||'';
+  await post('/review',{orderId:id,reviewLink:link,captainName:captainName});
   await post('/order-done',{orderId:id});
   toast('⭐ Review sent & table closed ✓','green');
   loadOrders();
@@ -639,7 +679,7 @@ function logout() {
       });
     });
   }
-  localStorage.clear();
+  localStorage.clear(); // clears tp_captain, tp_captains, tp_token, etc.
   location.reload();
 }
 
@@ -834,5 +874,14 @@ function toggleSoundSettings(){
 </div>
 
 <button onclick="openSettings()" id="settings-fab" style="position:fixed;bottom:20px;right:16px;width:38px;height:38px;border-radius:50%;background:#161a20;border:1px solid #2b313a;font-size:16px;cursor:pointer;z-index:200;display:flex;align-items:center;justify-content:center;">⚙️</button>
+
+<div id="captainScreen" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#0e1014;z-index:800;align-items:center;justify-content:center;">
+  <div style="background:#161a20;border:1px solid #232830;border-radius:18px;padding:36px 28px;width:300px;max-width:90vw;text-align:center;">
+    <div style="font-size:28px;margin-bottom:10px;">👤</div>
+    <h2 style="color:#e8eaed;margin:0 0 6px;font-size:20px;">Who are you?</h2>
+    <p style="color:#8b9099;font-size:13px;margin:0 0 22px;">Tap your name to start your shift</p>
+    <div id="captain-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+  </div>
+</div>
 </body>
 </html>

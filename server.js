@@ -396,6 +396,7 @@ app.post('/order', writeLimiter, requireAuth, async (req, res) => {
   const sameTime = req.body.sameTime === true;
   const toK = req.body.toK !== false;
   const toB = req.body.toB !== false;
+  const captainName = cleanStr(req.body.captainName, 60) || '';
 
   const rest = req.restaurant;
   const restaurantName = rest.name || DEFAULT_RESTAURANT;
@@ -406,6 +407,7 @@ app.post('/order', writeLimiter, requireAuth, async (req, res) => {
       phone: String(phone).replace(/\D/g, ''), orderName, table, courses, sameTime, toK, toB,
       bNotified: false, status: 'active',
       restaurantPin: rest.pin, restaurantName, reviewLink,
+      captainName,
       reviewSent: false, createdAt: new Date()
     });
   } catch (e) {
@@ -626,8 +628,9 @@ app.post('/review', writeLimiter, requireAuth, async (req, res) => {
   const order = await loadOwnedOrder(req, res);
   if (!order) return;
   console.log('[review] called for order', req.body.orderId, 'restaurant:', order.restaurantName || req.restaurant.name);
+  const reviewCaptain = cleanStr(req.body.captainName, 60) || order.captainName || '';
   try {
-    await db.collection('orders').updateOne({ _id: order._id }, { $set: { reviewSent: true } });
+    await db.collection('orders').updateOne({ _id: order._id }, { $set: { reviewSent: true, reviewCaptain } });
     res.json({ status: 'ok' });
     const reviewLink = order.reviewLink || req.restaurant.googleReviewLink || DEFAULT_REVIEW_LINK;
     const restaurantName = order.restaurantName || req.restaurant.name || DEFAULT_RESTAURANT;
@@ -664,6 +667,9 @@ app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) =
   }
   const ownerPhone = isValidPhone(req.body.ownerPhone) ? String(req.body.ownerPhone).replace(/\D/g, '') : '';
   const googleReviewLink = cleanStr(req.body.googleReviewLink, 300) || '';
+  const captains = typeof req.body.captains === 'string'
+    ? req.body.captains.split(',').map(s => s.trim()).filter(Boolean)
+    : (Array.isArray(req.body.captains) ? req.body.captains : []);
   const num = (v, d) => Math.min(Math.max(parseInt(v, 10) || d, 1), 240);
   const numTables = (v) => Math.min(Math.max(parseInt(v, 10) || 20, 1), 100);
   try {
@@ -679,6 +685,7 @@ app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) =
       avgStarterMins: num(req.body.avgStarterMins, 18),
       avgMainMins: num(req.body.avgMainMins, 30),
       totalTables: numTables(req.body.totalTables),
+      captains,
       createdAt: new Date()
     });
     console.log('[admin] added restaurant: ' + name + ' slug=' + slug);
@@ -710,6 +717,11 @@ app.post('/admin/update-restaurant', adminLimiter, requireAdmin, async (req, res
     if (avgStarterMins) update.avgStarterMins = Number(avgStarterMins);
     if (avgMainMins) update.avgMainMins = Number(avgMainMins);
     if (totalTables != null) update.totalTables = Math.min(Math.max(parseInt(totalTables, 10) || 20, 1), 100);
+    if (req.body.captains !== undefined) {
+      update.captains = typeof req.body.captains === 'string'
+        ? req.body.captains.split(',').map(s => s.trim()).filter(Boolean)
+        : (Array.isArray(req.body.captains) ? req.body.captains : []);
+    }
     if (!Object.keys(update).length) return res.status(400).json({ error: 'Nothing to update' });
     await db.collection('restaurants').updateOne({ pin }, { $set: update });
     console.log('[admin] updated restaurant pin=' + pin + ' changes=' + JSON.stringify(update));
@@ -808,7 +820,8 @@ app.post('/login', loginLimiter, async (req, res) => {
     avgMainMins: restaurant.avgMainMins,
     totalTables: restaurant.totalTables || 20,
     subscriptionStatus: restaurant.subscriptionStatus || 'active',
-    subscriptionExpiry: restaurant.subscriptionExpiry || null
+    subscriptionExpiry: restaurant.subscriptionExpiry || null,
+    captains: restaurant.captains || []
   });
 });
 
@@ -1198,6 +1211,30 @@ app.get('/admin/analytics/:pin', adminLimiter, requireAdmin, async (req, res) =>
   }
 });
 
+// ── CAPTAIN STATS ────────────────────────────────────────────────────────────
+app.get('/admin/captain-stats/:pin', adminLimiter, requireAdmin, async (req, res) => {
+  const pin = cleanStr(req.params.pin, 6);
+  if (!pin) return res.status(400).json({ ok: false, error: 'PIN required' });
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const orders = await db.collection('orders')
+      .find({ restaurantPin: pin, createdAt: { $gte: thirtyDaysAgo }, captainName: { $exists: true, $ne: '' } })
+      .toArray();
+    const stats = {};
+    orders.forEach(o => {
+      const c = o.captainName;
+      if (!stats[c]) stats[c] = { captainName: c, numbersCaptured: 0, reviewsSent: 0 };
+      if (o.phone && o.phone.length >= 10) stats[c].numbersCaptured++;
+      if (o.reviewSent) stats[c].reviewsSent++;
+    });
+    const result = Object.values(stats).sort((a, b) => b.reviewsSent - a.reviewsSent);
+    res.json({ ok: true, stats: result });
+  } catch (e) {
+    console.error('[captain-stats]', e.message);
+    res.status(500).json({ ok: false, error: 'Failed' });
+  }
+});
+
 function scheduleAnalyticsCleanup() {
   async function run() {
     try {
@@ -1336,7 +1373,8 @@ app.post('/r/:slug/login', loginLimiter, async (req, res) => {
     avgMainMins: restaurant.avgMainMins,
     totalTables: restaurant.totalTables || 20,
     subscriptionStatus: restaurant.subscriptionStatus || 'active',
-    subscriptionExpiry: restaurant.subscriptionExpiry || null
+    subscriptionExpiry: restaurant.subscriptionExpiry || null,
+    captains: restaurant.captains || []
   });
 });
 

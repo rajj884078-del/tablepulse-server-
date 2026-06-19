@@ -134,6 +134,8 @@ input[type=range]{padding:0;height:6px;}
   <input type="number" id="a-main" placeholder="30" value="30"/>
   <label>Total Tables</label>
   <input type="number" id="a-tables" placeholder="20" value="20" min="1" max="100"/>
+  <label>Captain Names (comma-separated)</label>
+  <input type="text" id="a-captains" placeholder="e.g. Amit, Suresh, Raj"/>
   <button class="btn" id="add-btn" onclick="addRestaurant()">+ Add Restaurant</button>
 </div>
 
@@ -212,6 +214,7 @@ function calc(){
 ['c-cust','c-cap','c-rev'].forEach(function(id){ document.getElementById(id).addEventListener('input', calc); });
 
 // ── Admin functions ──
+var allRestaurants = [];
 function adminKey() {
   var k = sessionStorage.getItem('tp_admin_key');
   if (!k) { k = prompt('Enter admin key'); if (k) sessionStorage.setItem('tp_admin_key', k); }
@@ -232,6 +235,7 @@ async function loadRestaurants() {
   try {
     var r = await fetch('/admin/restaurants', { headers: { 'x-admin-key': adminKey() } });
     var list = await r.json();
+    allRestaurants = list;
     var el = document.getElementById('rest-list');
     if (!list.length) { el.innerHTML = '<div style="color:#444;font-size:13px;text-align:center;padding:2rem;">No restaurants yet</div>'; return; }
         el.innerHTML = list.map(function(r) {
@@ -251,6 +255,7 @@ async function loadRestaurants() {
       return '<div class="rest-card">' +
         '<div class="rest-name">' + r.name + '</div>' +
         '<div class="rest-meta">PIN: ' + r.pin + ' · Tables: ' + (r.totalTables||20) + ' · Drinks: ' + r.avgDrinkMins + 'm · Starters: ' + r.avgStarterMins + 'm · Main: ' + r.avgMainMins + 'm</div>' +
+        ((r.captains && r.captains.length) ? '<div class="rest-meta" style="color:#a78bfa;">👤 ' + r.captains.join(', ') + '</div>' : '') +
         '<div class="rest-meta" style="color:#25D366;">📱 ' + (r.ownerPhone || 'No owner phone') + '</div>' +
         '<div class="rest-meta" style="color:' + subColor + ';">📅 ' + subLabel + '</div>' +
         links +
@@ -258,7 +263,7 @@ async function loadRestaurants() {
         '<div class="act green" onclick="renewSub(\''+r.pin+'\',' + "'monthly'" + ')">🔄 +1 Month</div>' +
         '<div class="act green" onclick="renewSub(\''+r.pin+'\',' + "'yearly'" + ')">⭐ +1 Year</div>' +
         '<div class="act blue" onclick="sendReport(\''+r.pin+'\')">📊 Report</div>' +
-        '<div class="act" onclick="editRestaurant(\''+r.pin+'\',\''+r.name+'\',\''+(r.totalTables||20)+'\')" style="background:#1a1407;border-color:#a16207;color:#d4a017;">✏️ Edit</div>' +
+        '<div class="act" onclick="editRestaurant(\''+r.pin+'\')" style="background:#1a1407;border-color:#a16207;color:#d4a017;">✏️ Edit</div>' +
         '<div class="act red" onclick="deleteRestaurant(\''+r._id+'\',\''+r.name+'\')">🗑 Delete</div>' +
         '</div>' +
         '<div style="display:flex;gap:6px;margin-top:8px;">' +
@@ -278,15 +283,17 @@ async function addRestaurant() {
   var starter = parseInt(document.getElementById('a-starter').value) || 18;
   var main = parseInt(document.getElementById('a-main').value) || 30;
   var tables = parseInt(document.getElementById('a-tables').value) || 20;
+  var captains = document.getElementById('a-captains').value.trim();
   if (!name || !pin) { toast('Name and PIN required', 'red'); return; }
   var btn = document.getElementById('add-btn'); btn.disabled = true; btn.textContent = 'Adding...';
-  var res = await post('/admin/add-restaurant', { name, pin, ownerPhone: phone, googleReviewLink: review, avgDrinkMins: drink, avgStarterMins: starter, avgMainMins: main, totalTables: tables });
+  var res = await post('/admin/add-restaurant', { name, pin, ownerPhone: phone, googleReviewLink: review, avgDrinkMins: drink, avgStarterMins: starter, avgMainMins: main, totalTables: tables, captains: captains });
   btn.disabled = false; btn.textContent = '+ Add Restaurant';
   if (res.ok) {
     document.getElementById('a-name').value = '';
     document.getElementById('a-pin').value = '';
     document.getElementById('a-phone').value = '';
     document.getElementById('a-review').value = '';
+    document.getElementById('a-captains').value = '';
     if (res.links) {
       var lc = document.getElementById('links-content');
       lc.innerHTML = [
@@ -306,17 +313,23 @@ async function addRestaurant() {
     loadRestaurants();
   } else { toast('Error: ' + (res.error || 'Failed'), 'red'); }
 }
-async function editRestaurant(pin, name, currentTables) {
-  var newPin = prompt('Change PIN for ' + name + ' (current: ' + pin + ')\nLeave blank to keep same:', pin);
+async function editRestaurant(pin) {
+  var r = allRestaurants.find(function(x) { return x.pin === pin; });
+  if (!r) { toast('Restaurant not found', 'red'); return; }
+  var newPin = prompt('Change PIN for ' + r.name + ' (current: ' + pin + ')\nLeave blank to keep same:', pin);
   if (newPin === null) return;
-  var newName = prompt('Change name (current: ' + name + ')\nLeave blank to keep same:', name);
+  var newName = prompt('Change name (current: ' + r.name + ')\nLeave blank to keep same:', r.name);
   if (newName === null) return;
-  var newTables = prompt('Total tables (current: ' + (currentTables||20) + ', min 1 max 100):', currentTables||20);
+  var newTables = prompt('Total tables (current: ' + (r.totalTables||20) + ', min 1 max 100):', r.totalTables||20);
   if (newTables === null) return;
+  var currentCaptains = (r.captains || []).join(', ');
+  var newCaptains = prompt('Captain names (comma-separated):\nCurrent: ' + (currentCaptains || 'none'), currentCaptains);
+  if (newCaptains === null) return;
   var body = { pin: pin };
   if (newPin && newPin !== pin) body.newPin = newPin;
-  if (newName && newName !== name) body.name = newName;
-  var t = parseInt(newTables); if (t >= 1 && t <= 100 && t !== parseInt(currentTables)) body.totalTables = t;
+  if (newName && newName !== r.name) body.name = newName;
+  var t = parseInt(newTables); if (t >= 1 && t <= 100 && t !== parseInt(r.totalTables)) body.totalTables = t;
+  if (newCaptains !== currentCaptains) body.captains = newCaptains;
   if (Object.keys(body).length === 1) { alert('Nothing changed.'); return; }
   var res = await post('/admin/update-restaurant', body);
   if (res && res.ok) { alert('Updated!'); loadRestaurants(); }
