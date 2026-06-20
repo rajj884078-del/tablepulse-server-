@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.tablepulse.waiter",
+    "sha256_cert_fingerprints": [
+      "D9:9A:5E:71:DA:14:44:B4:97:E9:32:A5:AA:A2:53:66:D6:BE:CF:F5:71:1A:E2:49:FB:E2:18:C8:01:6A:E3:D8"
+    ]
+  }
+}]

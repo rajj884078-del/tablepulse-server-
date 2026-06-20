@@ -1468,6 +1468,9 @@ app.post('/admin/menu/save', adminLimiter, requireAdmin, async (req, res) => {
   res.json({ ok: true, categories: merged });
 });
 
+// express.static ignores dotfiles by default, so /.well-known must be served explicitly.
+app.use('/.well-known', express.static(path.join(__dirname, 'public', '.well-known'), { dotfiles: 'allow' }));
+
 // Serve static files last — after all routes are registered.
 // Must be last so slug routes (/r/:slug/*) take priority over static files.
 app.use(express.static(path.join(__dirname, 'public')));
