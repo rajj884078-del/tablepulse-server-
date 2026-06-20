@@ -171,7 +171,7 @@ const COURSE_STATUSES = ['waiting', 'started', 'ready'];
 
 let db;
 MongoClient.connect(MONGODB_URI).then(client => {
-  db = client.db('tablepulse');
+  db = client.db(process.env.DB_NAME || 'tablepulse');
   console.log('MongoDB connected');
   ensureHistoryCollections();
   scheduleWeeklyReports();
