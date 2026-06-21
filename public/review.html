@@ -191,7 +191,7 @@
       errEl.style.display = 'none';
       const ok = await postFeedback({ restaurantPin: pin, type: 'complaint', complaintText: text, customerName: name });
       if (ok) {
-        showThankyou('🙏', 'Dhanyavaad!', 'Aapki feedback hum tak pahunch gayi hai. Hum zaroor improve karenge.');
+        showThankyou('🙏', 'Thank you!', 'Your feedback has reached us. We\'re sorry your experience wasn\'t perfect — we\'ll definitely work on improving.');
       } else {
         btn.disabled = false;
         btn.textContent = 'Send feedback';
