@@ -354,6 +354,12 @@ async function editRestaurant(pin) {
   var currentLng = r.lng != null ? String(r.lng) : '';
   var newLng = prompt('Longitude for GPS geofencing (leave blank to keep):\nCurrent: ' + (currentLng || 'not set'), currentLng);
   if (newLng === null) return;
+  var currentPhone = r.ownerPhone ? String(r.ownerPhone) : '';
+  var newPhone = prompt('Owner phone (with country code, e.g. 919876543210):\nCurrent: ' + (currentPhone || 'not set'), currentPhone);
+  if (newPhone === null) return;
+  var currentReview = r.googleReviewLink || '';
+  var newReview = prompt('Google review link:\nCurrent: ' + (currentReview || 'not set'), currentReview);
+  if (newReview === null) return;
   var body = { pin: pin };
   if (newPin && newPin !== pin) body.newPin = newPin;
   if (newName && newName !== r.name) body.name = newName;
@@ -361,6 +367,8 @@ async function editRestaurant(pin) {
   if (newCaptains !== currentCaptains) body.captains = newCaptains;
   if (newLat && newLat !== currentLat) { var lv = parseFloat(newLat); if (!isNaN(lv)) body.lat = lv; }
   if (newLng && newLng !== currentLng) { var lv2 = parseFloat(newLng); if (!isNaN(lv2)) body.lng = lv2; }
+  if (newPhone.trim() !== currentPhone) body.ownerPhone = newPhone.trim();
+  if (newReview.trim() !== currentReview) body.googleReviewLink = newReview.trim();
   if (Object.keys(body).length === 1) { alert('Nothing changed.'); return; }
   var res = await post('/admin/update-restaurant', body);
   if (res && res.ok) { alert('Updated!'); loadRestaurants(); }

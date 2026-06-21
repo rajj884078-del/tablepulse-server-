@@ -706,7 +706,7 @@ app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) =
 });
 
 app.post('/admin/update-restaurant', adminLimiter, requireAdmin, async (req, res) => {
-  const { pin, newPin, name, googleReviewLink, avgDrinkMins, avgStarterMins, avgMainMins, totalTables } = req.body;
+  const { pin, newPin, name, googleReviewLink, ownerPhone, avgDrinkMins, avgStarterMins, avgMainMins, totalTables } = req.body;
   if (!pin) return res.status(400).json({ error: 'PIN required' });
   try {
     const update = {};
@@ -716,7 +716,8 @@ app.post('/admin/update-restaurant', adminLimiter, requireAdmin, async (req, res
       update.pin = newPin;
     }
     if (name) update.name = name;
-    if (googleReviewLink) update.googleReviewLink = googleReviewLink;
+    if (googleReviewLink !== undefined) update.googleReviewLink = googleReviewLink;
+    if (ownerPhone !== undefined) update.ownerPhone = String(ownerPhone).replace(/\D/g, '');
     if (avgDrinkMins) update.avgDrinkMins = Number(avgDrinkMins);
     if (avgStarterMins) update.avgStarterMins = Number(avgStarterMins);
     if (avgMainMins) update.avgMainMins = Number(avgMainMins);
