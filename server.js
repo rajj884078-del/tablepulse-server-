@@ -1585,4 +1585,55 @@ app.post('/admin/attendance/override', adminLimiter, requireAdmin, async (req, r
   } catch (e) { console.error('[admin/attendance/override]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
 });
 
+// ── QR FEEDBACK ───────────────────────────────────────────────────────────────
+const feedbackLimiter = rateLimit({
+  windowMs: 60 * 1000, max: 30,
+  standardHeaders: true, legacyHeaders: false,
+  message: { error: 'Too many requests.' }
+});
+
+app.get('/review', (req, res) => res.sendFile('review.html', { root: './public' }));
+app.get('/feedback-admin', adminLimiter, requireAdmin, (req, res) => res.sendFile('feedback-admin.html', { root: './public' }));
+
+app.get('/review-info', feedbackLimiter, async (req, res) => {
+  const pin = cleanStr(String(req.query.pin || ''), 6);
+  if (!pin) return res.status(400).json({ ok: false, error: 'pin required' });
+  try {
+    const r = await db.collection('restaurants').findOne({ pin }, { projection: { name: 1, googleReviewLink: 1 } });
+    if (!r) return res.status(404).json({ ok: false, error: 'Not found' });
+    res.json({ ok: true, name: r.name, googleReviewLink: r.googleReviewLink || '' });
+  } catch (e) { console.error('[review-info]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
+});
+
+app.post('/feedback', feedbackLimiter, async (req, res) => {
+  const pin  = cleanStr(String(req.body.restaurantPin || ''), 6);
+  const type = req.body.type;
+  if (!pin || !['happy_clicked', 'complaint'].includes(type))
+    return res.status(400).json({ ok: false, error: 'restaurantPin and valid type required' });
+  try {
+    const exists = await db.collection('restaurants').findOne({ pin }, { projection: { _id: 1 } });
+    if (!exists) return res.status(404).json({ ok: false, error: 'Restaurant not found' });
+    const doc = { restaurantPin: pin, type, timestamp: new Date() };
+    if (type === 'complaint') {
+      doc.complaintText  = cleanStr(String(req.body.complaintText  || ''), 1000) || '';
+      doc.customerName   = cleanStr(String(req.body.customerName   || ''), 80)   || '';
+    }
+    await db.collection('table_feedback').insertOne(doc);
+    res.json({ ok: true });
+  } catch (e) { console.error('[feedback]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
+});
+
+app.get('/admin/feedback/:pin', adminLimiter, requireAdmin, async (req, res) => {
+  const pin = cleanStr(req.params.pin, 6);
+  if (!pin) return res.status(400).json({ ok: false, error: 'pin required' });
+  try {
+    const all = await db.collection('table_feedback').find({ restaurantPin: pin }).sort({ timestamp: -1 }).toArray();
+    const happyCount = all.filter(r => r.type === 'happy_clicked').length;
+    const complaints = all
+      .filter(r => r.type === 'complaint')
+      .map(r => ({ _id: r._id.toString(), complaintText: r.complaintText, customerName: r.customerName, timestamp: r.timestamp }));
+    res.json({ ok: true, happyCount, complaintCount: complaints.length, complaints });
+  } catch (e) { console.error('[admin/feedback]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
+});
+
 app.listen(3000, () => console.log('TablePulse running on port 3000'));
