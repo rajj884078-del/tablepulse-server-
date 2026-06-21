@@ -103,11 +103,9 @@
 <body>
   <div class="form-card">
     <h1>Feedback Dashboard</h1>
-    <label for="admin-key">Admin key</label>
-    <input type="password" id="admin-key" placeholder="Enter admin key">
     <label for="pin-input">Restaurant PIN</label>
-    <input type="text" id="pin-input" placeholder="e.g. 1234" maxlength="6" inputmode="numeric">
-    <button class="btn" id="load-btn">Load feedback</button>
+    <input type="password" id="pin-input" placeholder="Enter your PIN" maxlength="6" inputmode="numeric">
+    <button class="btn" id="load-btn">View feedback</button>
     <div id="error-msg"></div>
   </div>
 
@@ -131,29 +129,26 @@
     document.getElementById('pin-input').addEventListener('keydown', e => { if (e.key === 'Enter') loadFeedback(); });
 
     async function loadFeedback() {
-      const key = document.getElementById('admin-key').value.trim();
-      const pin = document.getElementById('pin-input').value.trim();
+      const pin   = document.getElementById('pin-input').value.trim();
       const errEl = document.getElementById('error-msg');
       const btn   = document.getElementById('load-btn');
       errEl.style.display = 'none';
-      if (!key || !pin) { showErr('Both admin key and PIN are required.'); return; }
+      if (!pin) { showErr('Please enter your restaurant PIN.'); return; }
       btn.disabled = true;
       btn.textContent = 'Loading…';
       try {
-        const res = await fetch('/admin/feedback/' + encodeURIComponent(pin), {
-          headers: { 'x-admin-key': key }
-        });
+        const res  = await fetch('/owner/feedback?pin=' + encodeURIComponent(pin));
         const data = await res.json();
-        if (!data.ok) { showErr(data.error || 'Failed to load.'); return; }
+        if (!data.ok) { showErr(data.error === 'Invalid PIN' ? 'PIN not recognised. Please check and try again.' : (data.error || 'Failed to load.')); return; }
         renderResults(data);
       } catch (e) { showErr('Network error. Please try again.'); }
-      finally { btn.disabled = false; btn.textContent = 'Load feedback'; }
+      finally { btn.disabled = false; btn.textContent = 'View feedback'; }
     }
 
     function showErr(msg) {
       const el = document.getElementById('error-msg');
       el.textContent = msg;
-      el.style.display = '';
+      el.style.display = 'block';
     }
 
     function renderResults(data) {
@@ -175,7 +170,7 @@
           list.appendChild(div);
         });
       }
-      document.getElementById('results').style.display = '';
+      document.getElementById('results').style.display = 'block';
     }
 
     function esc(s) {

@@ -1593,7 +1593,7 @@ const feedbackLimiter = rateLimit({
 });
 
 app.get('/review', (req, res) => res.sendFile('review.html', { root: './public' }));
-app.get('/feedback-admin', adminLimiter, requireAdmin, (req, res) => res.sendFile('feedback-admin.html', { root: './public' }));
+app.get('/feedback-admin', (req, res) => res.sendFile('feedback-admin.html', { root: './public' }));
 
 app.get('/review-info', feedbackLimiter, async (req, res) => {
   const pin = cleanStr(String(req.query.pin || ''), 6);
@@ -1621,6 +1621,21 @@ app.post('/feedback', feedbackLimiter, async (req, res) => {
     await db.collection('table_feedback').insertOne(doc);
     res.json({ ok: true });
   } catch (e) { console.error('[feedback]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
+});
+
+app.get('/owner/feedback', feedbackLimiter, async (req, res) => {
+  const pin = cleanStr(String(req.query.pin || ''), 6);
+  if (!pin) return res.status(400).json({ ok: false, error: 'pin required' });
+  try {
+    const restaurant = await db.collection('restaurants').findOne({ pin }, { projection: { _id: 1 } });
+    if (!restaurant) return res.status(404).json({ ok: false, error: 'Invalid PIN' });
+    const all = await db.collection('table_feedback').find({ restaurantPin: pin }).sort({ timestamp: -1 }).toArray();
+    const happyCount = all.filter(r => r.type === 'happy_clicked').length;
+    const complaints = all
+      .filter(r => r.type === 'complaint')
+      .map(r => ({ _id: r._id.toString(), complaintText: r.complaintText, customerName: r.customerName, timestamp: r.timestamp }));
+    res.json({ ok: true, happyCount, complaintCount: complaints.length, complaints });
+  } catch (e) { console.error('[owner/feedback]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
 });
 
 app.get('/admin/feedback/:pin', adminLimiter, requireAdmin, async (req, res) => {
