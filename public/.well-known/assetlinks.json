@@ -7,4 +7,13 @@
       "D9:9A:5E:71:DA:14:44:B4:97:E9:32:A5:AA:A2:53:66:D6:BE:CF:F5:71:1A:E2:49:FB:E2:18:C8:01:6A:E3:D8"
     ]
   }
+}, {
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.tablepulse.staging",
+    "sha256_cert_fingerprints": [
+      "4D:DE:93:07:2F:7B:40:78:99:30:0D:9F:8A:C1:8E:85:D2:75:E1:12:37:3E:A2:5C:5B:85:07:C6:44:B9:8C:15"
+    ]
+  }
 }]
