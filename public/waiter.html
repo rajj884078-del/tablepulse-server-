@@ -661,6 +661,15 @@ function arrayBufferToBase64(buffer) {
 
 // Call initPWA after login
 
+function switchRole(){
+  if(!confirm('Switch role? You\'ll need to log in again.'))return;
+  localStorage.removeItem('tp_token');
+  localStorage.removeItem('tp_role');
+  localStorage.removeItem('tp_captain');
+  localStorage.removeItem('tp_captains');
+  window.location.href='app.html';
+}
+
 function logout() {
   if (!confirm('Log out of this device?')) return;
   // Unsubscribe from push before logout
@@ -841,6 +850,10 @@ function toggleSoundSettings(){
     <div style="background:#161a20;border:1px solid #232830;border-radius:16px;overflow:hidden;">
       <div style="padding:10px 16px;border-bottom:1px solid #1a1f26;">
         <div style="font-size:11px;font-weight:700;color:#525965;text-transform:uppercase;letter-spacing:.8px;">Account</div>
+      </div>
+      <div onclick="switchRole()" style="display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid #1a1f26;cursor:pointer;">
+        <span style="font-size:15px;font-weight:600;color:#e8eaed;">Switch role / Sign out</span>
+        <span style="color:#8b9099;font-size:20px;">→</span>
       </div>
       <div onclick="logout()" style="display:flex;align-items:center;justify-content:space-between;padding:16px;cursor:pointer;">
         <span style="font-size:15px;font-weight:600;color:#f0635a;">Logout</span>

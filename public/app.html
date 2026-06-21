@@ -53,22 +53,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0e1014;
   <div style="font-size:20px;font-weight:700;margin-bottom:4px;">TablePulse</div>
   <div class="rest-name" id="rest-name"></div>
   <div class="role-grid">
-    <div class="role-card" onclick="go('waiter.html')">
+    <div class="role-card" onclick="goRole('waiter.html','waiter')">
       <div class="role-icon">👤</div>
       <div class="role-label">Waiter</div>
       <div class="role-sub">Orders &amp; tables</div>
     </div>
-    <div class="role-card" onclick="go('kitchen.html')">
+    <div class="role-card" onclick="goRole('kitchen.html','kitchen')">
       <div class="role-icon">🔥</div>
       <div class="role-label">Kitchen</div>
       <div class="role-sub">Food prep</div>
     </div>
-    <div class="role-card" onclick="go('barman.html')">
+    <div class="role-card" onclick="goRole('barman.html','barman')">
       <div class="role-icon">🍹</div>
       <div class="role-label">Barman</div>
       <div class="role-sub">Drinks</div>
     </div>
-    <div class="role-card" onclick="go('others.html')">
+    <div class="role-card" onclick="goRole('others.html','others')">
       <div class="role-icon">📋</div>
       <div class="role-label">Others</div>
       <div class="role-sub">Attendance &amp; staff</div>
@@ -83,7 +83,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0e1014;
   if(!token)return;
   try{
     var r=await fetch('/verify',{headers:{'x-auth-token':token}});
-    if(r.ok)showRoles();
+    if(r.ok){var role=localStorage.getItem('tp_role');var pages={waiter:'waiter.html',kitchen:'kitchen.html',barman:'barman.html',others:'others.html'};if(role&&pages[role]){window.location.href=pages[role];return;}showRoles();}
     else localStorage.removeItem('tp_token');
   }catch(e){}
 })();
@@ -123,6 +123,7 @@ function showRoles(){
 }
 
 function go(page){window.location.href=page;}
+function goRole(page,role){localStorage.setItem('tp_role',role);window.location.href=page;}
 
 function logout(){
   localStorage.removeItem('tp_token');
