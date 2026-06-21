@@ -110,6 +110,7 @@ async function doLogin(){
     if(d.avgStarterMins)localStorage.setItem('tp_avg_starter',d.avgStarterMins);
     if(d.avgMainMins)localStorage.setItem('tp_avg_main',d.avgMainMins);
     if(d.totalTables)localStorage.setItem('tp_total_tables',d.totalTables);
+    localStorage.setItem('tp_captains',JSON.stringify(d.captains||[]));localStorage.removeItem('tp_captain');
     showRoles();
   }catch(e){err.textContent='Server error. Try again.';err.style.display='block';btn.disabled=false;btn.textContent='Enter';}
 }
