@@ -249,11 +249,12 @@ function requireAdmin(req, res, next) {
 }
 
 // Send push notification to all subscribed devices for a restaurant.
-async function sendPushToRestaurant(restaurantPin, title, body, url) {
+async function sendPushToRestaurant(restaurantPin, title, body, url, role) {
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return;
   try {
-    const subs = await db.collection('subscriptions').find({ restaurantPin }).toArray();
-    console.log('[push] looking for pin=' + restaurantPin + ' found=' + subs.length + ' subs');
+    const query = role ? { restaurantPin, role } : { restaurantPin };
+    const subs = await db.collection('subscriptions').find(query).toArray();
+    console.log('[push] looking for pin=' + restaurantPin + (role ? ' role=' + role : '') + ' found=' + subs.length + ' subs');
     const payload = JSON.stringify({ title, body, url, tag: restaurantPin });
     const dead = [];
     await Promise.all(subs.map(async sub => {
@@ -426,7 +427,8 @@ app.post('/order', writeLimiter, requireAuth, async (req, res) => {
   sendPushToRestaurant(rest.pin,
     'New Order — Table ' + table,
     orderName + ' · ' + courses.map(c=>c.type).join(', '),
-    '/r/' + (rest.slug || '') + '/kitchen'
+    '/r/' + (rest.slug || '') + '/kitchen',
+    'kitchen'
   );
   sendFCMToRestaurant(rest.pin,
     'New Order — Table ' + table,
@@ -524,20 +526,20 @@ app.post('/update-course', writeLimiter, requireAuth, async (req, res) => {
     const t = order.table;
     // Push to waiter when food/drinks are ready
     if (courseType === 'starters' && status === 'ready') {
-      sendPushToRestaurant(pin, 'Starters Ready — Table ' + t, order.orderName + ' · send to table', '/r/' + slug + '/waiter');
+      sendPushToRestaurant(pin, 'Starters Ready — Table ' + t, order.orderName + ' · send to table', '/r/' + slug + '/waiter', 'waiter');
       sendFCMToRestaurant(pin, 'Table ' + t + ', starters ready', 'Send to table now', { table: String(t), type: 'starters_ready', role: 'waiter' }, 'waiter');
     }
     if (courseType === 'drinks' && status === 'ready') {
-      sendPushToRestaurant(pin, 'Drinks Ready — Table ' + t, order.orderName + ' · send to table', '/r/' + slug + '/waiter');
+      sendPushToRestaurant(pin, 'Drinks Ready — Table ' + t, order.orderName + ' · send to table', '/r/' + slug + '/waiter', 'waiter');
       sendFCMToRestaurant(pin, 'Table ' + t + ', drinks ready', 'Send to table now', { table: String(t), type: 'drinks_ready', role: 'waiter' }, 'waiter');
     }
     if (courseType === 'main' && status === 'ready') {
-      sendPushToRestaurant(pin, 'Main Course Ready — Table ' + t, order.orderName + ' · send to table', '/r/' + slug + '/waiter');
+      sendPushToRestaurant(pin, 'Main Course Ready — Table ' + t, order.orderName + ' · send to table', '/r/' + slug + '/waiter', 'waiter');
       sendFCMToRestaurant(pin, 'Table ' + t + ', main course ready', 'Send to table now', { table: String(t), type: 'main_ready', role: 'waiter' }, 'waiter');
     }
     // Push to kitchen when waiter starts main
     if (courseType === 'main' && status === 'started') {
-      sendPushToRestaurant(pin, 'Start Main Course — Table ' + t, order.orderName + ' · begin cooking', '/r/' + slug + '/kitchen');
+      sendPushToRestaurant(pin, 'Start Main Course — Table ' + t, order.orderName + ' · begin cooking', '/r/' + slug + '/kitchen', 'kitchen');
       sendFCMToRestaurant(pin, 'Table ' + t + ', start main course', 'Begin cooking now', { table: String(t), type: 'main_started', role: 'kitchen' }, 'kitchen');
     }
     if (courseType === 'main' && status === 'started')
