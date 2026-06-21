@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How was your experience?</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f9f9f7;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 40px 32px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+    .logo { font-size: 32px; margin-bottom: 8px; }
+    .restaurant-name {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 8px;
+    }
+    .question {
+      font-size: 16px;
+      color: #555;
+      margin-bottom: 36px;
+      line-height: 1.5;
+    }
+    .btn-row {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+    }
+    .btn {
+      flex: 1;
+      max-width: 160px;
+      padding: 20px 12px;
+      border: none;
+      border-radius: 16px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-good { background: #e8f9ee; color: #1a7a40; }
+    .btn-good:hover { background: #d4f4e0; }
+    .btn-bad  { background: #fff0f0; color: #c0392b; }
+    .btn-bad:hover  { background: #ffe0e0; }
+    .btn .emoji { font-size: 36px; line-height: 1; }
+
+    /* complaint form */
+    #complaint-section { display: none; text-align: left; margin-top: 28px; }
+    #complaint-section h3 { font-size: 17px; color: #1a1a1a; margin-bottom: 16px; text-align: center; }
+    label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; }
+    input[type="text"], textarea {
+      width: 100%;
+      border: 1.5px solid #ddd;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 15px;
+      font-family: inherit;
+      color: #1a1a1a;
+      background: #fafafa;
+      margin-bottom: 16px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus, textarea:focus { border-color: #6c63ff; background: #fff; }
+    textarea { min-height: 120px; resize: vertical; }
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: #6c63ff;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-submit:hover { background: #574fd6; }
+    .btn-submit:disabled { background: #b0aae8; cursor: not-allowed; }
+
+    /* thank-you / states */
+    #thankyou { display: none; text-align: center; }
+    #thankyou .big-emoji { font-size: 56px; margin-bottom: 16px; }
+    #thankyou h2 { font-size: 22px; font-weight: 700; color: #1a1a1a; margin-bottom: 8px; }
+    #thankyou p { font-size: 15px; color: #666; line-height: 1.5; }
+    #error-msg { color: #c0392b; font-size: 13px; margin-top: 8px; display: none; }
+    #loading { font-size: 15px; color: #888; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div id="loading">Loading…</div>
+
+    <div id="main" style="display:none">
+      <div class="logo">🍽️</div>
+      <div class="restaurant-name" id="rname"></div>
+      <div class="question">How was your experience?</div>
+      <div class="btn-row">
+        <button class="btn btn-good" id="btn-good">
+          <span class="emoji">😊</span>
+          Good
+        </button>
+        <button class="btn btn-bad" id="btn-bad">
+          <span class="emoji">😞</span>
+          Could be better
+        </button>
+      </div>
+
+      <div id="complaint-section">
+        <h3>Tell us what went wrong</h3>
+        <label for="cname">Your name (optional)</label>
+        <input type="text" id="cname" placeholder="e.g. Raj" maxlength="80">
+        <label for="ctext">What could we improve?</label>
+        <textarea id="ctext" placeholder="Share your feedback…" maxlength="1000"></textarea>
+        <button class="btn-submit" id="btn-submit">Send feedback</button>
+        <div id="error-msg">Something went wrong. Please try again.</div>
+      </div>
+    </div>
+
+    <div id="thankyou">
+      <div class="big-emoji" id="ty-emoji"></div>
+      <h2 id="ty-title"></h2>
+      <p id="ty-body"></p>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const pin = params.get('r') || '';
+    let googleReviewLink = '';
+
+    async function init() {
+      if (!pin) { showError('Missing restaurant code.'); return; }
+      try {
+        const res = await fetch('/review-info?pin=' + encodeURIComponent(pin));
+        const data = await res.json();
+        if (!data.ok) { showError('Restaurant not found.'); return; }
+        googleReviewLink = data.googleReviewLink || '';
+        document.getElementById('rname').textContent = data.name;
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('main').style.display = '';
+      } catch (e) { showError('Could not load. Please try again.'); }
+    }
+
+    function showError(msg) {
+      document.getElementById('loading').textContent = msg;
+    }
+
+    document.getElementById('btn-good').addEventListener('click', async () => {
+      await postFeedback({ restaurantPin: pin, type: 'happy_clicked' });
+      if (googleReviewLink) {
+        location.href = googleReviewLink;
+      } else {
+        showThankyou('⭐', 'Thank you!', 'We\'re glad you had a great experience.');
+      }
+    });
+
+    document.getElementById('btn-bad').addEventListener('click', () => {
+      document.getElementById('complaint-section').style.display = 'block';
+      document.getElementById('btn-bad').style.display = 'none';
+      document.getElementById('btn-good').style.display = 'none';
+    });
+
+    document.getElementById('btn-submit').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-submit');
+      const errEl = document.getElementById('error-msg');
+      const text = document.getElementById('ctext').value.trim();
+      const name = document.getElementById('cname').value.trim();
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+      errEl.style.display = 'none';
+      const ok = await postFeedback({ restaurantPin: pin, type: 'complaint', complaintText: text, customerName: name });
+      if (ok) {
+        showThankyou('🙏', 'Thank you!', 'Your feedback has reached us. We\'re sorry your experience wasn\'t perfect — we\'ll definitely work on improving.');
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Send feedback';
+        errEl.style.display = '';
+      }
+    });
+
+    async function postFeedback(payload) {
+      try {
+        const res = await fetch('/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        return !!data.ok;
+      } catch (e) { return false; }
+    }
+
+    function showThankyou(emoji, title, body) {
+      document.getElementById('main').style.display = 'none';
+      document.getElementById('ty-emoji').textContent = emoji;
+      document.getElementById('ty-title').textContent = title;
+      document.getElementById('ty-body').textContent  = body;
+      document.getElementById('thankyou').style.display = 'block';
+    }
+
+    init();
+  </script>
+</body>
+</html>

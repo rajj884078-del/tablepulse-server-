@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feedback Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f4f4f2;
+      min-height: 100vh;
+      padding: 32px 16px;
+      color: #1a1a1a;
+    }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 24px; color: #1a1a1a; }
+    .form-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 480px;
+      margin: 0 auto 32px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    }
+    label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; }
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      border: 1.5px solid #ddd;
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 15px;
+      font-family: inherit;
+      color: #1a1a1a;
+      background: #fafafa;
+      margin-bottom: 16px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus { border-color: #6c63ff; background: #fff; }
+    .btn {
+      width: 100%;
+      padding: 13px;
+      background: #6c63ff;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn:hover { background: #574fd6; }
+    .btn:disabled { background: #b0aae8; cursor: not-allowed; }
+    #error-msg { color: #c0392b; font-size: 13px; margin-top: 10px; display: none; }
+
+    /* results */
+    #results { max-width: 680px; margin: 0 auto; display: none; }
+    .stats-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      flex: 1;
+      background: #fff;
+      border-radius: 14px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .stat-card .num { font-size: 36px; font-weight: 800; line-height: 1; margin-bottom: 6px; }
+    .stat-card .lbl { font-size: 13px; color: #777; }
+    .stat-good .num { color: #1a7a40; }
+    .stat-bad  .num { color: #c0392b; }
+    .complaints-heading {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      color: #1a1a1a;
+    }
+    .complaint-item {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+      border-left: 4px solid #e74c3c;
+    }
+    .complaint-meta {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 6px;
+    }
+    .complaint-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 4px;
+    }
+    .complaint-text { font-size: 15px; color: #222; line-height: 1.5; }
+    .no-complaints { text-align: center; color: #999; font-size: 15px; padding: 32px 0; }
+  </style>
+</head>
+<body>
+  <div class="form-card">
+    <h1>Feedback Dashboard</h1>
+    <label for="pin-input">Restaurant PIN</label>
+    <input type="password" id="pin-input" placeholder="Enter your PIN" maxlength="6" inputmode="numeric">
+    <button class="btn" id="load-btn">View feedback</button>
+    <div id="error-msg"></div>
+  </div>
+
+  <div id="results">
+    <div class="stats-row">
+      <div class="stat-card stat-good">
+        <div class="num" id="happy-count">0</div>
+        <div class="lbl">😊 Sent to Google Review</div>
+      </div>
+      <div class="stat-card stat-bad">
+        <div class="num" id="complaint-count">0</div>
+        <div class="lbl">😞 Private complaints</div>
+      </div>
+    </div>
+    <div class="complaints-heading">Complaints (newest first)</div>
+    <div id="complaints-list"></div>
+  </div>
+
+  <script>
+    document.getElementById('load-btn').addEventListener('click', loadFeedback);
+    document.getElementById('pin-input').addEventListener('keydown', e => { if (e.key === 'Enter') loadFeedback(); });
+
+    async function loadFeedback() {
+      const pin   = document.getElementById('pin-input').value.trim();
+      const errEl = document.getElementById('error-msg');
+      const btn   = document.getElementById('load-btn');
+      errEl.style.display = 'none';
+      if (!pin) { showErr('Please enter your restaurant PIN.'); return; }
+      btn.disabled = true;
+      btn.textContent = 'Loading…';
+      try {
+        const res  = await fetch('/owner/feedback?pin=' + encodeURIComponent(pin));
+        const data = await res.json();
+        if (!data.ok) { showErr(data.error === 'Invalid PIN' ? 'PIN not recognised. Please check and try again.' : (data.error || 'Failed to load.')); return; }
+        renderResults(data);
+      } catch (e) { showErr('Network error. Please try again.'); }
+      finally { btn.disabled = false; btn.textContent = 'View feedback'; }
+    }
+
+    function showErr(msg) {
+      const el = document.getElementById('error-msg');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    function renderResults(data) {
+      document.getElementById('happy-count').textContent     = data.happyCount;
+      document.getElementById('complaint-count').textContent = data.complaintCount;
+      const list = document.getElementById('complaints-list');
+      list.innerHTML = '';
+      if (!data.complaints.length) {
+        list.innerHTML = '<div class="no-complaints">No complaints yet 🎉</div>';
+      } else {
+        data.complaints.forEach(c => {
+          const div = document.createElement('div');
+          div.className = 'complaint-item';
+          const ts = new Date(c.timestamp).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+          div.innerHTML =
+            '<div class="complaint-meta">' + ts + '</div>' +
+            (c.customerName ? '<div class="complaint-name">' + esc(c.customerName) + '</div>' : '') +
+            '<div class="complaint-text">' + (esc(c.complaintText) || '<em style="color:#bbb">No message left</em>') + '</div>';
+          list.appendChild(div);
+        });
+      }
+      document.getElementById('results').style.display = 'block';
+    }
+
+    function esc(s) {
+      if (!s) return '';
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+  </script>
+</body>
+</html>
