@@ -18,7 +18,7 @@ let db;
 async function getDb() {
   if (db) return db;
   const client = await MongoClient.connect(MONGODB_URI);
-  db = client.db('tablepulse');
+  db = client.db(process.env.DB_NAME || 'tablepulse');
   return db;
 }
 
