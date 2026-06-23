@@ -44,6 +44,7 @@ input.field::placeholder{color:#525965;}
 .btn-break-in{background:#1d4ed8;color:#fff;}
 .btn-out{background:#6e2020;color:#fff;}
 .btn-done{background:#1c2128;color:#525965;}
+.btn-gate{opacity:0.45;}
 
 .log-card{background:#161a20;border:1px solid #232830;border-radius:14px;padding:16px;}
 .log-hdr{font-size:11px;font-weight:700;color:#525965;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;}
@@ -130,9 +131,12 @@ input.field::placeholder{color:#525965;}
 <div id="toast"></div>
 
 <script>
+var GAP_MS = 3 * 60 * 60 * 1000; // 3 hours
+
 var _token='', _restLat=null, _restLng=null, _restName='';
 var _name='', _pos='';
 var _entries=[];
+var _gateTimer=null;
 
 var ACTION_NEXT={'in':'break_out','break_out':'break_in','break_in':'out','out':'done'};
 var ACTION_META={
@@ -261,9 +265,25 @@ function nextAction(){
 }
 
 function updateBtn(){
+  if(_gateTimer){clearTimeout(_gateTimer);_gateTimer=null;}
   var next=nextAction();
   var meta=ACTION_META[next]||ACTION_META['done'];
   var btn=document.getElementById('action-btn');
+
+  if(next!=='in'&&next!=='done'&&_entries.length){
+    var lastTs=new Date(_entries[_entries.length-1].timestamp).getTime();
+    var gateTs=lastTs+GAP_MS;
+    var now=Date.now();
+    if(now<gateTs){
+      btn.textContent=meta.label;
+      btn.className='action-btn '+meta.cls+' btn-gate';
+      btn.disabled=true;
+      btn.setAttribute('data-next',next);
+      _gateTimer=setTimeout(updateBtn,gateTs-now+500);
+      return;
+    }
+  }
+
   btn.textContent=meta.label;
   btn.className='action-btn '+meta.cls;
   btn.disabled=(next==='done');

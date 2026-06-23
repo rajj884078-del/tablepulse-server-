@@ -1518,6 +1518,14 @@ app.post('/attendance', writeLimiter, requireAuth, async (req, res) => {
   const distanceMeters = (req.body.distanceMeters != null && !isNaN(Number(req.body.distanceMeters))) ? Math.round(Number(req.body.distanceMeters)) : null;
   const locationVerified = req.body.locationVerified === true;
   try {
+    const debounceWindow = new Date(Date.now() - 15000);
+    const recent = await db.collection('attendance').findOne({
+      restaurantPin: req.restaurant.pin, staffName, timestamp: { $gte: debounceWindow }
+    }, { sort: { timestamp: -1 } });
+    if (recent) {
+      console.log('[attendance] debounced ' + staffName + ' ' + action + ' (last=' + recent.action + ' ' + Math.round((Date.now() - recent.timestamp.getTime()) / 1000) + 's ago)');
+      return res.json({ ok: true });
+    }
     await db.collection('attendance').insertOne({
       restaurantPin: req.restaurant.pin, staffName, position, action,
       timestamp: new Date(), lat, lng, distanceMeters, locationVerified

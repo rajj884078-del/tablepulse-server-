@@ -66,8 +66,10 @@ input[type=range]{padding:0;height:6px;}
 .att-sname{font-size:14px;font-weight:600;color:#fff;margin-bottom:2px;}
 .att-spos{font-size:12px;color:#666;margin-bottom:8px;}
 .att-entry{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #1a1a1a;font-size:13px;}
+.att-entry.att-override{background:#1a1400;border-left:3px solid #c8901a;padding-left:8px;margin-left:-8px;}
 .att-time{min-width:70px;color:#888;}
 .att-action{flex:1;color:#ccc;}
+.att-action-reason{display:block;font-size:11px;color:#c8901a;margin-top:1px;}
 .att-icon{font-size:14px;}
 </style>
 </head>
@@ -427,7 +429,9 @@ async function loadAttendance() {
         var t = new Date(e.timestamp).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true,timeZone:'Asia/Kolkata'});
         var icon = e.locationVerified ? '📍' : (e.manualOverride ? '✏️' : '⚠️');
         var dist = e.distanceMeters != null ? ' ('+e.distanceMeters+'m)' : '';
-        return '<div class="att-entry"><span class="att-time">'+t+'</span><span class="att-action">'+(actionLabels[e.action]||e.action)+dist+'</span><span class="att-icon">'+icon+'</span></div>';
+        var reasonHtml = e.manualOverride ? '<span class="att-action-reason">'+escHtml(e.overrideReason||'Admin override')+'</span>' : '';
+        var cls = 'att-entry' + (e.manualOverride ? ' att-override' : '');
+        return '<div class="'+cls+'"><span class="att-time">'+t+'</span><span class="att-action">'+(actionLabels[e.action]||e.action)+dist+reasonHtml+'</span><span class="att-icon">'+icon+'</span></div>';
       }).join('');
       return '<div class="att-staff"><div class="att-sname">'+escHtml(s.staffName)+'</div><div class="att-spos">'+escHtml(s.position)+'</div>'+rows+'</div>';
     }).join('');
