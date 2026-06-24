@@ -172,6 +172,15 @@
       line-height: 1; transition: color 0.15s, border-color 0.15s, background 0.15s;
       display: flex; align-items: center; gap: 3px;
     }
+    @keyframes card-copied {
+      0%   { border-color: #2a9a50; box-shadow: 0 0 0 3px rgba(42,154,80,0.28); }
+      60%  { border-color: #2a9a50; box-shadow: 0 0 0 6px rgba(42,154,80,0.08); }
+      100% { border-color: #e4e4e4; box-shadow: none; }
+    }
+    .suggestion-card.card-copied {
+      animation: card-copied 0.65s ease-out forwards;
+    }
+
     @keyframes copy-flash {
       0%   { box-shadow: 0 0 0 0 rgba(42,154,80,0.5); background: #a8ecc4; }
       55%  { box-shadow: 0 0 0 8px rgba(42,154,80,0);  background: #e8f9ee; }
@@ -353,6 +362,8 @@
               document.body.appendChild(ta); ta.select(); document.execCommand('copy');
               document.body.removeChild(ta);
             }
+            card.classList.add('card-copied');
+            card.addEventListener('animationend', () => card.classList.remove('card-copied'), { once: true });
             copyBtn.textContent = 'Copied!';
             copyBtn.classList.add('copied');
             setTimeout(() => {
