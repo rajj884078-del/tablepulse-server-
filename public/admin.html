@@ -61,6 +61,7 @@ input[type=range]{padding:0;height:6px;}
 .bar-labels{display:flex;gap:3px;}
 .bar-lbl{flex:1;text-align:center;font-size:9px;color:#444;overflow:hidden;}
 .att-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#0f0f0f;z-index:500;overflow-y:auto;}
+.edit-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#0f0f0f;z-index:600;overflow-y:auto;}
 .att-inner{max-width:640px;margin:0 auto;padding:20px 16px 80px;}
 .att-staff{background:#111;border:1px solid #2a2a2a;border-radius:10px;padding:12px;margin-bottom:10px;}
 .att-sname{font-size:14px;font-weight:600;color:#fff;margin-bottom:2px;}
@@ -126,36 +127,53 @@ input[type=range]{padding:0;height:6px;}
   <div style="font-size:12px;color:#666;margin-top:10px;line-height:1.6;" id="c-note"></div>
 </div>
 
-<!-- ADD NEW RESTAURANT -->
+<!-- ADD NEW BUSINESS -->
 <div class="card">
-  <div class="section-title" style="margin-top:0;">Add New Restaurant</div>
-  <label>Restaurant Name</label>
+  <div class="section-title" style="margin-top:0;">Add New Business</div>
+  <label>Business Name</label>
   <input type="text" id="a-name" placeholder="e.g. Gravity Family Dine and Bar"/>
   <label>PIN (4-6 digits, staff will use this)</label>
   <input type="number" id="a-pin" placeholder="e.g. 1234"/>
+  <label>Business Type</label>
+  <select id="a-btype" onchange="updateAddForm()" style="width:100%;padding:10px 12px;background:#0d1117;border:1px solid #30363d;border-radius:10px;color:#e6edf3;font-size:14px;margin-bottom:16px;">
+    <option value="restaurant">Restaurant</option>
+    <option value="cafe">Cafe</option>
+    <option value="salon">Salon</option>
+    <option value="clinic">Clinic</option>
+    <option value="gym">Gym</option>
+    <option value="tattoo">Tattoo Studio</option>
+    <option value="other">Other</option>
+  </select>
+  <label>Suggestion Mode</label>
+  <select id="a-smode" style="width:100%;padding:10px 12px;background:#0d1117;border:1px solid #30363d;border-radius:10px;color:#e6edf3;font-size:14px;margin-bottom:16px;">
+    <option value="preready">📝 Pre-ready reviews</option>
+    <option value="haiku">🤖 Haiku AI (live)</option>
+  </select>
   <label>Owner WhatsApp Number</label>
   <input type="tel" id="a-phone" placeholder="91XXXXXXXXXX"/>
   <label>Google Review Link</label>
   <input type="text" id="a-review" placeholder="https://maps.app.goo.gl/..."/>
-  <label>Avg Drink Mins</label>
-  <input type="number" id="a-drink" placeholder="8" value="8"/>
-  <label>Avg Starter Mins</label>
-  <input type="number" id="a-starter" placeholder="18" value="18"/>
-  <label>Avg Main Course Mins</label>
-  <input type="number" id="a-main" placeholder="30" value="30"/>
-  <label>Total Tables</label>
-  <input type="number" id="a-tables" placeholder="20" value="20" min="1" max="100"/>
+  <div id="a-restaurant-fields">
+    <label>Avg Drink Mins</label>
+    <input type="number" id="a-drink" placeholder="8" value="8"/>
+    <label>Avg Starter Mins</label>
+    <input type="number" id="a-starter" placeholder="18" value="18"/>
+    <label>Avg Main Course Mins</label>
+    <input type="number" id="a-main" placeholder="30" value="30"/>
+    <label>Total Tables</label>
+    <input type="number" id="a-tables" placeholder="20" value="20" min="1" max="100"/>
+    <label>Captain Names (comma-separated)</label>
+    <input type="text" id="a-captains" placeholder="e.g. Amit, Suresh, Raj"/>
+  </div>
   <label>Latitude (for GPS geofencing — optional)</label>
   <input type="number" id="a-lat" placeholder="e.g. 28.6139" step="any"/>
   <label>Longitude (for GPS geofencing — optional)</label>
   <input type="number" id="a-lng" placeholder="e.g. 77.2090" step="any"/>
-  <label>Captain Names (comma-separated)</label>
-  <input type="text" id="a-captains" placeholder="e.g. Amit, Suresh, Raj"/>
-  <button class="btn" id="add-btn" onclick="addRestaurant()">+ Add Restaurant</button>
+  <button class="btn" id="add-btn" onclick="addRestaurant()">+ Add Business</button>
 </div>
 
 <div id="links-box" style="display:none;background:#0f1a13;border:1px solid #238636;border-radius:14px;padding:16px;margin-bottom:16px;">
-  <div style="font-size:13px;font-weight:700;color:#3fb950;margin-bottom:12px;">Restaurant added! Share these links with staff:</div>
+  <div style="font-size:13px;font-weight:700;color:#3fb950;margin-bottom:12px;">Business added! Share these links with staff:</div>
   <div id="links-content"></div>
   <button onclick="document.getElementById('links-box').style.display='none'" style="margin-top:12px;width:100%;padding:10px;background:#21262d;border:1px solid #30363d;border-radius:10px;color:#7d8590;font-size:13px;cursor:pointer;">Dismiss</button>
 </div>
@@ -261,18 +279,33 @@ async function loadRestaurants() {
       var subLabel = subIcon + ' ' + (subStatus==='expired'?'Expired':subStatus==='warning'?'Expires '+expiry:'Active until '+expiry);
       var base = window.location.origin;
       var gpsLabel = (r.lat != null && r.lng != null) ? '📍 GPS: '+r.lat.toFixed(4)+', '+r.lng.toFixed(4) : '📍 GPS: not set';
-      var links = r.slug ? (
+      var isRestaurant = (r.businessType || 'restaurant') === 'restaurant';
+      var links = isRestaurant ? (
+        r.slug ? (
+          '<div style="display:flex;gap:6px;margin:10px 0 4px;flex-wrap:wrap;">' +
+          '<a href="' + base + '/r/' + r.slug + '/waiter" target="_blank" style="flex:1;min-width:80px;padding:8px 10px;background:#101826;border:1px solid #1e3a5a;border-radius:8px;color:#5aa2f5;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">🧑‍🍽️ Waiter</a>' +
+          '<a href="' + base + '/r/' + r.slug + '/kitchen" target="_blank" style="flex:1;min-width:80px;padding:8px 10px;background:#1a1206;border:1px solid #5a2c0a;border-radius:8px;color:#ff9f43;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">🔥 Kitchen</a>' +
+          '<a href="' + base + '/r/' + r.slug + '/bar" target="_blank" style="flex:1;min-width:80px;padding:8px 10px;background:#101826;border:1px solid #1e3a5a;border-radius:8px;color:#5aa2f5;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">🍹 Bar</a>' +
+          '<a href="' + base + '/r/' + r.slug + '/others" target="_blank" style="flex:1;min-width:80px;padding:8px 10px;background:#0d1a0d;border:1px solid #1a5a1a;border-radius:8px;color:#41c980;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">📋 Others</a>' +
+          '</div>'
+        ) : '<div style="font-size:12px;color:#525965;margin:8px 0;">No slug — re-add to get links</div>'
+      ) : (
         '<div style="display:flex;gap:6px;margin:10px 0 4px;flex-wrap:wrap;">' +
-        '<a href="' + base + '/r/' + r.slug + '/waiter" target="_blank" style="flex:1;min-width:80px;padding:8px 10px;background:#101826;border:1px solid #1e3a5a;border-radius:8px;color:#5aa2f5;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">🧑‍🍽️ Waiter</a>' +
-        '<a href="' + base + '/r/' + r.slug + '/kitchen" target="_blank" style="flex:1;min-width:80px;padding:8px 10px;background:#1a1206;border:1px solid #5a2c0a;border-radius:8px;color:#ff9f43;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">🔥 Kitchen</a>' +
-        '<a href="' + base + '/r/' + r.slug + '/bar" target="_blank" style="flex:1;min-width:80px;padding:8px 10px;background:#101826;border:1px solid #1e3a5a;border-radius:8px;color:#5aa2f5;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">🍹 Bar</a>' +
-        '<a href="' + base + '/r/' + r.slug + '/others" target="_blank" style="flex:1;min-width:80px;padding:8px 10px;background:#0d1a0d;border:1px solid #1a5a1a;border-radius:8px;color:#41c980;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">📋 Others</a>' +
+        '<a href="' + base + '/review?r=' + r.pin + '" target="_blank" style="flex:1;min-width:120px;padding:8px 10px;background:#101826;border:1px solid #1e3a5a;border-radius:8px;color:#5aa2f5;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">🔗 Review Page</a>' +
+        '<a href="' + base + '/feedback-admin" target="_blank" style="flex:1;min-width:120px;padding:8px 10px;background:#0d1a0d;border:1px solid #1a5a1a;border-radius:8px;color:#41c980;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">📊 Feedback Dashboard</a>' +
         '</div>'
-      ) : '<div style="font-size:12px;color:#525965;margin:8px 0;">No slug — re-add to get links</div>';
+      );
+      var btypeLabels = { restaurant:'🍽️ Restaurant', salon:'💈 Salon', cafe:'☕ Cafe', clinic:'🏥 Clinic', gym:'🏋️ Gym', tattoo:'🖊️ Tattoo Studio', other:'🏷️ Other' };
+      var btypeLabel  = btypeLabels[r.businessType] || btypeLabels['restaurant'];
+      var smodeLabel  = (r.suggestionMode || 'preready') === 'haiku' ? '🤖 Haiku AI' : '📝 Pre-ready';
+      var smodeColor  = (r.suggestionMode || 'preready') === 'haiku' ? '#f5a623' : '#7d8590';
       return '<div class="rest-card">' +
         '<div class="rest-name">' + r.name + '</div>' +
-        '<div class="rest-meta">PIN: ' + r.pin + ' · Tables: ' + (r.totalTables||20) + ' · Drinks: ' + r.avgDrinkMins + 'm · Starters: ' + r.avgStarterMins + 'm · Main: ' + r.avgMainMins + 'm</div>' +
-        ((r.captains && r.captains.length) ? '<div class="rest-meta" style="color:#a78bfa;">👤 ' + r.captains.join(', ') + '</div>' : '') +
+        '<div class="rest-meta" style="color:#a78bfa;">' + btypeLabel + ' · <span style="color:' + smodeColor + ';">' + smodeLabel + '</span></div>' +
+        (isRestaurant
+          ? '<div class="rest-meta">PIN: ' + r.pin + ' · Tables: ' + (r.totalTables||20) + ' · Drinks: ' + r.avgDrinkMins + 'm · Starters: ' + r.avgStarterMins + 'm · Main: ' + r.avgMainMins + 'm</div>'
+          : '<div class="rest-meta">PIN: ' + r.pin + '</div>') +
+        (isRestaurant && r.captains && r.captains.length ? '<div class="rest-meta" style="color:#a78bfa;">👤 ' + r.captains.join(', ') + '</div>' : '') +
         '<div class="rest-meta" style="color:#25D366;">📱 ' + (r.ownerPhone || 'No owner phone') + '</div>' +
         '<div class="rest-meta" style="color:' + subColor + ';">📅 ' + subLabel + '</div>' +
         '<div class="rest-meta" style="color:#525965;">' + gpsLabel + '</div>' +
@@ -282,13 +315,16 @@ async function loadRestaurants() {
         '<div class="act green" onclick="renewSub(\''+r.pin+'\',' + "'yearly'" + ')">⭐ +1 Year</div>' +
         '<div class="act blue" onclick="sendReport(\''+r.pin+'\')">📊 Report</div>' +
         '<div class="act" onclick="editRestaurant(\''+r.pin+'\')" style="background:#1a1407;border-color:#a16207;color:#d4a017;">✏️ Edit</div>' +
+        '<div class="act" onclick="downloadQR(\''+r.pin+'\')" style="background:#0d1a26;border-color:#1e3a5a;color:#5aa2f5;">⬇ QR</div>' +
         '<div class="act red" onclick="deleteRestaurant(\''+r._id+'\',\''+r.name+'\')">🗑 Delete</div>' +
         '</div>' +
-        '<div style="display:flex;gap:6px;margin-top:8px;">' +
-        '<div onclick="showAnalytics(\''+r.pin+'\',\''+r.name+'\')" style="flex:1;padding:9px;background:#0d1a26;border:1px solid #1e3a5a;border-radius:8px;color:#4a9eff;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">📈 Analytics</div>' +
-        '<div onclick="openMenu(\''+r.pin+'\',\''+r.name+'\')" style="flex:1;padding:9px;background:#1a0d26;border:1px solid #3a1e5a;border-radius:8px;color:#a78bfa;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">🍽 Menu</div>' +
-        '<div onclick="showAttendance(\''+r.pin+'\',\''+r.name+'\')" style="flex:1;padding:9px;background:#0d1a0d;border:1px solid #1a5a1a;border-radius:8px;color:#41c980;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">📋 Attendance</div>' +
-        '</div>' +
+        (isRestaurant
+          ? '<div style="display:flex;gap:6px;margin-top:8px;">' +
+            '<div onclick="showAnalytics(\''+r.pin+'\',\''+r.name+'\')" style="flex:1;padding:9px;background:#0d1a26;border:1px solid #1e3a5a;border-radius:8px;color:#4a9eff;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">📈 Analytics</div>' +
+            '<div onclick="openMenu(\''+r.pin+'\',\''+r.name+'\')" style="flex:1;padding:9px;background:#1a0d26;border:1px solid #3a1e5a;border-radius:8px;color:#a78bfa;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">🍽 Menu</div>' +
+            '<div onclick="showAttendance(\''+r.pin+'\',\''+r.name+'\')" style="flex:1;padding:9px;background:#0d1a0d;border:1px solid #1a5a1a;border-radius:8px;color:#41c980;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">📋 Attendance</div>' +
+            '</div>'
+          : '') +
         '</div>';
     }).join('');
   } catch(e) { document.getElementById('rest-list').innerHTML = '<div style="color:#ff5555;font-size:13px;">Failed to load</div>'; }
@@ -307,10 +343,12 @@ async function addRestaurant() {
   var lat = latStr ? parseFloat(latStr) : null;
   var lng = lngStr ? parseFloat(lngStr) : null;
   var captains = document.getElementById('a-captains').value.trim();
+  var businessType   = document.getElementById('a-btype').value;
+  var suggestionMode = document.getElementById('a-smode').value;
   if (!name || !pin) { toast('Name and PIN required', 'red'); return; }
   var btn = document.getElementById('add-btn'); btn.disabled = true; btn.textContent = 'Adding...';
-  var res = await post('/admin/add-restaurant', { name, pin, ownerPhone: phone, googleReviewLink: review, avgDrinkMins: drink, avgStarterMins: starter, avgMainMins: main, totalTables: tables, lat: lat, lng: lng, captains: captains });
-  btn.disabled = false; btn.textContent = '+ Add Restaurant';
+  var res = await post('/admin/add-restaurant', { name, pin, ownerPhone: phone, googleReviewLink: review, avgDrinkMins: drink, avgStarterMins: starter, avgMainMins: main, totalTables: tables, lat: lat, lng: lng, captains: captains, businessType: businessType, suggestionMode: suggestionMode });
+  btn.disabled = false; btn.textContent = '+ Add Business';
   if (res.ok) {
     document.getElementById('a-name').value = '';
     document.getElementById('a-pin').value = '';
@@ -319,13 +357,22 @@ async function addRestaurant() {
     document.getElementById('a-lat').value = '';
     document.getElementById('a-lng').value = '';
     document.getElementById('a-captains').value = '';
-    if (res.links) {
-      var lc = document.getElementById('links-content');
-      lc.innerHTML = [
-        {label:'Waiter', url:res.links.waiter},
-        {label:'Kitchen', url:res.links.kitchen},
-        {label:'Bar', url:res.links.bar}
-      ].map(function(l){
+    var lc = document.getElementById('links-content');
+    var base = window.location.origin;
+    var isRest = businessType === 'restaurant';
+      document.querySelector('#links-box > div:first-child').textContent =
+        isRest ? 'Business added! Share these links with staff:' : 'Business added! Share these links with the owner:';
+      var linkItems = isRest
+        ? [
+            {label:'Waiter',   url: res.links.waiter},
+            {label:'Kitchen',  url: res.links.kitchen},
+            {label:'Bar',      url: res.links.bar}
+          ]
+        : [
+            {label:'Review Page (share with customers)', url: base + '/review?r=' + pin},
+            {label:'Feedback Dashboard (owner login)',   url: base + '/feedback-admin'}
+          ];
+      lc.innerHTML = linkItems.map(function(l){
         return '<div style="margin-bottom:10px;">'+
           '<div style="font-size:12px;color:#7d8590;margin-bottom:4px;">'+l.label+'</div>'+
           '<div style="display:flex;gap:8px;align-items:center;">'+
@@ -334,53 +381,89 @@ async function addRestaurant() {
           '</div></div>';
       }).join('');
       document.getElementById('links-box').style.display = 'block';
-    }
     loadRestaurants();
   } else { toast('Error: ' + (res.error || 'Failed'), 'red'); }
 }
-async function editRestaurant(pin) {
+var editPin = '';
+function editRestaurant(pin) {
   var r = allRestaurants.find(function(x) { return x.pin === pin; });
-  if (!r) { toast('Restaurant not found', 'red'); return; }
-  var newPin = prompt('Change PIN for ' + r.name + ' (current: ' + pin + ')\nLeave blank to keep same:', pin);
-  if (newPin === null) return;
-  var newName = prompt('Change name (current: ' + r.name + ')\nLeave blank to keep same:', r.name);
-  if (newName === null) return;
-  var newTables = prompt('Total tables (current: ' + (r.totalTables||20) + ', min 1 max 100):', r.totalTables||20);
-  if (newTables === null) return;
-  var currentCaptains = (r.captains || []).join(', ');
-  var newCaptains = prompt('Captain names (comma-separated):\nCurrent: ' + (currentCaptains || 'none'), currentCaptains);
-  if (newCaptains === null) return;
-  var currentLat = r.lat != null ? String(r.lat) : '';
-  var newLat = prompt('Latitude for GPS geofencing (leave blank to keep):\nCurrent: ' + (currentLat || 'not set'), currentLat);
-  if (newLat === null) return;
-  var currentLng = r.lng != null ? String(r.lng) : '';
-  var newLng = prompt('Longitude for GPS geofencing (leave blank to keep):\nCurrent: ' + (currentLng || 'not set'), currentLng);
-  if (newLng === null) return;
-  var currentPhone = r.ownerPhone ? String(r.ownerPhone) : '';
-  var newPhone = prompt('Owner phone (with country code, e.g. 919876543210):\nCurrent: ' + (currentPhone || 'not set'), currentPhone);
-  if (newPhone === null) return;
-  var currentReview = r.googleReviewLink || '';
-  var newReview = prompt('Google review link:\nCurrent: ' + (currentReview || 'not set'), currentReview);
-  if (newReview === null) return;
-  var body = { pin: pin };
-  if (newPin && newPin !== pin) body.newPin = newPin;
-  if (newName && newName !== r.name) body.name = newName;
-  var t = parseInt(newTables); if (t >= 1 && t <= 100 && t !== parseInt(r.totalTables)) body.totalTables = t;
-  if (newCaptains !== currentCaptains) body.captains = newCaptains;
-  if (newLat && newLat !== currentLat) { var lv = parseFloat(newLat); if (!isNaN(lv)) body.lat = lv; }
-  if (newLng && newLng !== currentLng) { var lv2 = parseFloat(newLng); if (!isNaN(lv2)) body.lng = lv2; }
-  if (newPhone.trim() !== currentPhone) body.ownerPhone = newPhone.trim();
-  if (newReview.trim() !== currentReview) body.googleReviewLink = newReview.trim();
-  if (Object.keys(body).length === 1) { alert('Nothing changed.'); return; }
+  if (!r) { toast('Business not found', 'red'); return; }
+  editPin = pin;
+  document.getElementById('edit-title').textContent = 'Edit — ' + r.name;
+  document.getElementById('e-name').value    = r.name || '';
+  document.getElementById('e-pin').value     = r.pin  || '';
+  document.getElementById('e-phone').value   = r.ownerPhone   ? String(r.ownerPhone)  : '';
+  document.getElementById('e-review').value  = r.googleReviewLink || '';
+  document.getElementById('e-lat').value     = r.lat != null ? r.lat : '';
+  document.getElementById('e-lng').value     = r.lng != null ? r.lng : '';
+  document.getElementById('e-drink').value   = r.avgDrinkMins   || 8;
+  document.getElementById('e-starter').value = r.avgStarterMins || 18;
+  document.getElementById('e-main').value    = r.avgMainMins    || 30;
+  document.getElementById('e-tables').value  = r.totalTables    || 20;
+  document.getElementById('e-captains').value = (r.captains || []).join(', ');
+  document.getElementById('e-btype').value  = r.businessType  || 'restaurant';
+  document.getElementById('e-smode').value  = r.suggestionMode || 'preready';
+  document.getElementById('edit-err').style.display = 'none';
+  updateEditForm();
+  document.getElementById('edit-modal').style.display = 'block';
+}
+function updateEditForm() {
+  var isRest = document.getElementById('e-btype').value === 'restaurant';
+  document.getElementById('e-restaurant-fields').style.display = isRest ? '' : 'none';
+}
+function closeEditModal() {
+  document.getElementById('edit-modal').style.display = 'none';
+  editPin = '';
+}
+async function saveEditModal() {
+  var errEl = document.getElementById('edit-err');
+  var btn   = document.getElementById('edit-save-btn');
+  var name  = document.getElementById('e-name').value.trim();
+  if (!name) { errEl.textContent = 'Business name is required.'; errEl.style.display = ''; return; }
+  errEl.style.display = 'none';
+  var newPin = String(document.getElementById('e-pin').value).trim();
+  var isRest = document.getElementById('e-btype').value === 'restaurant';
+  var body = { pin: editPin };
+  if (newPin && newPin !== editPin) body.newPin = newPin;
+  body.name             = name;
+  body.ownerPhone       = document.getElementById('e-phone').value.trim();
+  body.googleReviewLink = document.getElementById('e-review').value.trim();
+  body.businessType     = document.getElementById('e-btype').value;
+  body.suggestionMode   = document.getElementById('e-smode').value;
+  var latVal = document.getElementById('e-lat').value.trim();
+  var lngVal = document.getElementById('e-lng').value.trim();
+  if (latVal !== '') body.lat = latVal;
+  if (lngVal !== '') body.lng = lngVal;
+  if (isRest) {
+    body.avgDrinkMins   = document.getElementById('e-drink').value;
+    body.avgStarterMins = document.getElementById('e-starter').value;
+    body.avgMainMins    = document.getElementById('e-main').value;
+    body.totalTables    = document.getElementById('e-tables').value;
+    body.captains       = document.getElementById('e-captains').value.trim();
+  }
+  btn.disabled = true; btn.textContent = 'Saving…';
   var res = await post('/admin/update-restaurant', body);
-  if (res && res.ok) { alert('Updated!'); loadRestaurants(); }
-  else alert('Error: ' + (res && res.error ? res.error : 'Failed'));
+  btn.disabled = false; btn.textContent = 'Save Changes';
+  if (res && res.ok) { closeEditModal(); loadRestaurants(); toast('Updated!', 'green'); }
+  else { errEl.textContent = (res && res.error) ? res.error : 'Save failed.'; errEl.style.display = ''; }
 }
 async function deleteRestaurant(id, name) {
   if (!confirm('Delete ' + name + '?')) return;
   var res = await post('/admin/delete-restaurant', { id });
   if (res.ok) { toast('Deleted ' + name, 'green'); loadRestaurants(); }
   else toast('Delete failed', 'red');
+}
+async function downloadQR(pin) {
+  try {
+    var r = await fetch('/admin/qr/' + pin, { headers: { 'x-admin-key': adminKey() } });
+    if (!r.ok) { toast('QR failed', 'red'); return; }
+    var blob = await r.blob();
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href = url; a.download = 'qr-' + pin + '.png';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  } catch(e) { toast('QR download failed', 'red'); }
 }
 async function sendReport(pin) {
   var p = pin || document.getElementById('r-pin').value.trim();
@@ -398,8 +481,14 @@ async function renewSub(pin, plan) {
   else toast('Failed: ' + (res.error || 'unknown'), 'red');
 }
 
+function updateAddForm() {
+  var isRest = document.getElementById('a-btype').value === 'restaurant';
+  document.getElementById('a-restaurant-fields').style.display = isRest ? '' : 'none';
+}
+
 calc();
 loadRestaurants();
+updateAddForm();
 
 // ── Attendance modal ──
 var attPin = '';
@@ -699,6 +788,66 @@ function cancelImport() { document.getElementById('menu-confirm-section').style.
       <input type="text" id="ov-reason" placeholder="e.g. GPS failed, forgot to tap in" style="width:100%;padding:9px;background:#0f0f0f;border:1px solid #333;border-radius:8px;color:#fff;font-size:13px;margin-bottom:12px;"/>
       <button onclick="submitOverride()" style="width:100%;padding:11px;background:#1e3a1e;border:1px solid #3fb950;border-radius:8px;color:#3fb950;font-size:13px;font-weight:600;cursor:pointer;">✏️ Add Override Entry</button>
     </div>
+  </div>
+</div>
+
+<!-- EDIT BUSINESS MODAL -->
+<div class="edit-modal" id="edit-modal">
+  <div style="max-width:640px;margin:0 auto;padding:20px 16px 80px;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px;">
+      <button onclick="closeEditModal()" style="width:36px;height:36px;border-radius:50%;background:#1a1a1a;border:1px solid #2a2a2a;color:#fff;font-size:20px;cursor:pointer;">←</button>
+      <div style="font-size:17px;font-weight:700;color:#fff;" id="edit-title">Edit Business</div>
+    </div>
+
+    <label>Business Name</label>
+    <input type="text" id="e-name" placeholder="e.g. Gravity Salon"/>
+
+    <label>PIN (4-6 digits)</label>
+    <input type="number" id="e-pin" placeholder="e.g. 1234"/>
+
+    <label>Business Type</label>
+    <select id="e-btype" onchange="updateEditForm()" style="width:100%;padding:10px 12px;background:#111;border:1px solid #333;border-radius:8px;color:#fff;font-size:14px;margin-bottom:12px;">
+      <option value="restaurant">Restaurant</option>
+      <option value="cafe">Cafe</option>
+      <option value="salon">Salon</option>
+      <option value="clinic">Clinic</option>
+      <option value="gym">Gym</option>
+      <option value="tattoo">Tattoo Studio</option>
+      <option value="other">Other</option>
+    </select>
+
+    <label>Suggestion Mode</label>
+    <select id="e-smode" style="width:100%;padding:10px 12px;background:#111;border:1px solid #333;border-radius:8px;color:#fff;font-size:14px;margin-bottom:12px;">
+      <option value="preready">📝 Pre-ready reviews</option>
+      <option value="haiku">🤖 Haiku AI (live)</option>
+    </select>
+
+    <label>Owner WhatsApp Number</label>
+    <input type="tel" id="e-phone" placeholder="91XXXXXXXXXX"/>
+
+    <label>Google Review Link</label>
+    <input type="text" id="e-review" placeholder="https://maps.app.goo.gl/..."/>
+
+    <div id="e-restaurant-fields">
+      <label>Avg Drink Mins</label>
+      <input type="number" id="e-drink" placeholder="8"/>
+      <label>Avg Starter Mins</label>
+      <input type="number" id="e-starter" placeholder="18"/>
+      <label>Avg Main Course Mins</label>
+      <input type="number" id="e-main" placeholder="30"/>
+      <label>Total Tables</label>
+      <input type="number" id="e-tables" placeholder="20" min="1" max="100"/>
+      <label>Captain Names (comma-separated)</label>
+      <input type="text" id="e-captains" placeholder="e.g. Amit, Suresh, Raj"/>
+    </div>
+
+    <label>Latitude (for GPS geofencing — optional)</label>
+    <input type="number" id="e-lat" placeholder="e.g. 28.6139" step="any"/>
+    <label>Longitude (for GPS geofencing — optional)</label>
+    <input type="number" id="e-lng" placeholder="e.g. 77.2090" step="any"/>
+
+    <div id="edit-err" style="display:none;color:#ff5555;font-size:13px;margin-bottom:8px;"></div>
+    <button id="edit-save-btn" onclick="saveEditModal()" class="btn">Save Changes</button>
   </div>
 </div>
 </body>

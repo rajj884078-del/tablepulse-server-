@@ -10,6 +10,7 @@ const webpush = require('web-push');
 const admin = require('firebase-admin');
 const multer = require('multer');
 const Anthropic = require('@anthropic-ai/sdk');
+const QRCode    = require('qrcode');
 
 // Initialize Firebase Admin SDK from env var
 let firebaseInitialized = false;
@@ -661,6 +662,9 @@ app.get('/admin/restaurants', adminLimiter, requireAdmin, async (req, res) => {
   } catch (e) { console.error('[admin/restaurants]', e.message); res.status(500).json({ error: 'Failed' }); }
 });
 
+const VALID_BUSINESS_TYPES   = ['restaurant','salon','cafe','clinic','gym','tattoo','other'];
+const VALID_SUGGESTION_MODES = ['preready','haiku'];
+
 app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) => {
   const name = cleanStr(req.body.name, 80);
   const pin  = cleanStr(String(req.body.pin || ''), 6);
@@ -678,6 +682,8 @@ app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) =
   const lng = !isNaN(lngVal) ? lngVal : null;
   const num = (v, d) => Math.min(Math.max(parseInt(v, 10) || d, 1), 240);
   const numTables = (v) => Math.min(Math.max(parseInt(v, 10) || 20, 1), 100);
+  const businessType    = VALID_BUSINESS_TYPES.includes(req.body.businessType)     ? req.body.businessType    : 'restaurant';
+  const suggestionMode  = VALID_SUGGESTION_MODES.includes(req.body.suggestionMode) ? req.body.suggestionMode  : 'preready';
   try {
     if (await db.collection('restaurants').findOne({ pin })) {
       return res.status(409).json({ ok: false, error: 'PIN already exists' });
@@ -691,7 +697,7 @@ app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) =
       avgStarterMins: num(req.body.avgStarterMins, 18),
       avgMainMins: num(req.body.avgMainMins, 30),
       totalTables: numTables(req.body.totalTables),
-      captains, lat, lng,
+      captains, lat, lng, businessType, suggestionMode,
       createdAt: new Date()
     });
     console.log('[admin] added restaurant: ' + name + ' slug=' + slug);
@@ -731,6 +737,12 @@ app.post('/admin/update-restaurant', adminLimiter, requireAdmin, async (req, res
     }
     if (req.body.lat !== undefined) { const v = parseFloat(req.body.lat); if (!isNaN(v)) update.lat = v; }
     if (req.body.lng !== undefined) { const v = parseFloat(req.body.lng); if (!isNaN(v)) update.lng = v; }
+    if (req.body.businessType !== undefined && VALID_BUSINESS_TYPES.includes(req.body.businessType)) {
+      update.businessType = req.body.businessType;
+    }
+    if (req.body.suggestionMode !== undefined && VALID_SUGGESTION_MODES.includes(req.body.suggestionMode)) {
+      update.suggestionMode = req.body.suggestionMode;
+    }
     if (!Object.keys(update).length) return res.status(400).json({ error: 'Nothing to update' });
     await db.collection('restaurants').updateOne({ pin }, { $set: update });
     console.log('[admin] updated restaurant pin=' + pin + ' changes=' + JSON.stringify(update));
@@ -745,6 +757,21 @@ app.post('/admin/delete-restaurant', adminLimiter, requireAdmin, async (req, res
     await db.collection('restaurants').deleteOne({ _id: oid });
     res.json({ ok: true });
   } catch (e) { console.error('[admin/delete]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
+});
+
+app.get('/admin/qr/:pin', adminLimiter, requireAdmin, async (req, res) => {
+  const pin = cleanStr(req.params.pin, 6);
+  if (!pin) return res.status(400).json({ ok: false, error: 'PIN required' });
+  try {
+    const r = await db.collection('restaurants').findOne({ pin }, { projection: { _id: 1 } });
+    if (!r) return res.status(404).json({ ok: false, error: 'Business not found' });
+    const base = process.env.BASE_URL || (req.protocol + '://' + req.get('host'));
+    const url  = `${base}/review?r=${pin}`;
+    const buf  = await QRCode.toBuffer(url, { type: 'png', width: 600, margin: 2, errorCorrectionLevel: 'H' });
+    res.set('Content-Type', 'image/png');
+    res.set('Content-Disposition', `attachment; filename="qr-${pin}.png"`);
+    res.send(buf);
+  } catch (e) { console.error('[admin/qr]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
 });
 
 app.post('/admin/send-report', adminLimiter, requireAdmin, async (req, res) => {
@@ -1607,9 +1634,9 @@ app.get('/review-info', feedbackLimiter, async (req, res) => {
   const pin = cleanStr(String(req.query.pin || ''), 6);
   if (!pin) return res.status(400).json({ ok: false, error: 'pin required' });
   try {
-    const r = await db.collection('restaurants').findOne({ pin }, { projection: { name: 1, googleReviewLink: 1 } });
+    const r = await db.collection('restaurants').findOne({ pin }, { projection: { name: 1, googleReviewLink: 1, businessType: 1 } });
     if (!r) return res.status(404).json({ ok: false, error: 'Not found' });
-    res.json({ ok: true, name: r.name, googleReviewLink: r.googleReviewLink || '' });
+    res.json({ ok: true, name: r.name, googleReviewLink: r.googleReviewLink || '', businessType: r.businessType || 'restaurant' });
   } catch (e) { console.error('[review-info]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
 });
 
@@ -1660,19 +1687,73 @@ app.get('/admin/feedback/:pin', adminLimiter, requireAdmin, async (req, res) => 
 });
 
 // ── Review suggestions ────────────────────────────────────────────────────────
+const GENERIC_FALLBACK_SUGGESTIONS = [
+  'Really happy with the service. Would definitely recommend to anyone!',
+  'Great experience overall. The staff were friendly and professional.',
+  'Good quality and excellent value. Will definitely be coming back.'
+];
+
 app.get('/review-suggestions', feedbackLimiter, async (req, res) => {
   const pin   = cleanStr(String(req.query.pin   || ''), 6);
   const stars = parseInt(req.query.stars, 10);
   if (!pin || !stars || stars < 1 || stars > 5)
     return res.status(400).json({ ok: false, error: 'pin and stars (1-5) required' });
   try {
-    const docs = await db.collection('review_suggestions')
-      .aggregate([
-        { $match: { restaurantPin: pin, stars } },
-        { $sample: { size: 3 } },
-        { $project: { _id: 0, text: 1 } }
-      ]).toArray();
-    res.json({ ok: true, suggestions: docs.map(d => d.text) });
+    const restaurant = await db.collection('restaurants').findOne(
+      { pin }, { projection: { suggestionMode: 1, businessType: 1 } }
+    );
+    if (!restaurant) return res.status(404).json({ ok: false, error: 'Not found' });
+
+    const suggestionMode = restaurant.suggestionMode || 'preready';
+    const businessType   = restaurant.businessType   || 'restaurant';
+
+    async function sampleCategory(n) {
+      const docs = await db.collection('category_suggestions')
+        .aggregate([
+          { $match: { category: businessType, stars } },
+          { $sample: { size: n } },
+          { $project: { _id: 0, text: 1 } }
+        ]).toArray();
+      return docs.map(d => d.text);
+    }
+
+    if (suggestionMode === 'haiku') {
+      try {
+        if (!ANTHROPIC_API_KEY) throw new Error('No API key');
+        const client   = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+        const starDesc = stars >= 5 ? 'glowing 5-star' : 'positive 4-star';
+        const msg = await client.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 400,
+          messages: [{
+            role: 'user',
+            content: `Write 3 short, varied, ${starDesc} Google reviews for a ${businessType} in India. Keep them universal — no specific names, staff names, services, or dishes. 1-2 sentences each, casual and natural. Return ONLY a JSON array of 3 strings, no other text.`
+          }]
+        });
+        const suggestions = JSON.parse(msg.content[0].text.trim());
+        if (!Array.isArray(suggestions) || suggestions.length < 1) throw new Error('Unexpected response shape');
+        const three = suggestions.slice(0, 3).map(s => String(s).trim()).filter(Boolean);
+        if (!three.length) throw new Error('Empty suggestions');
+        // Grow the category pool with haiku-generated reviews
+        for (const text of three) {
+          await db.collection('category_suggestions').updateOne(
+            { category: businessType, stars, text },
+            { $setOnInsert: { category: businessType, stars, text } },
+            { upsert: true }
+          );
+        }
+        console.log(`[review-suggestions] haiku generated ${three.length} for ${businessType} ${stars}★ pin=${pin}`);
+        return res.json({ ok: true, suggestionMode: 'haiku', suggestions: three });
+      } catch (e) {
+        console.error('[review-suggestions] haiku failed, falling back to preready:', e.message);
+      }
+    }
+
+    // preready path — also the fallback when haiku fails
+    let suggestions = await sampleCategory(3);
+    if (!suggestions.length) suggestions = GENERIC_FALLBACK_SUGGESTIONS;
+    res.json({ ok: true, suggestionMode: 'preready', suggestions });
+
   } catch (e) { console.error('[review-suggestions]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
 });
 
