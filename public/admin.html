@@ -143,6 +143,11 @@ input[type=range]{padding:0;height:6px;}
     <option value="tattoo">Tattoo Studio</option>
     <option value="other">Other</option>
   </select>
+  <label>Suggestion Mode</label>
+  <select id="a-smode" style="width:100%;padding:10px 12px;background:#0d1117;border:1px solid #30363d;border-radius:10px;color:#e6edf3;font-size:14px;margin-bottom:16px;">
+    <option value="preready">📝 Pre-ready reviews</option>
+    <option value="haiku">🤖 Haiku AI (live)</option>
+  </select>
   <label>Owner WhatsApp Number</label>
   <input type="tel" id="a-phone" placeholder="91XXXXXXXXXX"/>
   <label>Google Review Link</label>
@@ -290,10 +295,12 @@ async function loadRestaurants() {
         '</div>'
       );
       var btypeLabels = { restaurant:'🍽️ Restaurant', salon:'💈 Salon', cafe:'☕ Cafe', clinic:'🏥 Clinic', gym:'🏋️ Gym', tattoo:'🖊️ Tattoo Studio', other:'🏷️ Other' };
-      var btypeLabel = btypeLabels[r.businessType] || btypeLabels['restaurant'];
+      var btypeLabel  = btypeLabels[r.businessType] || btypeLabels['restaurant'];
+      var smodeLabel  = (r.suggestionMode || 'preready') === 'haiku' ? '🤖 Haiku AI' : '📝 Pre-ready';
+      var smodeColor  = (r.suggestionMode || 'preready') === 'haiku' ? '#f5a623' : '#7d8590';
       return '<div class="rest-card">' +
         '<div class="rest-name">' + r.name + '</div>' +
-        '<div class="rest-meta" style="color:#a78bfa;">' + btypeLabel + '</div>' +
+        '<div class="rest-meta" style="color:#a78bfa;">' + btypeLabel + ' · <span style="color:' + smodeColor + ';">' + smodeLabel + '</span></div>' +
         (isRestaurant
           ? '<div class="rest-meta">PIN: ' + r.pin + ' · Tables: ' + (r.totalTables||20) + ' · Drinks: ' + r.avgDrinkMins + 'm · Starters: ' + r.avgStarterMins + 'm · Main: ' + r.avgMainMins + 'm</div>'
           : '<div class="rest-meta">PIN: ' + r.pin + '</div>') +
@@ -334,10 +341,11 @@ async function addRestaurant() {
   var lat = latStr ? parseFloat(latStr) : null;
   var lng = lngStr ? parseFloat(lngStr) : null;
   var captains = document.getElementById('a-captains').value.trim();
-  var businessType = document.getElementById('a-btype').value;
+  var businessType   = document.getElementById('a-btype').value;
+  var suggestionMode = document.getElementById('a-smode').value;
   if (!name || !pin) { toast('Name and PIN required', 'red'); return; }
   var btn = document.getElementById('add-btn'); btn.disabled = true; btn.textContent = 'Adding...';
-  var res = await post('/admin/add-restaurant', { name, pin, ownerPhone: phone, googleReviewLink: review, avgDrinkMins: drink, avgStarterMins: starter, avgMainMins: main, totalTables: tables, lat: lat, lng: lng, captains: captains, businessType: businessType });
+  var res = await post('/admin/add-restaurant', { name, pin, ownerPhone: phone, googleReviewLink: review, avgDrinkMins: drink, avgStarterMins: starter, avgMainMins: main, totalTables: tables, lat: lat, lng: lng, captains: captains, businessType: businessType, suggestionMode: suggestionMode });
   btn.disabled = false; btn.textContent = '+ Add Business';
   if (res.ok) {
     document.getElementById('a-name').value = '';
@@ -387,6 +395,11 @@ async function editRestaurant(pin) {
   var validTypes = ['restaurant','salon','cafe','clinic','gym','tattoo','other'];
   if (!validTypes.includes(newBtype.trim().toLowerCase())) newBtype = currentBtype;
   else newBtype = newBtype.trim().toLowerCase();
+  var currentSmode = r.suggestionMode || 'preready';
+  var newSmode = prompt('Suggestion mode (preready / haiku):\nCurrent: ' + currentSmode, currentSmode);
+  if (newSmode === null) return;
+  if (!['preready','haiku'].includes(newSmode.trim().toLowerCase())) newSmode = currentSmode;
+  else newSmode = newSmode.trim().toLowerCase();
   var isRestaurant = newBtype === 'restaurant';
   var newTables = null, newCaptains = null, currentCaptains = '';
   if (isRestaurant) {
@@ -418,6 +431,7 @@ async function editRestaurant(pin) {
   if (newPhone.trim() !== currentPhone) body.ownerPhone = newPhone.trim();
   if (newReview.trim() !== currentReview) body.googleReviewLink = newReview.trim();
   if (newBtype !== currentBtype) body.businessType = newBtype;
+  if (newSmode !== currentSmode) body.suggestionMode = newSmode;
   if (Object.keys(body).length === 1) { alert('Nothing changed.'); return; }
   var res = await post('/admin/update-restaurant', body);
   if (res && res.ok) { alert('Updated!'); loadRestaurants(); }

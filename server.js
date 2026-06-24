@@ -661,7 +661,8 @@ app.get('/admin/restaurants', adminLimiter, requireAdmin, async (req, res) => {
   } catch (e) { console.error('[admin/restaurants]', e.message); res.status(500).json({ error: 'Failed' }); }
 });
 
-const VALID_BUSINESS_TYPES = ['restaurant','salon','cafe','clinic','gym','tattoo','other'];
+const VALID_BUSINESS_TYPES   = ['restaurant','salon','cafe','clinic','gym','tattoo','other'];
+const VALID_SUGGESTION_MODES = ['preready','haiku'];
 
 app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) => {
   const name = cleanStr(req.body.name, 80);
@@ -680,7 +681,8 @@ app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) =
   const lng = !isNaN(lngVal) ? lngVal : null;
   const num = (v, d) => Math.min(Math.max(parseInt(v, 10) || d, 1), 240);
   const numTables = (v) => Math.min(Math.max(parseInt(v, 10) || 20, 1), 100);
-  const businessType = VALID_BUSINESS_TYPES.includes(req.body.businessType) ? req.body.businessType : 'restaurant';
+  const businessType    = VALID_BUSINESS_TYPES.includes(req.body.businessType)     ? req.body.businessType    : 'restaurant';
+  const suggestionMode  = VALID_SUGGESTION_MODES.includes(req.body.suggestionMode) ? req.body.suggestionMode  : 'preready';
   try {
     if (await db.collection('restaurants').findOne({ pin })) {
       return res.status(409).json({ ok: false, error: 'PIN already exists' });
@@ -694,7 +696,7 @@ app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) =
       avgStarterMins: num(req.body.avgStarterMins, 18),
       avgMainMins: num(req.body.avgMainMins, 30),
       totalTables: numTables(req.body.totalTables),
-      captains, lat, lng, businessType,
+      captains, lat, lng, businessType, suggestionMode,
       createdAt: new Date()
     });
     console.log('[admin] added restaurant: ' + name + ' slug=' + slug);
@@ -736,6 +738,9 @@ app.post('/admin/update-restaurant', adminLimiter, requireAdmin, async (req, res
     if (req.body.lng !== undefined) { const v = parseFloat(req.body.lng); if (!isNaN(v)) update.lng = v; }
     if (req.body.businessType !== undefined && VALID_BUSINESS_TYPES.includes(req.body.businessType)) {
       update.businessType = req.body.businessType;
+    }
+    if (req.body.suggestionMode !== undefined && VALID_SUGGESTION_MODES.includes(req.body.suggestionMode)) {
+      update.suggestionMode = req.body.suggestionMode;
     }
     if (!Object.keys(update).length) return res.status(400).json({ error: 'Nothing to update' });
     await db.collection('restaurants').updateOne({ pin }, { $set: update });
@@ -1672,13 +1677,17 @@ app.get('/review-suggestions', feedbackLimiter, async (req, res) => {
   if (!pin || !stars || stars < 1 || stars > 5)
     return res.status(400).json({ ok: false, error: 'pin and stars (1-5) required' });
   try {
+    const restaurant = await db.collection('restaurants').findOne({ pin }, { projection: { suggestionMode: 1 } });
+    if (!restaurant) return res.status(404).json({ ok: false, error: 'Not found' });
+    const suggestionMode = restaurant.suggestionMode || 'preready';
+    // haiku live-generation wired in next step; both modes use preready path for now
     const docs = await db.collection('review_suggestions')
       .aggregate([
         { $match: { restaurantPin: pin, stars } },
         { $sample: { size: 3 } },
         { $project: { _id: 0, text: 1 } }
       ]).toArray();
-    res.json({ ok: true, suggestions: docs.map(d => d.text) });
+    res.json({ ok: true, suggestionMode, suggestions: docs.map(d => d.text) });
   } catch (e) { console.error('[review-suggestions]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
 });
 
