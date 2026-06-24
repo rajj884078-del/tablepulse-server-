@@ -172,7 +172,15 @@
       line-height: 1; transition: color 0.15s, border-color 0.15s, background 0.15s;
       display: flex; align-items: center; gap: 3px;
     }
-    .copy-btn.copied { color: #2a9a50; border-color: #2a9a50; background: #e8f9ee; }
+    @keyframes copy-flash {
+      0%   { box-shadow: 0 0 0 0 rgba(42,154,80,0.5); background: #a8ecc4; }
+      55%  { box-shadow: 0 0 0 8px rgba(42,154,80,0);  background: #e8f9ee; }
+      100% { box-shadow: 0 0 0 0 rgba(42,154,80,0);    background: #e8f9ee; }
+    }
+    .copy-btn.copied {
+      color: #2a9a50; border-color: #2a9a50; background: #e8f9ee;
+      animation: copy-flash 0.52s ease-out;
+    }
     #ready-btn {
       width: 100%; margin-top: 6px; padding: 15px;
       background: #1a7a40; color: #fff; border: none; border-radius: 12px;
