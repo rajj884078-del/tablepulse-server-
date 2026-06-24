@@ -294,8 +294,10 @@ async function loadRestaurants() {
       return '<div class="rest-card">' +
         '<div class="rest-name">' + r.name + '</div>' +
         '<div class="rest-meta" style="color:#a78bfa;">' + btypeLabel + '</div>' +
-        '<div class="rest-meta">PIN: ' + r.pin + ' · Tables: ' + (r.totalTables||20) + ' · Drinks: ' + r.avgDrinkMins + 'm · Starters: ' + r.avgStarterMins + 'm · Main: ' + r.avgMainMins + 'm</div>' +
-        ((r.captains && r.captains.length) ? '<div class="rest-meta" style="color:#a78bfa;">👤 ' + r.captains.join(', ') + '</div>' : '') +
+        (isRestaurant
+          ? '<div class="rest-meta">PIN: ' + r.pin + ' · Tables: ' + (r.totalTables||20) + ' · Drinks: ' + r.avgDrinkMins + 'm · Starters: ' + r.avgStarterMins + 'm · Main: ' + r.avgMainMins + 'm</div>'
+          : '<div class="rest-meta">PIN: ' + r.pin + '</div>') +
+        (isRestaurant && r.captains && r.captains.length ? '<div class="rest-meta" style="color:#a78bfa;">👤 ' + r.captains.join(', ') + '</div>' : '') +
         '<div class="rest-meta" style="color:#25D366;">📱 ' + (r.ownerPhone || 'No owner phone') + '</div>' +
         '<div class="rest-meta" style="color:' + subColor + ';">📅 ' + subLabel + '</div>' +
         '<div class="rest-meta" style="color:#525965;">' + gpsLabel + '</div>' +
@@ -307,11 +309,13 @@ async function loadRestaurants() {
         '<div class="act" onclick="editRestaurant(\''+r.pin+'\')" style="background:#1a1407;border-color:#a16207;color:#d4a017;">✏️ Edit</div>' +
         '<div class="act red" onclick="deleteRestaurant(\''+r._id+'\',\''+r.name+'\')">🗑 Delete</div>' +
         '</div>' +
-        '<div style="display:flex;gap:6px;margin-top:8px;">' +
-        '<div onclick="showAnalytics(\''+r.pin+'\',\''+r.name+'\')" style="flex:1;padding:9px;background:#0d1a26;border:1px solid #1e3a5a;border-radius:8px;color:#4a9eff;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">📈 Analytics</div>' +
-        '<div onclick="openMenu(\''+r.pin+'\',\''+r.name+'\')" style="flex:1;padding:9px;background:#1a0d26;border:1px solid #3a1e5a;border-radius:8px;color:#a78bfa;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">🍽 Menu</div>' +
-        '<div onclick="showAttendance(\''+r.pin+'\',\''+r.name+'\')" style="flex:1;padding:9px;background:#0d1a0d;border:1px solid #1a5a1a;border-radius:8px;color:#41c980;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">📋 Attendance</div>' +
-        '</div>' +
+        (isRestaurant
+          ? '<div style="display:flex;gap:6px;margin-top:8px;">' +
+            '<div onclick="showAnalytics(\''+r.pin+'\',\''+r.name+'\')" style="flex:1;padding:9px;background:#0d1a26;border:1px solid #1e3a5a;border-radius:8px;color:#4a9eff;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">📈 Analytics</div>' +
+            '<div onclick="openMenu(\''+r.pin+'\',\''+r.name+'\')" style="flex:1;padding:9px;background:#1a0d26;border:1px solid #3a1e5a;border-radius:8px;color:#a78bfa;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">🍽 Menu</div>' +
+            '<div onclick="showAttendance(\''+r.pin+'\',\''+r.name+'\')" style="flex:1;padding:9px;background:#0d1a0d;border:1px solid #1a5a1a;border-radius:8px;color:#41c980;font-size:12px;font-weight:600;cursor:pointer;text-align:center;">📋 Attendance</div>' +
+            '</div>'
+          : '') +
         '</div>';
     }).join('');
   } catch(e) { document.getElementById('rest-list').innerHTML = '<div style="color:#ff5555;font-size:13px;">Failed to load</div>'; }
