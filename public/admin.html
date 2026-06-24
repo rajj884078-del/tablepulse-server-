@@ -61,6 +61,7 @@ input[type=range]{padding:0;height:6px;}
 .bar-labels{display:flex;gap:3px;}
 .bar-lbl{flex:1;text-align:center;font-size:9px;color:#444;overflow:hidden;}
 .att-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#0f0f0f;z-index:500;overflow-y:auto;}
+.edit-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#0f0f0f;z-index:600;overflow-y:auto;}
 .att-inner{max-width:640px;margin:0 auto;padding:20px 16px 80px;}
 .att-staff{background:#111;border:1px solid #2a2a2a;border-radius:10px;padding:12px;margin-bottom:10px;}
 .att-sname{font-size:14px;font-weight:600;color:#fff;margin-bottom:2px;}
@@ -382,60 +383,68 @@ async function addRestaurant() {
     loadRestaurants();
   } else { toast('Error: ' + (res.error || 'Failed'), 'red'); }
 }
-async function editRestaurant(pin) {
+var editPin = '';
+function editRestaurant(pin) {
   var r = allRestaurants.find(function(x) { return x.pin === pin; });
-  if (!r) { toast('Restaurant not found', 'red'); return; }
-  var newPin = prompt('Change PIN for ' + r.name + ' (current: ' + pin + ')\nLeave blank to keep same:', pin);
-  if (newPin === null) return;
-  var newName = prompt('Change name (current: ' + r.name + ')\nLeave blank to keep same:', r.name);
-  if (newName === null) return;
-  var currentBtype = r.businessType || 'restaurant';
-  var newBtype = prompt('Business type (restaurant / salon / cafe / clinic / gym / tattoo / other):\nCurrent: ' + currentBtype, currentBtype);
-  if (newBtype === null) return;
-  var validTypes = ['restaurant','salon','cafe','clinic','gym','tattoo','other'];
-  if (!validTypes.includes(newBtype.trim().toLowerCase())) newBtype = currentBtype;
-  else newBtype = newBtype.trim().toLowerCase();
-  var currentSmode = r.suggestionMode || 'preready';
-  var newSmode = prompt('Suggestion mode (preready / haiku):\nCurrent: ' + currentSmode, currentSmode);
-  if (newSmode === null) return;
-  if (!['preready','haiku'].includes(newSmode.trim().toLowerCase())) newSmode = currentSmode;
-  else newSmode = newSmode.trim().toLowerCase();
-  var isRestaurant = newBtype === 'restaurant';
-  var newTables = null, newCaptains = null, currentCaptains = '';
-  if (isRestaurant) {
-    newTables = prompt('Total tables (current: ' + (r.totalTables||20) + ', min 1 max 100):', r.totalTables||20);
-    if (newTables === null) return;
-    currentCaptains = (r.captains || []).join(', ');
-    newCaptains = prompt('Captain names (comma-separated):\nCurrent: ' + (currentCaptains || 'none'), currentCaptains);
-    if (newCaptains === null) return;
+  if (!r) { toast('Business not found', 'red'); return; }
+  editPin = pin;
+  document.getElementById('edit-title').textContent = 'Edit — ' + r.name;
+  document.getElementById('e-name').value    = r.name || '';
+  document.getElementById('e-pin').value     = r.pin  || '';
+  document.getElementById('e-phone').value   = r.ownerPhone   ? String(r.ownerPhone)  : '';
+  document.getElementById('e-review').value  = r.googleReviewLink || '';
+  document.getElementById('e-lat').value     = r.lat != null ? r.lat : '';
+  document.getElementById('e-lng').value     = r.lng != null ? r.lng : '';
+  document.getElementById('e-drink').value   = r.avgDrinkMins   || 8;
+  document.getElementById('e-starter').value = r.avgStarterMins || 18;
+  document.getElementById('e-main').value    = r.avgMainMins    || 30;
+  document.getElementById('e-tables').value  = r.totalTables    || 20;
+  document.getElementById('e-captains').value = (r.captains || []).join(', ');
+  document.getElementById('e-btype').value  = r.businessType  || 'restaurant';
+  document.getElementById('e-smode').value  = r.suggestionMode || 'preready';
+  document.getElementById('edit-err').style.display = 'none';
+  updateEditForm();
+  document.getElementById('edit-modal').style.display = 'block';
+}
+function updateEditForm() {
+  var isRest = document.getElementById('e-btype').value === 'restaurant';
+  document.getElementById('e-restaurant-fields').style.display = isRest ? '' : 'none';
+}
+function closeEditModal() {
+  document.getElementById('edit-modal').style.display = 'none';
+  editPin = '';
+}
+async function saveEditModal() {
+  var errEl = document.getElementById('edit-err');
+  var btn   = document.getElementById('edit-save-btn');
+  var name  = document.getElementById('e-name').value.trim();
+  if (!name) { errEl.textContent = 'Business name is required.'; errEl.style.display = ''; return; }
+  errEl.style.display = 'none';
+  var newPin = String(document.getElementById('e-pin').value).trim();
+  var isRest = document.getElementById('e-btype').value === 'restaurant';
+  var body = { pin: editPin };
+  if (newPin && newPin !== editPin) body.newPin = newPin;
+  body.name             = name;
+  body.ownerPhone       = document.getElementById('e-phone').value.trim();
+  body.googleReviewLink = document.getElementById('e-review').value.trim();
+  body.businessType     = document.getElementById('e-btype').value;
+  body.suggestionMode   = document.getElementById('e-smode').value;
+  var latVal = document.getElementById('e-lat').value.trim();
+  var lngVal = document.getElementById('e-lng').value.trim();
+  if (latVal !== '') body.lat = latVal;
+  if (lngVal !== '') body.lng = lngVal;
+  if (isRest) {
+    body.avgDrinkMins   = document.getElementById('e-drink').value;
+    body.avgStarterMins = document.getElementById('e-starter').value;
+    body.avgMainMins    = document.getElementById('e-main').value;
+    body.totalTables    = document.getElementById('e-tables').value;
+    body.captains       = document.getElementById('e-captains').value.trim();
   }
-  var currentLat = r.lat != null ? String(r.lat) : '';
-  var newLat = prompt('Latitude for GPS geofencing (leave blank to keep):\nCurrent: ' + (currentLat || 'not set'), currentLat);
-  if (newLat === null) return;
-  var currentLng = r.lng != null ? String(r.lng) : '';
-  var newLng = prompt('Longitude for GPS geofencing (leave blank to keep):\nCurrent: ' + (currentLng || 'not set'), currentLng);
-  if (newLng === null) return;
-  var currentPhone = r.ownerPhone ? String(r.ownerPhone) : '';
-  var newPhone = prompt('Owner phone (with country code, e.g. 919876543210):\nCurrent: ' + (currentPhone || 'not set'), currentPhone);
-  if (newPhone === null) return;
-  var currentReview = r.googleReviewLink || '';
-  var newReview = prompt('Google review link:\nCurrent: ' + (currentReview || 'not set'), currentReview);
-  if (newReview === null) return;
-  var body = { pin: pin };
-  if (newPin && newPin !== pin) body.newPin = newPin;
-  if (newName && newName !== r.name) body.name = newName;
-  if (isRestaurant && newTables !== null) { var t = parseInt(newTables); if (t >= 1 && t <= 100 && t !== parseInt(r.totalTables)) body.totalTables = t; }
-  if (isRestaurant && newCaptains !== null && newCaptains !== currentCaptains) body.captains = newCaptains;
-  if (newLat && newLat !== currentLat) { var lv = parseFloat(newLat); if (!isNaN(lv)) body.lat = lv; }
-  if (newLng && newLng !== currentLng) { var lv2 = parseFloat(newLng); if (!isNaN(lv2)) body.lng = lv2; }
-  if (newPhone.trim() !== currentPhone) body.ownerPhone = newPhone.trim();
-  if (newReview.trim() !== currentReview) body.googleReviewLink = newReview.trim();
-  if (newBtype !== currentBtype) body.businessType = newBtype;
-  if (newSmode !== currentSmode) body.suggestionMode = newSmode;
-  if (Object.keys(body).length === 1) { alert('Nothing changed.'); return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
   var res = await post('/admin/update-restaurant', body);
-  if (res && res.ok) { alert('Updated!'); loadRestaurants(); }
-  else alert('Error: ' + (res && res.error ? res.error : 'Failed'));
+  btn.disabled = false; btn.textContent = 'Save Changes';
+  if (res && res.ok) { closeEditModal(); loadRestaurants(); toast('Updated!', 'green'); }
+  else { errEl.textContent = (res && res.error) ? res.error : 'Save failed.'; errEl.style.display = ''; }
 }
 async function deleteRestaurant(id, name) {
   if (!confirm('Delete ' + name + '?')) return;
@@ -766,6 +775,66 @@ function cancelImport() { document.getElementById('menu-confirm-section').style.
       <input type="text" id="ov-reason" placeholder="e.g. GPS failed, forgot to tap in" style="width:100%;padding:9px;background:#0f0f0f;border:1px solid #333;border-radius:8px;color:#fff;font-size:13px;margin-bottom:12px;"/>
       <button onclick="submitOverride()" style="width:100%;padding:11px;background:#1e3a1e;border:1px solid #3fb950;border-radius:8px;color:#3fb950;font-size:13px;font-weight:600;cursor:pointer;">✏️ Add Override Entry</button>
     </div>
+  </div>
+</div>
+
+<!-- EDIT BUSINESS MODAL -->
+<div class="edit-modal" id="edit-modal">
+  <div style="max-width:640px;margin:0 auto;padding:20px 16px 80px;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px;">
+      <button onclick="closeEditModal()" style="width:36px;height:36px;border-radius:50%;background:#1a1a1a;border:1px solid #2a2a2a;color:#fff;font-size:20px;cursor:pointer;">←</button>
+      <div style="font-size:17px;font-weight:700;color:#fff;" id="edit-title">Edit Business</div>
+    </div>
+
+    <label>Business Name</label>
+    <input type="text" id="e-name" placeholder="e.g. Gravity Salon"/>
+
+    <label>PIN (4-6 digits)</label>
+    <input type="number" id="e-pin" placeholder="e.g. 1234"/>
+
+    <label>Business Type</label>
+    <select id="e-btype" onchange="updateEditForm()" style="width:100%;padding:10px 12px;background:#111;border:1px solid #333;border-radius:8px;color:#fff;font-size:14px;margin-bottom:12px;">
+      <option value="restaurant">Restaurant</option>
+      <option value="cafe">Cafe</option>
+      <option value="salon">Salon</option>
+      <option value="clinic">Clinic</option>
+      <option value="gym">Gym</option>
+      <option value="tattoo">Tattoo Studio</option>
+      <option value="other">Other</option>
+    </select>
+
+    <label>Suggestion Mode</label>
+    <select id="e-smode" style="width:100%;padding:10px 12px;background:#111;border:1px solid #333;border-radius:8px;color:#fff;font-size:14px;margin-bottom:12px;">
+      <option value="preready">📝 Pre-ready reviews</option>
+      <option value="haiku">🤖 Haiku AI (live)</option>
+    </select>
+
+    <label>Owner WhatsApp Number</label>
+    <input type="tel" id="e-phone" placeholder="91XXXXXXXXXX"/>
+
+    <label>Google Review Link</label>
+    <input type="text" id="e-review" placeholder="https://maps.app.goo.gl/..."/>
+
+    <div id="e-restaurant-fields">
+      <label>Avg Drink Mins</label>
+      <input type="number" id="e-drink" placeholder="8"/>
+      <label>Avg Starter Mins</label>
+      <input type="number" id="e-starter" placeholder="18"/>
+      <label>Avg Main Course Mins</label>
+      <input type="number" id="e-main" placeholder="30"/>
+      <label>Total Tables</label>
+      <input type="number" id="e-tables" placeholder="20" min="1" max="100"/>
+      <label>Captain Names (comma-separated)</label>
+      <input type="text" id="e-captains" placeholder="e.g. Amit, Suresh, Raj"/>
+    </div>
+
+    <label>Latitude (for GPS geofencing — optional)</label>
+    <input type="number" id="e-lat" placeholder="e.g. 28.6139" step="any"/>
+    <label>Longitude (for GPS geofencing — optional)</label>
+    <input type="number" id="e-lng" placeholder="e.g. 77.2090" step="any"/>
+
+    <div id="edit-err" style="display:none;color:#ff5555;font-size:13px;margin-bottom:8px;"></div>
+    <button id="edit-save-btn" onclick="saveEditModal()" class="btn">Save Changes</button>
   </div>
 </div>
 </body>
