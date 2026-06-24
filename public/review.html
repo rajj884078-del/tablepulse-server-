@@ -62,7 +62,37 @@
     .btn-good:hover { background: #d4f4e0; }
     .btn-bad  { background: #fff0f0; color: #c0392b; }
     .btn-bad:hover  { background: #ffe0e0; }
-    .btn .emoji { font-size: 36px; line-height: 1; }
+    /* SVG face */
+    .face-svg {
+      display: block;
+      width: 72px;
+      height: 72px;
+      margin: 0 auto;
+      overflow: visible;
+    }
+
+    @keyframes face-bounce {
+      0%, 100% { transform: scale(1); }
+      50%       { transform: scale(1.07); }
+    }
+
+    @keyframes face-sway {
+      0%, 100% { transform: rotate(0deg); }
+      25%      { transform: rotate(-3.5deg); }
+      75%      { transform: rotate(3.5deg); }
+    }
+
+    .happy-bounce {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: face-bounce 2.4s ease-in-out infinite;
+    }
+
+    .sad-sway {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: face-sway 3.2s ease-in-out infinite;
+    }
 
     /* complaint form */
     #complaint-section { display: none; text-align: left; margin-top: 28px; }
@@ -117,11 +147,39 @@
       <div class="question">How was your experience?</div>
       <div class="btn-row">
         <button class="btn btn-good" id="btn-good">
-          <span class="emoji">😊</span>
+          <svg class="face-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <g class="happy-bounce">
+              <circle cx="50" cy="50" r="46" fill="#e8f9ee" stroke="#2a9a50" stroke-width="2.5"/>
+              <circle cx="35" cy="40" r="4.5" fill="#2a9a50"/>
+              <circle cx="65" cy="40" r="4.5" fill="#2a9a50"/>
+              <path fill="none" stroke="#2a9a50" stroke-width="3.5" stroke-linecap="round">
+                <animate attributeName="d"
+                  values="M 33,62 Q 50,62 67,62; M 33,57 Q 50,75 67,57; M 33,62 Q 50,62 67,62"
+                  dur="2.4s" repeatCount="indefinite"
+                  calcMode="spline"
+                  keyTimes="0; 0.5; 1"
+                  keySplines="0.45 0.05 0.55 0.95; 0.45 0.05 0.55 0.95"/>
+              </path>
+            </g>
+          </svg>
           Good
         </button>
         <button class="btn btn-bad" id="btn-bad">
-          <span class="emoji">😞</span>
+          <svg class="face-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <g class="sad-sway">
+              <circle cx="50" cy="50" r="46" fill="#f0f4f8" stroke="#7a8fa8" stroke-width="2.5"/>
+              <circle cx="35" cy="40" r="4.5" fill="#7a8fa8"/>
+              <circle cx="65" cy="40" r="4.5" fill="#7a8fa8"/>
+              <path fill="none" stroke="#7a8fa8" stroke-width="3.5" stroke-linecap="round">
+                <animate attributeName="d"
+                  values="M 33,62 Q 50,62 67,62; M 33,67 Q 50,50 67,67; M 33,62 Q 50,62 67,62"
+                  dur="3.2s" repeatCount="indefinite"
+                  calcMode="spline"
+                  keyTimes="0; 0.5; 1"
+                  keySplines="0.45 0.05 0.55 0.95; 0.45 0.05 0.55 0.95"/>
+              </path>
+            </g>
+          </svg>
           Could be better
         </button>
       </div>
