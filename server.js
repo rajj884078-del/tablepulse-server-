@@ -1671,23 +1671,73 @@ app.get('/admin/feedback/:pin', adminLimiter, requireAdmin, async (req, res) => 
 });
 
 // ── Review suggestions ────────────────────────────────────────────────────────
+const GENERIC_FALLBACK_SUGGESTIONS = [
+  'Really happy with the service. Would definitely recommend to anyone!',
+  'Great experience overall. The staff were friendly and professional.',
+  'Good quality and excellent value. Will definitely be coming back.'
+];
+
 app.get('/review-suggestions', feedbackLimiter, async (req, res) => {
   const pin   = cleanStr(String(req.query.pin   || ''), 6);
   const stars = parseInt(req.query.stars, 10);
   if (!pin || !stars || stars < 1 || stars > 5)
     return res.status(400).json({ ok: false, error: 'pin and stars (1-5) required' });
   try {
-    const restaurant = await db.collection('restaurants').findOne({ pin }, { projection: { suggestionMode: 1 } });
+    const restaurant = await db.collection('restaurants').findOne(
+      { pin }, { projection: { suggestionMode: 1, businessType: 1 } }
+    );
     if (!restaurant) return res.status(404).json({ ok: false, error: 'Not found' });
+
     const suggestionMode = restaurant.suggestionMode || 'preready';
-    // haiku live-generation wired in next step; both modes use preready path for now
-    const docs = await db.collection('review_suggestions')
-      .aggregate([
-        { $match: { restaurantPin: pin, stars } },
-        { $sample: { size: 3 } },
-        { $project: { _id: 0, text: 1 } }
-      ]).toArray();
-    res.json({ ok: true, suggestionMode, suggestions: docs.map(d => d.text) });
+    const businessType   = restaurant.businessType   || 'restaurant';
+
+    async function sampleCategory(n) {
+      const docs = await db.collection('category_suggestions')
+        .aggregate([
+          { $match: { category: businessType, stars } },
+          { $sample: { size: n } },
+          { $project: { _id: 0, text: 1 } }
+        ]).toArray();
+      return docs.map(d => d.text);
+    }
+
+    if (suggestionMode === 'haiku') {
+      try {
+        if (!ANTHROPIC_API_KEY) throw new Error('No API key');
+        const client   = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+        const starDesc = stars >= 5 ? 'glowing 5-star' : 'positive 4-star';
+        const msg = await client.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 400,
+          messages: [{
+            role: 'user',
+            content: `Write 3 short, varied, ${starDesc} Google reviews for a ${businessType} in India. Keep them universal — no specific names, staff names, services, or dishes. 1-2 sentences each, casual and natural. Return ONLY a JSON array of 3 strings, no other text.`
+          }]
+        });
+        const suggestions = JSON.parse(msg.content[0].text.trim());
+        if (!Array.isArray(suggestions) || suggestions.length < 1) throw new Error('Unexpected response shape');
+        const three = suggestions.slice(0, 3).map(s => String(s).trim()).filter(Boolean);
+        if (!three.length) throw new Error('Empty suggestions');
+        // Grow the category pool with haiku-generated reviews
+        for (const text of three) {
+          await db.collection('category_suggestions').updateOne(
+            { category: businessType, stars, text },
+            { $setOnInsert: { category: businessType, stars, text } },
+            { upsert: true }
+          );
+        }
+        console.log(`[review-suggestions] haiku generated ${three.length} for ${businessType} ${stars}★ pin=${pin}`);
+        return res.json({ ok: true, suggestionMode: 'haiku', suggestions: three });
+      } catch (e) {
+        console.error('[review-suggestions] haiku failed, falling back to preready:', e.message);
+      }
+    }
+
+    // preready path — also the fallback when haiku fails
+    let suggestions = await sampleCategory(3);
+    if (!suggestions.length) suggestions = GENERIC_FALLBACK_SUGGESTIONS;
+    res.json({ ok: true, suggestionMode: 'preready', suggestions });
+
   } catch (e) { console.error('[review-suggestions]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
 });
 
