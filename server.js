@@ -661,6 +661,8 @@ app.get('/admin/restaurants', adminLimiter, requireAdmin, async (req, res) => {
   } catch (e) { console.error('[admin/restaurants]', e.message); res.status(500).json({ error: 'Failed' }); }
 });
 
+const VALID_BUSINESS_TYPES = ['restaurant','salon','cafe','clinic','gym','tattoo','other'];
+
 app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) => {
   const name = cleanStr(req.body.name, 80);
   const pin  = cleanStr(String(req.body.pin || ''), 6);
@@ -678,6 +680,7 @@ app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) =
   const lng = !isNaN(lngVal) ? lngVal : null;
   const num = (v, d) => Math.min(Math.max(parseInt(v, 10) || d, 1), 240);
   const numTables = (v) => Math.min(Math.max(parseInt(v, 10) || 20, 1), 100);
+  const businessType = VALID_BUSINESS_TYPES.includes(req.body.businessType) ? req.body.businessType : 'restaurant';
   try {
     if (await db.collection('restaurants').findOne({ pin })) {
       return res.status(409).json({ ok: false, error: 'PIN already exists' });
@@ -691,7 +694,7 @@ app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) =
       avgStarterMins: num(req.body.avgStarterMins, 18),
       avgMainMins: num(req.body.avgMainMins, 30),
       totalTables: numTables(req.body.totalTables),
-      captains, lat, lng,
+      captains, lat, lng, businessType,
       createdAt: new Date()
     });
     console.log('[admin] added restaurant: ' + name + ' slug=' + slug);
@@ -731,6 +734,9 @@ app.post('/admin/update-restaurant', adminLimiter, requireAdmin, async (req, res
     }
     if (req.body.lat !== undefined) { const v = parseFloat(req.body.lat); if (!isNaN(v)) update.lat = v; }
     if (req.body.lng !== undefined) { const v = parseFloat(req.body.lng); if (!isNaN(v)) update.lng = v; }
+    if (req.body.businessType !== undefined && VALID_BUSINESS_TYPES.includes(req.body.businessType)) {
+      update.businessType = req.body.businessType;
+    }
     if (!Object.keys(update).length) return res.status(400).json({ error: 'Nothing to update' });
     await db.collection('restaurants').updateOne({ pin }, { $set: update });
     console.log('[admin] updated restaurant pin=' + pin + ' changes=' + JSON.stringify(update));
@@ -1607,9 +1613,9 @@ app.get('/review-info', feedbackLimiter, async (req, res) => {
   const pin = cleanStr(String(req.query.pin || ''), 6);
   if (!pin) return res.status(400).json({ ok: false, error: 'pin required' });
   try {
-    const r = await db.collection('restaurants').findOne({ pin }, { projection: { name: 1, googleReviewLink: 1 } });
+    const r = await db.collection('restaurants').findOne({ pin }, { projection: { name: 1, googleReviewLink: 1, businessType: 1 } });
     if (!r) return res.status(404).json({ ok: false, error: 'Not found' });
-    res.json({ ok: true, name: r.name, googleReviewLink: r.googleReviewLink || '' });
+    res.json({ ok: true, name: r.name, googleReviewLink: r.googleReviewLink || '', businessType: r.businessType || 'restaurant' });
   } catch (e) { console.error('[review-info]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
 });
 

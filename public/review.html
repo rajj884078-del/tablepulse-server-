@@ -29,13 +29,8 @@
       font-size: 22px;
       font-weight: 700;
       color: #1a1a1a;
-      margin-bottom: 8px;
-    }
-    .question {
-      font-size: 16px;
-      color: #555;
       margin-bottom: 36px;
-      line-height: 1.5;
+      line-height: 1.4;
     }
     .btn-row {
       display: flex;
@@ -210,9 +205,8 @@
     <div id="loading">Loading…</div>
 
     <div id="main" style="display:none">
-      <div class="logo">🍽️</div>
+      <div class="logo">⭐</div>
       <div class="restaurant-name" id="rname"></div>
-      <div class="question">How was your experience?</div>
       <div class="btn-row">
         <button class="btn btn-good" id="btn-good">
           <svg class="face-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -299,7 +293,7 @@
         const data = await res.json();
         if (!data.ok) { showError('Restaurant not found.'); return; }
         googleReviewLink = data.googleReviewLink || '';
-        document.getElementById('rname').textContent = data.name;
+        document.getElementById('rname').textContent = 'How was your experience at ' + data.name + '?';
         document.getElementById('loading').style.display = 'none';
         document.getElementById('main').style.display = '';
       } catch (e) { showError('Could not load. Please try again.'); }

@@ -151,6 +151,16 @@ input[type=range]{padding:0;height:6px;}
   <input type="number" id="a-lng" placeholder="e.g. 77.2090" step="any"/>
   <label>Captain Names (comma-separated)</label>
   <input type="text" id="a-captains" placeholder="e.g. Amit, Suresh, Raj"/>
+  <label>Business Type</label>
+  <select id="a-btype" style="width:100%;padding:10px 12px;background:#0d1117;border:1px solid #30363d;border-radius:10px;color:#e6edf3;font-size:14px;margin-bottom:16px;">
+    <option value="restaurant">Restaurant</option>
+    <option value="cafe">Cafe</option>
+    <option value="salon">Salon</option>
+    <option value="clinic">Clinic</option>
+    <option value="gym">Gym</option>
+    <option value="tattoo">Tattoo Studio</option>
+    <option value="other">Other</option>
+  </select>
   <button class="btn" id="add-btn" onclick="addRestaurant()">+ Add Restaurant</button>
 </div>
 
@@ -269,8 +279,11 @@ async function loadRestaurants() {
         '<a href="' + base + '/r/' + r.slug + '/others" target="_blank" style="flex:1;min-width:80px;padding:8px 10px;background:#0d1a0d;border:1px solid #1a5a1a;border-radius:8px;color:#41c980;font-size:12px;font-weight:600;text-align:center;text-decoration:none;">📋 Others</a>' +
         '</div>'
       ) : '<div style="font-size:12px;color:#525965;margin:8px 0;">No slug — re-add to get links</div>';
+      var btypeLabels = { restaurant:'🍽️ Restaurant', salon:'💈 Salon', cafe:'☕ Cafe', clinic:'🏥 Clinic', gym:'🏋️ Gym', tattoo:'🖊️ Tattoo Studio', other:'🏷️ Other' };
+      var btypeLabel = btypeLabels[r.businessType] || btypeLabels['restaurant'];
       return '<div class="rest-card">' +
         '<div class="rest-name">' + r.name + '</div>' +
+        '<div class="rest-meta" style="color:#a78bfa;">' + btypeLabel + '</div>' +
         '<div class="rest-meta">PIN: ' + r.pin + ' · Tables: ' + (r.totalTables||20) + ' · Drinks: ' + r.avgDrinkMins + 'm · Starters: ' + r.avgStarterMins + 'm · Main: ' + r.avgMainMins + 'm</div>' +
         ((r.captains && r.captains.length) ? '<div class="rest-meta" style="color:#a78bfa;">👤 ' + r.captains.join(', ') + '</div>' : '') +
         '<div class="rest-meta" style="color:#25D366;">📱 ' + (r.ownerPhone || 'No owner phone') + '</div>' +
@@ -307,9 +320,10 @@ async function addRestaurant() {
   var lat = latStr ? parseFloat(latStr) : null;
   var lng = lngStr ? parseFloat(lngStr) : null;
   var captains = document.getElementById('a-captains').value.trim();
+  var businessType = document.getElementById('a-btype').value;
   if (!name || !pin) { toast('Name and PIN required', 'red'); return; }
   var btn = document.getElementById('add-btn'); btn.disabled = true; btn.textContent = 'Adding...';
-  var res = await post('/admin/add-restaurant', { name, pin, ownerPhone: phone, googleReviewLink: review, avgDrinkMins: drink, avgStarterMins: starter, avgMainMins: main, totalTables: tables, lat: lat, lng: lng, captains: captains });
+  var res = await post('/admin/add-restaurant', { name, pin, ownerPhone: phone, googleReviewLink: review, avgDrinkMins: drink, avgStarterMins: starter, avgMainMins: main, totalTables: tables, lat: lat, lng: lng, captains: captains, businessType: businessType });
   btn.disabled = false; btn.textContent = '+ Add Restaurant';
   if (res.ok) {
     document.getElementById('a-name').value = '';
@@ -362,6 +376,12 @@ async function editRestaurant(pin) {
   var currentReview = r.googleReviewLink || '';
   var newReview = prompt('Google review link:\nCurrent: ' + (currentReview || 'not set'), currentReview);
   if (newReview === null) return;
+  var currentBtype = r.businessType || 'restaurant';
+  var newBtype = prompt('Business type (restaurant / salon / cafe / clinic / gym / tattoo / other):\nCurrent: ' + currentBtype, currentBtype);
+  if (newBtype === null) return;
+  var validTypes = ['restaurant','salon','cafe','clinic','gym','tattoo','other'];
+  if (!validTypes.includes(newBtype.trim().toLowerCase())) newBtype = currentBtype;
+  else newBtype = newBtype.trim().toLowerCase();
   var body = { pin: pin };
   if (newPin && newPin !== pin) body.newPin = newPin;
   if (newName && newName !== r.name) body.name = newName;
@@ -371,6 +391,7 @@ async function editRestaurant(pin) {
   if (newLng && newLng !== currentLng) { var lv2 = parseFloat(newLng); if (!isNaN(lv2)) body.lng = lv2; }
   if (newPhone.trim() !== currentPhone) body.ownerPhone = newPhone.trim();
   if (newReview.trim() !== currentReview) body.googleReviewLink = newReview.trim();
+  if (newBtype !== currentBtype) body.businessType = newBtype;
   if (Object.keys(body).length === 1) { alert('Nothing changed.'); return; }
   var res = await post('/admin/update-restaurant', body);
   if (res && res.ok) { alert('Updated!'); loadRestaurants(); }
