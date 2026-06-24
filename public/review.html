@@ -290,7 +290,7 @@
       await postFeedback({ restaurantPin: pin, type: 'happy_clicked' });
       document.getElementById('btn-good').style.display = 'none';
       document.getElementById('btn-bad').style.display = 'none';
-      document.getElementById('star-section').style.display = '';
+      document.getElementById('star-section').style.display = 'block';
     });
 
     // Star picker
@@ -308,7 +308,7 @@
         } else {
           document.getElementById('star-section').style.display = 'none';
           await loadSuggestions(chosen);
-          document.getElementById('suggestions-section').style.display = '';
+          document.getElementById('suggestions-section').style.display = 'block';
         }
       });
     });
