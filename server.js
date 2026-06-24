@@ -1659,4 +1659,21 @@ app.get('/admin/feedback/:pin', adminLimiter, requireAdmin, async (req, res) => 
   } catch (e) { console.error('[admin/feedback]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
 });
 
+// ── Review suggestions ────────────────────────────────────────────────────────
+app.get('/review-suggestions', feedbackLimiter, async (req, res) => {
+  const pin   = cleanStr(String(req.query.pin   || ''), 6);
+  const stars = parseInt(req.query.stars, 10);
+  if (!pin || !stars || stars < 1 || stars > 5)
+    return res.status(400).json({ ok: false, error: 'pin and stars (1-5) required' });
+  try {
+    const docs = await db.collection('review_suggestions')
+      .aggregate([
+        { $match: { restaurantPin: pin, stars } },
+        { $sample: { size: 3 } },
+        { $project: { _id: 0, text: 1 } }
+      ]).toArray();
+    res.json({ ok: true, suggestions: docs.map(d => d.text) });
+  } catch (e) { console.error('[review-suggestions]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
+});
+
 app.listen(3000, () => console.log('TablePulse running on port 3000'));
