@@ -126,33 +126,15 @@ input[type=range]{padding:0;height:6px;}
   <div style="font-size:12px;color:#666;margin-top:10px;line-height:1.6;" id="c-note"></div>
 </div>
 
-<!-- ADD NEW RESTAURANT -->
+<!-- ADD NEW BUSINESS -->
 <div class="card">
-  <div class="section-title" style="margin-top:0;">Add New Restaurant</div>
-  <label>Restaurant Name</label>
+  <div class="section-title" style="margin-top:0;">Add New Business</div>
+  <label>Business Name</label>
   <input type="text" id="a-name" placeholder="e.g. Gravity Family Dine and Bar"/>
   <label>PIN (4-6 digits, staff will use this)</label>
   <input type="number" id="a-pin" placeholder="e.g. 1234"/>
-  <label>Owner WhatsApp Number</label>
-  <input type="tel" id="a-phone" placeholder="91XXXXXXXXXX"/>
-  <label>Google Review Link</label>
-  <input type="text" id="a-review" placeholder="https://maps.app.goo.gl/..."/>
-  <label>Avg Drink Mins</label>
-  <input type="number" id="a-drink" placeholder="8" value="8"/>
-  <label>Avg Starter Mins</label>
-  <input type="number" id="a-starter" placeholder="18" value="18"/>
-  <label>Avg Main Course Mins</label>
-  <input type="number" id="a-main" placeholder="30" value="30"/>
-  <label>Total Tables</label>
-  <input type="number" id="a-tables" placeholder="20" value="20" min="1" max="100"/>
-  <label>Latitude (for GPS geofencing — optional)</label>
-  <input type="number" id="a-lat" placeholder="e.g. 28.6139" step="any"/>
-  <label>Longitude (for GPS geofencing — optional)</label>
-  <input type="number" id="a-lng" placeholder="e.g. 77.2090" step="any"/>
-  <label>Captain Names (comma-separated)</label>
-  <input type="text" id="a-captains" placeholder="e.g. Amit, Suresh, Raj"/>
   <label>Business Type</label>
-  <select id="a-btype" style="width:100%;padding:10px 12px;background:#0d1117;border:1px solid #30363d;border-radius:10px;color:#e6edf3;font-size:14px;margin-bottom:16px;">
+  <select id="a-btype" onchange="updateAddForm()" style="width:100%;padding:10px 12px;background:#0d1117;border:1px solid #30363d;border-radius:10px;color:#e6edf3;font-size:14px;margin-bottom:16px;">
     <option value="restaurant">Restaurant</option>
     <option value="cafe">Cafe</option>
     <option value="salon">Salon</option>
@@ -161,11 +143,31 @@ input[type=range]{padding:0;height:6px;}
     <option value="tattoo">Tattoo Studio</option>
     <option value="other">Other</option>
   </select>
-  <button class="btn" id="add-btn" onclick="addRestaurant()">+ Add Restaurant</button>
+  <label>Owner WhatsApp Number</label>
+  <input type="tel" id="a-phone" placeholder="91XXXXXXXXXX"/>
+  <label>Google Review Link</label>
+  <input type="text" id="a-review" placeholder="https://maps.app.goo.gl/..."/>
+  <div id="a-restaurant-fields">
+    <label>Avg Drink Mins</label>
+    <input type="number" id="a-drink" placeholder="8" value="8"/>
+    <label>Avg Starter Mins</label>
+    <input type="number" id="a-starter" placeholder="18" value="18"/>
+    <label>Avg Main Course Mins</label>
+    <input type="number" id="a-main" placeholder="30" value="30"/>
+    <label>Total Tables</label>
+    <input type="number" id="a-tables" placeholder="20" value="20" min="1" max="100"/>
+    <label>Captain Names (comma-separated)</label>
+    <input type="text" id="a-captains" placeholder="e.g. Amit, Suresh, Raj"/>
+  </div>
+  <label>Latitude (for GPS geofencing — optional)</label>
+  <input type="number" id="a-lat" placeholder="e.g. 28.6139" step="any"/>
+  <label>Longitude (for GPS geofencing — optional)</label>
+  <input type="number" id="a-lng" placeholder="e.g. 77.2090" step="any"/>
+  <button class="btn" id="add-btn" onclick="addRestaurant()">+ Add Business</button>
 </div>
 
 <div id="links-box" style="display:none;background:#0f1a13;border:1px solid #238636;border-radius:14px;padding:16px;margin-bottom:16px;">
-  <div style="font-size:13px;font-weight:700;color:#3fb950;margin-bottom:12px;">Restaurant added! Share these links with staff:</div>
+  <div style="font-size:13px;font-weight:700;color:#3fb950;margin-bottom:12px;">Business added! Share these links with staff:</div>
   <div id="links-content"></div>
   <button onclick="document.getElementById('links-box').style.display='none'" style="margin-top:12px;width:100%;padding:10px;background:#21262d;border:1px solid #30363d;border-radius:10px;color:#7d8590;font-size:13px;cursor:pointer;">Dismiss</button>
 </div>
@@ -324,7 +326,7 @@ async function addRestaurant() {
   if (!name || !pin) { toast('Name and PIN required', 'red'); return; }
   var btn = document.getElementById('add-btn'); btn.disabled = true; btn.textContent = 'Adding...';
   var res = await post('/admin/add-restaurant', { name, pin, ownerPhone: phone, googleReviewLink: review, avgDrinkMins: drink, avgStarterMins: starter, avgMainMins: main, totalTables: tables, lat: lat, lng: lng, captains: captains, businessType: businessType });
-  btn.disabled = false; btn.textContent = '+ Add Restaurant';
+  btn.disabled = false; btn.textContent = '+ Add Business';
   if (res.ok) {
     document.getElementById('a-name').value = '';
     document.getElementById('a-pin').value = '';
@@ -359,11 +361,21 @@ async function editRestaurant(pin) {
   if (newPin === null) return;
   var newName = prompt('Change name (current: ' + r.name + ')\nLeave blank to keep same:', r.name);
   if (newName === null) return;
-  var newTables = prompt('Total tables (current: ' + (r.totalTables||20) + ', min 1 max 100):', r.totalTables||20);
-  if (newTables === null) return;
-  var currentCaptains = (r.captains || []).join(', ');
-  var newCaptains = prompt('Captain names (comma-separated):\nCurrent: ' + (currentCaptains || 'none'), currentCaptains);
-  if (newCaptains === null) return;
+  var currentBtype = r.businessType || 'restaurant';
+  var newBtype = prompt('Business type (restaurant / salon / cafe / clinic / gym / tattoo / other):\nCurrent: ' + currentBtype, currentBtype);
+  if (newBtype === null) return;
+  var validTypes = ['restaurant','salon','cafe','clinic','gym','tattoo','other'];
+  if (!validTypes.includes(newBtype.trim().toLowerCase())) newBtype = currentBtype;
+  else newBtype = newBtype.trim().toLowerCase();
+  var isRestaurant = newBtype === 'restaurant';
+  var newTables = null, newCaptains = null, currentCaptains = '';
+  if (isRestaurant) {
+    newTables = prompt('Total tables (current: ' + (r.totalTables||20) + ', min 1 max 100):', r.totalTables||20);
+    if (newTables === null) return;
+    currentCaptains = (r.captains || []).join(', ');
+    newCaptains = prompt('Captain names (comma-separated):\nCurrent: ' + (currentCaptains || 'none'), currentCaptains);
+    if (newCaptains === null) return;
+  }
   var currentLat = r.lat != null ? String(r.lat) : '';
   var newLat = prompt('Latitude for GPS geofencing (leave blank to keep):\nCurrent: ' + (currentLat || 'not set'), currentLat);
   if (newLat === null) return;
@@ -376,17 +388,11 @@ async function editRestaurant(pin) {
   var currentReview = r.googleReviewLink || '';
   var newReview = prompt('Google review link:\nCurrent: ' + (currentReview || 'not set'), currentReview);
   if (newReview === null) return;
-  var currentBtype = r.businessType || 'restaurant';
-  var newBtype = prompt('Business type (restaurant / salon / cafe / clinic / gym / tattoo / other):\nCurrent: ' + currentBtype, currentBtype);
-  if (newBtype === null) return;
-  var validTypes = ['restaurant','salon','cafe','clinic','gym','tattoo','other'];
-  if (!validTypes.includes(newBtype.trim().toLowerCase())) newBtype = currentBtype;
-  else newBtype = newBtype.trim().toLowerCase();
   var body = { pin: pin };
   if (newPin && newPin !== pin) body.newPin = newPin;
   if (newName && newName !== r.name) body.name = newName;
-  var t = parseInt(newTables); if (t >= 1 && t <= 100 && t !== parseInt(r.totalTables)) body.totalTables = t;
-  if (newCaptains !== currentCaptains) body.captains = newCaptains;
+  if (isRestaurant && newTables !== null) { var t = parseInt(newTables); if (t >= 1 && t <= 100 && t !== parseInt(r.totalTables)) body.totalTables = t; }
+  if (isRestaurant && newCaptains !== null && newCaptains !== currentCaptains) body.captains = newCaptains;
   if (newLat && newLat !== currentLat) { var lv = parseFloat(newLat); if (!isNaN(lv)) body.lat = lv; }
   if (newLng && newLng !== currentLng) { var lv2 = parseFloat(newLng); if (!isNaN(lv2)) body.lng = lv2; }
   if (newPhone.trim() !== currentPhone) body.ownerPhone = newPhone.trim();
@@ -419,8 +425,14 @@ async function renewSub(pin, plan) {
   else toast('Failed: ' + (res.error || 'unknown'), 'red');
 }
 
+function updateAddForm() {
+  var isRest = document.getElementById('a-btype').value === 'restaurant';
+  document.getElementById('a-restaurant-fields').style.display = isRest ? '' : 'none';
+}
+
 calc();
 loadRestaurants();
+updateAddForm();
 
 // ── Attendance modal ──
 var attPin = '';
