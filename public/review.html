@@ -135,6 +135,74 @@
     #thankyou p { font-size: 15px; color: #666; line-height: 1.5; }
     #error-msg { color: #c0392b; font-size: 13px; margin-top: 8px; display: none; }
     #loading { font-size: 15px; color: #888; }
+
+    /* star picker */
+    #star-section { display: none; margin-top: 28px; text-align: center; }
+    .star-prompt { font-size: 15px; color: #555; margin-bottom: 16px; }
+    .star-row { display: flex; gap: 6px; justify-content: center; }
+    .star-btn {
+      background: none; border: none; font-size: 42px; color: #ddd;
+      cursor: pointer; padding: 4px 2px; line-height: 1;
+      transition: color 0.15s, transform 0.1s;
+    }
+    .star-btn.lit { color: #f5a623; }
+    .star-btn:active { transform: scale(0.88); }
+
+    /* suggestions */
+    #suggestions-section { display: none; margin-top: 24px; text-align: left; }
+    .suggestions-prompt {
+      font-size: 13px; color: #777; text-align: center;
+      margin-bottom: 14px; line-height: 1.5;
+    }
+    .suggestion-card {
+      position: relative;
+      background: #f9f9f7;
+      border: 1.5px solid #e4e4e4;
+      border-radius: 12px;
+      padding: 14px 48px 14px 14px;
+      margin-bottom: 10px;
+      font-size: 14px;
+      color: #333;
+      line-height: 1.55;
+    }
+    .copy-btn {
+      position: absolute; top: 10px; right: 10px;
+      background: #fff; border: 1.5px solid #ddd; border-radius: 8px;
+      padding: 5px 7px; cursor: pointer; color: #888; font-size: 13px;
+      line-height: 1; transition: color 0.15s, border-color 0.15s, background 0.15s;
+      display: flex; align-items: center; gap: 3px;
+      animation: copy-pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes copy-pulse {
+      0%, 100% { border-color: #ddd;    box-shadow: none; }
+      50%       { border-color: #2a9a50; box-shadow: 0 0 0 3px rgba(42,154,80,0.15); }
+    }
+
+    @keyframes card-copied {
+      0%   { border-color: #2a9a50; box-shadow: 0 0 0 3px rgba(42,154,80,0.28); }
+      60%  { border-color: #2a9a50; box-shadow: 0 0 0 6px rgba(42,154,80,0.08); }
+      100% { border-color: #e4e4e4; box-shadow: none; }
+    }
+    .suggestion-card.card-copied {
+      animation: card-copied 0.65s ease-out forwards;
+    }
+
+    @keyframes copy-flash {
+      0%   { box-shadow: 0 0 0 0 rgba(42,154,80,0.5); background: #a8ecc4; }
+      55%  { box-shadow: 0 0 0 8px rgba(42,154,80,0);  background: #e8f9ee; }
+      100% { box-shadow: 0 0 0 0 rgba(42,154,80,0);    background: #e8f9ee; }
+    }
+    .copy-btn.copied {
+      color: #2a9a50; border-color: #2a9a50; background: #e8f9ee;
+      animation: copy-flash 0.52s ease-out;
+    }
+    #ready-btn {
+      width: 100%; margin-top: 6px; padding: 15px;
+      background: #1a7a40; color: #fff; border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      transition: background 0.2s;
+    }
+    #ready-btn:hover { background: #156834; }
   </style>
 </head>
 <body>
@@ -193,6 +261,23 @@
         <button class="btn-submit" id="btn-submit">Send feedback</button>
         <div id="error-msg">Something went wrong. Please try again.</div>
       </div>
+
+      <div id="star-section">
+        <div class="star-prompt">How many stars would you give us?</div>
+        <div class="star-row">
+          <button class="star-btn" data-star="1">★</button>
+          <button class="star-btn" data-star="2">★</button>
+          <button class="star-btn" data-star="3">★</button>
+          <button class="star-btn" data-star="4">★</button>
+          <button class="star-btn" data-star="5">★</button>
+        </div>
+      </div>
+
+      <div id="suggestions-section">
+        <div class="suggestions-prompt">Tap a review to copy it, then paste it into Google:</div>
+        <div id="suggestion-cards"></div>
+        <button id="ready-btn">Open Google Reviews ↗</button>
+      </div>
     </div>
 
     <div id="thankyou">
@@ -226,11 +311,87 @@
 
     document.getElementById('btn-good').addEventListener('click', async () => {
       await postFeedback({ restaurantPin: pin, type: 'happy_clicked' });
-      if (googleReviewLink) {
-        location.href = googleReviewLink;
-      } else {
-        showThankyou('⭐', 'Thank you!', 'We\'re glad you had a great experience.');
-      }
+      document.getElementById('btn-good').style.display = 'none';
+      document.getElementById('btn-bad').style.display = 'none';
+      document.getElementById('star-section').style.display = 'block';
+    });
+
+    // Star picker
+    document.querySelectorAll('.star-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const chosen = parseInt(btn.dataset.star, 10);
+        document.querySelectorAll('.star-btn').forEach(b =>
+          b.classList.toggle('lit', parseInt(b.dataset.star, 10) <= chosen)
+        );
+        // Small delay so user sees the stars light before transition
+        await new Promise(r => setTimeout(r, 220));
+        if (chosen <= 3) {
+          document.getElementById('star-section').style.display = 'none';
+          document.getElementById('complaint-section').style.display = 'block';
+        } else {
+          document.getElementById('star-section').style.display = 'none';
+          await loadSuggestions(chosen);
+          document.getElementById('suggestions-section').style.display = 'block';
+        }
+      });
+    });
+
+    async function loadSuggestions(stars) {
+      const container = document.getElementById('suggestion-cards');
+      container.innerHTML = '<div style="color:#888;font-size:14px;text-align:center;padding:12px 0">Loading…</div>';
+      try {
+        const res  = await fetch(`/review-suggestions?pin=${encodeURIComponent(pin)}&stars=${stars}`);
+        const data = await res.json();
+        container.innerHTML = '';
+        if (!data.ok || !data.suggestions || !data.suggestions.length) return;
+        data.suggestions.forEach(text => {
+          const card = document.createElement('div');
+          card.className = 'suggestion-card';
+
+          const p = document.createElement('p');
+          p.style.margin = '0';
+          p.textContent = text;
+
+          const copyBtn = document.createElement('button');
+          copyBtn.className = 'copy-btn';
+          copyBtn.title = 'Copy to clipboard';
+          copyBtn.innerHTML =
+            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+              '<rect x="9" y="2" width="13" height="13" rx="2"/>' +
+              '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>' +
+            '</svg> Copy';
+
+          copyBtn.addEventListener('click', async () => {
+            try { await navigator.clipboard.writeText(text); } catch (_) {
+              const ta = document.createElement('textarea');
+              ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+              document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+              document.body.removeChild(ta);
+            }
+            card.classList.add('card-copied');
+            card.addEventListener('animationend', () => card.classList.remove('card-copied'), { once: true });
+            copyBtn.textContent = 'Copied!';
+            copyBtn.classList.add('copied');
+            setTimeout(() => {
+              copyBtn.innerHTML =
+                '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+                  '<rect x="9" y="2" width="13" height="13" rx="2"/>' +
+                  '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>' +
+                '</svg> Copy';
+              copyBtn.classList.remove('copied');
+            }, 1600);
+          });
+
+          card.appendChild(p);
+          card.appendChild(copyBtn);
+          container.appendChild(card);
+        });
+      } catch (_) { container.innerHTML = ''; }
+    }
+
+    document.getElementById('ready-btn').addEventListener('click', () => {
+      if (googleReviewLink) { location.href = googleReviewLink; }
+      else { showThankyou('⭐', 'Thank you!', 'We\'re glad you had a great experience.'); }
     });
 
     document.getElementById('btn-bad').addEventListener('click', () => {
