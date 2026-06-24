@@ -315,6 +315,7 @@ async function loadRestaurants() {
         '<div class="act green" onclick="renewSub(\''+r.pin+'\',' + "'yearly'" + ')">⭐ +1 Year</div>' +
         '<div class="act blue" onclick="sendReport(\''+r.pin+'\')">📊 Report</div>' +
         '<div class="act" onclick="editRestaurant(\''+r.pin+'\')" style="background:#1a1407;border-color:#a16207;color:#d4a017;">✏️ Edit</div>' +
+        '<div class="act" onclick="downloadQR(\''+r.pin+'\')" style="background:#0d1a26;border-color:#1e3a5a;color:#5aa2f5;">⬇ QR</div>' +
         '<div class="act red" onclick="deleteRestaurant(\''+r._id+'\',\''+r.name+'\')">🗑 Delete</div>' +
         '</div>' +
         (isRestaurant
@@ -451,6 +452,18 @@ async function deleteRestaurant(id, name) {
   var res = await post('/admin/delete-restaurant', { id });
   if (res.ok) { toast('Deleted ' + name, 'green'); loadRestaurants(); }
   else toast('Delete failed', 'red');
+}
+async function downloadQR(pin) {
+  try {
+    var r = await fetch('/admin/qr/' + pin, { headers: { 'x-admin-key': adminKey() } });
+    if (!r.ok) { toast('QR failed', 'red'); return; }
+    var blob = await r.blob();
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href = url; a.download = 'qr-' + pin + '.png';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  } catch(e) { toast('QR download failed', 'red'); }
 }
 async function sendReport(pin) {
   var p = pin || document.getElementById('r-pin').value.trim();

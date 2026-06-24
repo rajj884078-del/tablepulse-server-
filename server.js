@@ -10,6 +10,7 @@ const webpush = require('web-push');
 const admin = require('firebase-admin');
 const multer = require('multer');
 const Anthropic = require('@anthropic-ai/sdk');
+const QRCode    = require('qrcode');
 
 // Initialize Firebase Admin SDK from env var
 let firebaseInitialized = false;
@@ -756,6 +757,21 @@ app.post('/admin/delete-restaurant', adminLimiter, requireAdmin, async (req, res
     await db.collection('restaurants').deleteOne({ _id: oid });
     res.json({ ok: true });
   } catch (e) { console.error('[admin/delete]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
+});
+
+app.get('/admin/qr/:pin', adminLimiter, requireAdmin, async (req, res) => {
+  const pin = cleanStr(req.params.pin, 6);
+  if (!pin) return res.status(400).json({ ok: false, error: 'PIN required' });
+  try {
+    const r = await db.collection('restaurants').findOne({ pin }, { projection: { _id: 1 } });
+    if (!r) return res.status(404).json({ ok: false, error: 'Business not found' });
+    const base = process.env.BASE_URL || (req.protocol + '://' + req.get('host'));
+    const url  = `${base}/review?r=${pin}`;
+    const buf  = await QRCode.toBuffer(url, { type: 'png', width: 600, margin: 2, errorCorrectionLevel: 'H' });
+    res.set('Content-Type', 'image/png');
+    res.set('Content-Disposition', `attachment; filename="qr-${pin}.png"`);
+    res.send(buf);
+  } catch (e) { console.error('[admin/qr]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
 });
 
 app.post('/admin/send-report', adminLimiter, requireAdmin, async (req, res) => {
