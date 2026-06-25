@@ -1687,6 +1687,63 @@ app.post('/admin/add-partner', adminLimiter, requireAdmin, async (req, res) => {
   }
 });
 
+// POST /admin/partner/update-username — change a partner's username (uniqueness enforced).
+app.post('/admin/partner/update-username', adminLimiter, requireAdmin, async (req, res) => {
+  const partnerId   = toObjectId(req.body.partnerId);
+  const newUsername = cleanStr(req.body.newUsername, 40);
+  if (!partnerId) return res.status(400).json({ ok: false, error: 'Invalid partnerId' });
+  if (!newUsername || !/^[a-zA-Z0-9_]{3,40}$/.test(newUsername)) {
+    return res.status(400).json({ ok: false, error: 'Username must be 3-40 chars, letters/numbers/underscores only' });
+  }
+  try {
+    if (await db.collection('partners').findOne({ username: newUsername })) {
+      return res.status(409).json({ ok: false, error: 'Username already taken' });
+    }
+    const result = await db.collection('partners').updateOne({ _id: partnerId }, { $set: { username: newUsername } });
+    if (!result.matchedCount) return res.status(404).json({ ok: false, error: 'Partner not found' });
+    console.log('[admin] partner username updated id=' + req.body.partnerId + ' new=' + newUsername);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[admin/partner/update-username]', e.message);
+    res.status(500).json({ ok: false, error: 'Failed' });
+  }
+});
+
+// POST /admin/partner/update-password — re-hash and store a new password.
+app.post('/admin/partner/update-password', adminLimiter, requireAdmin, async (req, res) => {
+  const partnerId   = toObjectId(req.body.partnerId);
+  const newPassword = typeof req.body.newPassword === 'string' ? req.body.newPassword : '';
+  if (!partnerId) return res.status(400).json({ ok: false, error: 'Invalid partnerId' });
+  if (newPassword.length < 8) return res.status(400).json({ ok: false, error: 'Password must be at least 8 characters' });
+  try {
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    const result = await db.collection('partners').updateOne({ _id: partnerId }, { $set: { passwordHash } });
+    if (!result.matchedCount) return res.status(404).json({ ok: false, error: 'Partner not found' });
+    console.log('[admin] partner password updated id=' + req.body.partnerId);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[admin/partner/update-password]', e.message);
+    res.status(500).json({ ok: false, error: 'Failed' });
+  }
+});
+
+// POST /admin/partner/delete — removes the partner account.
+// Businesses with createdByPartner = this id are intentionally left in place;
+// they are live client accounts with QRs in use and remain manageable from admin.
+app.post('/admin/partner/delete', adminLimiter, requireAdmin, async (req, res) => {
+  const partnerId = toObjectId(req.body.partnerId);
+  if (!partnerId) return res.status(400).json({ ok: false, error: 'Invalid partnerId' });
+  try {
+    const result = await db.collection('partners').deleteOne({ _id: partnerId });
+    if (!result.deletedCount) return res.status(404).json({ ok: false, error: 'Partner not found' });
+    console.log('[admin] partner deleted id=' + req.body.partnerId);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[admin/partner/delete]', e.message);
+    res.status(500).json({ ok: false, error: 'Failed' });
+  }
+});
+
 // express.static ignores dotfiles by default, so /.well-known must be served explicitly.
 app.use('/.well-known', express.static(path.join(__dirname, 'public', '.well-known'), { dotfiles: 'allow' }));
 
