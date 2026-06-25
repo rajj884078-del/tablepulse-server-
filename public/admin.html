@@ -62,6 +62,10 @@ input[type=range]{padding:0;height:6px;}
 .bar-lbl{flex:1;text-align:center;font-size:9px;color:#444;overflow:hidden;}
 .att-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#0f0f0f;z-index:500;overflow-y:auto;}
 .edit-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#0f0f0f;z-index:600;overflow-y:auto;}
+.pmenu-item{padding:10px 14px;font-size:13px;color:#ccc;cursor:pointer;}
+.pmenu-item:hover{background:#2a2a2a;}
+.pmenu-danger{color:#ff5555;border-top:1px solid #2a2a2a;}
+.pmenu-danger:hover{background:#2a1a1a;}
 .att-inner{max-width:640px;margin:0 auto;padding:20px 16px 80px;}
 .att-staff{background:#111;border:1px solid #2a2a2a;border-radius:10px;padding:12px;margin-bottom:10px;}
 .att-sname{font-size:14px;font-weight:600;color:#fff;margin-bottom:2px;}
@@ -169,6 +173,7 @@ input[type=range]{padding:0;height:6px;}
   <input type="number" id="a-lat" placeholder="e.g. 28.6139" step="any"/>
   <label>Longitude (for GPS geofencing — optional)</label>
   <input type="number" id="a-lng" placeholder="e.g. 77.2090" step="any"/>
+  <div id="a-add-err" style="display:none;color:#ff5555;font-size:13px;margin-bottom:8px;padding:8px 12px;background:#2a1a1a;border:1px solid #3a1a1a;border-radius:8px;"></div>
   <button class="btn" id="add-btn" onclick="addRestaurant()">+ Add Business</button>
 </div>
 
@@ -190,6 +195,21 @@ input[type=range]{padding:0;height:6px;}
   <input type="text" id="r-pin" placeholder="Restaurant PIN"/>
   <button class="btn btn-blue" onclick="sendReport()">📊 Send Report Now</button>
 </div>
+
+<!-- PARTNER ACCOUNTS -->
+<div class="card" style="margin-top:1rem;">
+  <div class="section-title" style="margin-top:0;">Partner Accounts</div>
+  <div style="font-size:13px;color:#888;margin-bottom:14px;">Partners can onboard businesses without the master admin key. They can only see and manage their own businesses.</div>
+  <label>Partner Full Name</label>
+  <input type="text" id="p-name" placeholder="e.g. Rahul Sharma"/>
+  <label>Username (letters, numbers, underscores)</label>
+  <input type="text" id="p-username" placeholder="e.g. rahul_sharma"/>
+  <label>Password (min 8 chars)</label>
+  <input type="password" id="p-password" placeholder="Choose a strong password"/>
+  <button class="btn" style="background:#6e40c9;" onclick="addPartner()">+ Add Partner</button>
+</div>
+<div class="section-title">Active Partners</div>
+<div id="partner-list"><div style="color:#444;font-size:13px;text-align:center;padding:1rem;">Loading...</div></div>
 
 <script>
 // ── Pricing constants (real Meta + AiSensy numbers) ──
@@ -345,6 +365,8 @@ async function addRestaurant() {
   var captains = document.getElementById('a-captains').value.trim();
   var businessType   = document.getElementById('a-btype').value;
   var suggestionMode = document.getElementById('a-smode').value;
+  var addErrEl = document.getElementById('a-add-err');
+  addErrEl.style.display = 'none';
   if (!name || !pin) { toast('Name and PIN required', 'red'); return; }
   var btn = document.getElementById('add-btn'); btn.disabled = true; btn.textContent = 'Adding...';
   var res = await post('/admin/add-restaurant', { name, pin, ownerPhone: phone, googleReviewLink: review, avgDrinkMins: drink, avgStarterMins: starter, avgMainMins: main, totalTables: tables, lat: lat, lng: lng, captains: captains, businessType: businessType, suggestionMode: suggestionMode });
@@ -382,7 +404,14 @@ async function addRestaurant() {
       }).join('');
       document.getElementById('links-box').style.display = 'block';
     loadRestaurants();
-  } else { toast('Error: ' + (res.error || 'Failed'), 'red'); }
+  } else {
+    var msg = res.error === 'PIN already exists'
+      ? 'This PIN is already in use. Please choose a different one.'
+      : (res.error || 'Failed to add business.');
+    addErrEl.textContent = msg;
+    addErrEl.style.display = '';
+    addErrEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
 }
 var editPin = '';
 function editRestaurant(pin) {
@@ -486,8 +515,122 @@ function updateAddForm() {
   document.getElementById('a-restaurant-fields').style.display = isRest ? '' : 'none';
 }
 
+// ── Partner management ──
+async function addPartner() {
+  var name     = document.getElementById('p-name').value.trim();
+  var username = document.getElementById('p-username').value.trim();
+  var password = document.getElementById('p-password').value;
+  if (!name || !username || !password) { toast('Name, username, and password required', 'red'); return; }
+  var res = await post('/admin/add-partner', { name, username, password });
+  if (res.ok) {
+    toast('Partner added: ' + username, 'green');
+    document.getElementById('p-name').value = '';
+    document.getElementById('p-username').value = '';
+    document.getElementById('p-password').value = '';
+    loadPartners();
+  } else { toast('Error: ' + (res.error || 'Failed'), 'red'); }
+}
+
+async function loadPartners() {
+  try {
+    var r = await fetch('/admin/partners', { headers: { 'x-admin-key': adminKey() } });
+    var d = await r.json();
+    var el = document.getElementById('partner-list');
+    if (!d.ok || !d.partners.length) {
+      el.innerHTML = '<div style="color:#444;font-size:13px;text-align:center;padding:1rem;">No partners yet</div>';
+      return;
+    }
+    el.innerHTML = d.partners.map(function(p) {
+      var since = new Date(p.createdAt).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+      var ddId  = 'pd-' + p._id;
+      return '<div class="rest-card" style="position:relative;">' +
+        '<div class="rest-name" style="color:#a78bfa;padding-right:36px;">' + escHtml(p.name) + '</div>' +
+        '<div class="rest-meta">@' + escHtml(p.username) + ' · Added ' + since + '</div>' +
+        '<div class="rest-meta" style="color:#444;font-size:11px;">Login at /partner</div>' +
+        '<div class="partner-menu-wrapper" style="position:absolute;top:12px;right:12px;">' +
+          '<button onclick="togglePartnerMenu(\'' + ddId + '\')" style="background:none;border:none;color:#555;font-size:20px;cursor:pointer;padding:0 4px;line-height:1;" title="Options">⋮</button>' +
+          '<div id="' + ddId + '" style="display:none;position:absolute;right:0;top:30px;background:#1e1e1e;border:1px solid #333;border-radius:8px;min-width:175px;z-index:200;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.5);">' +
+            '<div class="pmenu-item" onclick="openPartnerAction(\'username\',\'' + p._id + '\',\'' + escHtml(p.name).replace(/'/g,'&#39;') + '\')">✏️ Change Username</div>' +
+            '<div class="pmenu-item" onclick="openPartnerAction(\'password\',\'' + p._id + '\',\'' + escHtml(p.name).replace(/'/g,'&#39;') + '\')">🔑 Change Password</div>' +
+            '<div class="pmenu-item pmenu-danger" onclick="deletePartner(\'' + p._id + '\',\'' + escHtml(p.name).replace(/'/g,'&#39;') + '\')">🗑 Delete Partner</div>' +
+          '</div>' +
+        '</div>' +
+        '</div>';
+    }).join('');
+  } catch(e) {
+    document.getElementById('partner-list').innerHTML = '<div style="color:#ff5555;font-size:13px;">Failed to load</div>';
+  }
+}
+
+// ── Partner ⋮ menu ──
+var _openPartnerMenu = null;
+function togglePartnerMenu(id) {
+  var dd = document.getElementById(id);
+  if (_openPartnerMenu && _openPartnerMenu !== dd) _openPartnerMenu.style.display = 'none';
+  var nowOpen = dd.style.display !== 'block';
+  dd.style.display = nowOpen ? 'block' : 'none';
+  _openPartnerMenu = nowOpen ? dd : null;
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.partner-menu-wrapper')) {
+    if (_openPartnerMenu) { _openPartnerMenu.style.display = 'none'; _openPartnerMenu = null; }
+  }
+});
+
+// ── Partner action modal (change username / change password) ──
+var _paState = { type: '', partnerId: '' };
+function openPartnerAction(type, partnerId, partnerName) {
+  if (_openPartnerMenu) { _openPartnerMenu.style.display = 'none'; _openPartnerMenu = null; }
+  _paState = { type: type, partnerId: partnerId };
+  var isUser = type === 'username';
+  document.getElementById('pa-title').textContent = (isUser ? 'Change Username' : 'Change Password') + ' — ' + partnerName;
+  var inp = document.getElementById('pa-input');
+  inp.type        = isUser ? 'text' : 'password';
+  inp.placeholder = isUser ? 'New username' : 'New password (min 8 chars)';
+  inp.value       = '';
+  document.getElementById('pa-err').style.display = 'none';
+  document.getElementById('pa-save-btn').disabled = false;
+  document.getElementById('pa-save-btn').textContent = 'Save';
+  document.getElementById('partner-action-modal').style.display = 'flex';
+  inp.focus();
+  inp.onkeydown = function(e) { if (e.key === 'Enter') submitPartnerAction(); };
+}
+function closePartnerAction() {
+  document.getElementById('partner-action-modal').style.display = 'none';
+}
+async function submitPartnerAction() {
+  var val   = document.getElementById('pa-input').value.trim();
+  var errEl = document.getElementById('pa-err');
+  var btn   = document.getElementById('pa-save-btn');
+  errEl.style.display = 'none';
+  if (!val) { errEl.textContent = 'This field is required.'; errEl.style.display = ''; return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  var isUser = _paState.type === 'username';
+  var body   = { partnerId: _paState.partnerId };
+  if (isUser) body.newUsername = val; else body.newPassword = val;
+  var ep  = isUser ? '/admin/partner/update-username' : '/admin/partner/update-password';
+  var res = await post(ep, body);
+  btn.disabled = false; btn.textContent = 'Save';
+  if (res && res.ok) {
+    closePartnerAction();
+    toast(isUser ? 'Username updated ✓' : 'Password updated ✓', 'green');
+    loadPartners();
+  } else {
+    errEl.textContent = (res && res.error) || 'Failed.';
+    errEl.style.display = '';
+  }
+}
+
+async function deletePartner(partnerId, name) {
+  if (!confirm('Delete partner "' + name + '"?\n\nThey will no longer be able to log in. Their businesses will remain active and manageable from this admin panel.')) return;
+  var res = await post('/admin/partner/delete', { partnerId });
+  if (res && res.ok) { toast('Partner deleted', 'green'); loadPartners(); }
+  else toast('Delete failed: ' + ((res && res.error) || 'unknown'), 'red');
+}
+
 calc();
 loadRestaurants();
+loadPartners();
 updateAddForm();
 
 // ── Attendance modal ──
@@ -848,6 +991,16 @@ function cancelImport() { document.getElementById('menu-confirm-section').style.
 
     <div id="edit-err" style="display:none;color:#ff5555;font-size:13px;margin-bottom:8px;"></div>
     <button id="edit-save-btn" onclick="saveEditModal()" class="btn">Save Changes</button>
+  </div>
+</div>
+<!-- PARTNER ACTION MODAL (change username / change password) -->
+<div id="partner-action-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:800;align-items:center;justify-content:center;padding:1rem;">
+  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:20px;width:100%;max-width:360px;">
+    <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:14px;" id="pa-title"></div>
+    <input id="pa-input" autocomplete="off" style="width:100%;padding:10px 12px;border:1px solid #333;border-radius:8px;font-size:14px;margin-bottom:10px;background:#111;color:#fff;"/>
+    <div id="pa-err" style="display:none;color:#ff5555;font-size:13px;margin-bottom:8px;"></div>
+    <button id="pa-save-btn" onclick="submitPartnerAction()" style="width:100%;padding:11px;background:#6e40c9;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:8px;">Save</button>
+    <button onclick="closePartnerAction()" style="width:100%;padding:11px;background:none;border:1px solid #333;border-radius:8px;font-size:13px;color:#666;cursor:pointer;">Cancel</button>
   </div>
 </div>
 </body>
