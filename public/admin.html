@@ -191,6 +191,21 @@ input[type=range]{padding:0;height:6px;}
   <button class="btn btn-blue" onclick="sendReport()">📊 Send Report Now</button>
 </div>
 
+<!-- PARTNER ACCOUNTS -->
+<div class="card" style="margin-top:1rem;">
+  <div class="section-title" style="margin-top:0;">Partner Accounts</div>
+  <div style="font-size:13px;color:#888;margin-bottom:14px;">Partners can onboard businesses without the master admin key. They can only see and manage their own businesses.</div>
+  <label>Partner Full Name</label>
+  <input type="text" id="p-name" placeholder="e.g. Rahul Sharma"/>
+  <label>Username (letters, numbers, underscores)</label>
+  <input type="text" id="p-username" placeholder="e.g. rahul_sharma"/>
+  <label>Password (min 8 chars)</label>
+  <input type="password" id="p-password" placeholder="Choose a strong password"/>
+  <button class="btn" style="background:#6e40c9;" onclick="addPartner()">+ Add Partner</button>
+</div>
+<div class="section-title">Active Partners</div>
+<div id="partner-list"><div style="color:#444;font-size:13px;text-align:center;padding:1rem;">Loading...</div></div>
+
 <script>
 // ── Pricing constants (real Meta + AiSensy numbers) ──
 var UTILITY = 0.125;   // per utility message
@@ -486,8 +501,46 @@ function updateAddForm() {
   document.getElementById('a-restaurant-fields').style.display = isRest ? '' : 'none';
 }
 
+// ── Partner management ──
+async function addPartner() {
+  var name     = document.getElementById('p-name').value.trim();
+  var username = document.getElementById('p-username').value.trim();
+  var password = document.getElementById('p-password').value;
+  if (!name || !username || !password) { toast('Name, username, and password required', 'red'); return; }
+  var res = await post('/admin/add-partner', { name, username, password });
+  if (res.ok) {
+    toast('Partner added: ' + username, 'green');
+    document.getElementById('p-name').value = '';
+    document.getElementById('p-username').value = '';
+    document.getElementById('p-password').value = '';
+    loadPartners();
+  } else { toast('Error: ' + (res.error || 'Failed'), 'red'); }
+}
+async function loadPartners() {
+  try {
+    var r = await fetch('/admin/partners', { headers: { 'x-admin-key': adminKey() } });
+    var d = await r.json();
+    var el = document.getElementById('partner-list');
+    if (!d.ok || !d.partners.length) {
+      el.innerHTML = '<div style="color:#444;font-size:13px;text-align:center;padding:1rem;">No partners yet</div>';
+      return;
+    }
+    el.innerHTML = d.partners.map(function(p) {
+      var since = new Date(p.createdAt).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+      return '<div class="rest-card">' +
+        '<div class="rest-name" style="color:#a78bfa;">' + escHtml(p.name) + '</div>' +
+        '<div class="rest-meta">@' + escHtml(p.username) + ' · Added ' + since + '</div>' +
+        '<div class="rest-meta" style="color:#444;font-size:11px;">Login at /partner</div>' +
+        '</div>';
+    }).join('');
+  } catch(e) {
+    document.getElementById('partner-list').innerHTML = '<div style="color:#ff5555;font-size:13px;">Failed to load</div>';
+  }
+}
+
 calc();
 loadRestaurants();
+loadPartners();
 updateAddForm();
 
 // ── Attendance modal ──

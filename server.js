@@ -4,13 +4,15 @@ const axios = require('axios');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const { MongoClient, ObjectId } = require('mongodb');
-const { generateToken, verifyToken, requireAuth, findRestaurantByPin } = require('./middleware/auth');
+const { generateToken, verifyToken, requireAuth, findRestaurantByPin, generatePartnerToken, requirePartner } = require('./middleware/auth');
 const path = require('path');
 const webpush = require('web-push');
 const admin = require('firebase-admin');
 const multer = require('multer');
 const Anthropic = require('@anthropic-ai/sdk');
 const QRCode    = require('qrcode');
+const bcrypt    = require('bcrypt');
+const PARTNER_JWT_SECRET = process.env.PARTNER_JWT_SECRET;
 
 // Initialize Firebase Admin SDK from env var
 let firebaseInitialized = false;
@@ -156,6 +158,7 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 
 if (!ADMIN_KEY)               console.warn('[boot] ADMIN_KEY not set — admin API routes will reject all requests.');
 if (!RAZORPAY_WEBHOOK_SECRET) console.warn('[boot] RAZORPAY_WEBHOOK_SECRET not set — payment webhooks will be rejected.');
+if (!PARTNER_JWT_SECRET)      console.warn('[boot] PARTNER_JWT_SECRET not set — partner auth will fail. Set this env var.');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -247,6 +250,16 @@ function requireAdmin(req, res, next) {
     return res.status(403).json({ ok: false, error: 'Forbidden' });
   }
   next();
+}
+
+// Returns the restaurant doc if it belongs to this partner, null otherwise.
+// Every partner endpoint that touches a specific business must call this —
+// it is the enforcement point for cross-partner isolation.
+async function assertPartnerOwns(pin, partnerId) {
+  const r = await db.collection('restaurants').findOne({ pin });
+  if (!r) return null;
+  if (!r.createdByPartner || String(r.createdByPartner) !== String(partnerId)) return null;
+  return r;
 }
 
 // Send push notification to all subscribed devices for a restaurant.
@@ -1496,6 +1509,182 @@ app.post('/admin/menu/save', adminLimiter, requireAdmin, async (req, res) => {
   }
   await db.collection('menus').updateOne({ pin }, { $set: { pin, categories: merged, updatedAt: new Date() } }, { upsert: true });
   res.json({ ok: true, categories: merged });
+});
+
+// ── PARTNER PORTAL ────────────────────────────────────────────────────────────
+app.get('/partner', (req, res) => res.sendFile('partner.html', { root: './public' }));
+
+// POST /partner/login — bcrypt verify → JWT. Uses loginLimiter (10 req/15 min).
+app.post('/partner/login', loginLimiter, async (req, res) => {
+  const username = cleanStr(req.body.username, 60);
+  const password = typeof req.body.password === 'string' ? req.body.password : '';
+  if (!username || !password) return res.status(400).json({ ok: false, error: 'Username and password required' });
+  try {
+    const partner = await db.collection('partners').findOne({ username });
+    // Use a dummy compare when partner not found to prevent timing-based username enumeration.
+    const hash = partner ? partner.passwordHash : '$2b$12$invalidhashpaddingtomakeconstanttime';
+    const match = await bcrypt.compare(password, hash);
+    if (!partner || !match) return res.status(401).json({ ok: false, error: 'Invalid username or password' });
+    const token = generatePartnerToken(String(partner._id), partner.username);
+    console.log('[partner] login ok username=' + username);
+    res.json({ ok: true, token, name: partner.name, username: partner.username });
+  } catch (e) {
+    console.error('[partner/login]', e.message);
+    res.status(500).json({ ok: false, error: 'Login failed' });
+  }
+});
+
+// GET /partner/businesses — only returns businesses stamped with this partner's id.
+// The createdByPartner filter is server-enforced; the client cannot override it.
+app.get('/partner/businesses', requirePartner, async (req, res) => {
+  try {
+    const list = await db.collection('restaurants')
+      .find({ createdByPartner: req.partner.partnerId })
+      .sort({ createdAt: -1 })
+      .toArray();
+    res.json({ ok: true, businesses: list.map(r => Object.assign({}, r, { _id: r._id.toString() })) });
+  } catch (e) {
+    console.error('[partner/businesses]', e.message);
+    res.status(500).json({ ok: false, error: 'Failed' });
+  }
+});
+
+// POST /partner/add-business — stamps createdByPartner; hardcodes suggestionMode: 'preready'.
+app.post('/partner/add-business', writeLimiter, requirePartner, async (req, res) => {
+  const name = cleanStr(req.body.name, 80);
+  const pin  = cleanStr(String(req.body.pin || ''), 6);
+  if (!name || !pin || !/^\d{4,6}$/.test(pin)) {
+    return res.status(400).json({ ok: false, error: 'Name and 4-6 digit PIN required' });
+  }
+  const ownerPhone       = isValidPhone(req.body.ownerPhone) ? String(req.body.ownerPhone).replace(/\D/g, '') : '';
+  const googleReviewLink = cleanStr(req.body.googleReviewLink, 300) || '';
+  const businessType     = VALID_BUSINESS_TYPES.includes(req.body.businessType) ? req.body.businessType : 'restaurant';
+  try {
+    if (await db.collection('restaurants').findOne({ pin })) {
+      return res.status(409).json({ ok: false, error: 'PIN already exists' });
+    }
+    let slug = makeSlug(name);
+    if (await db.collection('restaurants').findOne({ slug })) slug = slug + '-' + pin;
+    await db.collection('restaurants').insertOne({
+      name, pin, slug, ownerPhone, googleReviewLink,
+      avgDrinkMins: 8, avgStarterMins: 18, avgMainMins: 30,
+      totalTables: 20, captains: [], lat: null, lng: null,
+      businessType,
+      suggestionMode: 'preready',   // partners can never enable haiku
+      createdByPartner: req.partner.partnerId,
+      createdAt: new Date()
+    });
+    console.log('[partner] added business: ' + name + ' pin=' + pin + ' by=' + req.partner.username);
+    const base = process.env.BASE_URL || 'https://tablepulse-server.onrender.com';
+    res.json({
+      ok: true, slug,
+      links: { waiter: base + '/r/' + slug + '/waiter', kitchen: base + '/r/' + slug + '/kitchen', bar: base + '/r/' + slug + '/bar' }
+    });
+  } catch (e) {
+    console.error('[partner/add-business]', e.message);
+    res.status(500).json({ ok: false, error: 'Failed' });
+  }
+});
+
+// POST /partner/edit-business — assertPartnerOwns enforces scoping before any write.
+// Partners can fix name, ownerPhone, googleReviewLink. suggestionMode is immutable from here.
+app.post('/partner/edit-business', writeLimiter, requirePartner, async (req, res) => {
+  const pin = cleanStr(String(req.body.pin || ''), 6);
+  if (!pin) return res.status(400).json({ ok: false, error: 'PIN required' });
+  try {
+    const restaurant = await assertPartnerOwns(pin, req.partner.partnerId);
+    if (!restaurant) return res.status(403).json({ ok: false, error: 'Forbidden' });
+    const update = {};
+    const name = cleanStr(req.body.name, 80);
+    if (name) update.name = name;
+    if (req.body.ownerPhone !== undefined) update.ownerPhone = String(req.body.ownerPhone || '').replace(/\D/g, '');
+    if (req.body.googleReviewLink !== undefined) update.googleReviewLink = cleanStr(req.body.googleReviewLink, 300) || '';
+    if (!Object.keys(update).length) return res.status(400).json({ ok: false, error: 'Nothing to update' });
+    await db.collection('restaurants').updateOne({ pin }, { $set: update });
+    console.log('[partner] edited business pin=' + pin + ' by=' + req.partner.username + ' changes=' + JSON.stringify(update));
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[partner/edit-business]', e.message);
+    res.status(500).json({ ok: false, error: 'Failed' });
+  }
+});
+
+// GET /partner/qr/:pin — assertPartnerOwns check before generating QR.
+app.get('/partner/qr/:pin', requirePartner, async (req, res) => {
+  const pin = cleanStr(req.params.pin, 6);
+  if (!pin) return res.status(400).json({ ok: false, error: 'PIN required' });
+  try {
+    const restaurant = await assertPartnerOwns(pin, req.partner.partnerId);
+    if (!restaurant) return res.status(403).json({ ok: false, error: 'Forbidden' });
+    const base = process.env.BASE_URL || (req.protocol + '://' + req.get('host'));
+    const url  = `${base}/review?r=${pin}`;
+    const buf  = await QRCode.toBuffer(url, { type: 'png', width: 600, margin: 2, errorCorrectionLevel: 'H' });
+    res.set('Content-Type', 'image/png');
+    res.set('Content-Disposition', `attachment; filename="qr-${pin}.png"`);
+    res.send(buf);
+  } catch (e) {
+    console.error('[partner/qr]', e.message);
+    res.status(500).json({ ok: false, error: 'Failed' });
+  }
+});
+
+// GET /partner/feedback/:pin — assertPartnerOwns check before returning feedback.
+app.get('/partner/feedback/:pin', requirePartner, async (req, res) => {
+  const pin = cleanStr(req.params.pin, 6);
+  if (!pin) return res.status(400).json({ ok: false, error: 'PIN required' });
+  try {
+    const restaurant = await assertPartnerOwns(pin, req.partner.partnerId);
+    if (!restaurant) return res.status(403).json({ ok: false, error: 'Forbidden' });
+    const all = await db.collection('table_feedback').find({ restaurantPin: pin }).sort({ timestamp: -1 }).toArray();
+    const happyCount = all.filter(r => r.type === 'happy_clicked').length;
+    const complaints = all
+      .filter(r => r.type === 'complaint')
+      .map(r => ({ _id: r._id.toString(), complaintText: r.complaintText, customerName: r.customerName, timestamp: r.timestamp }));
+    res.json({ ok: true, happyCount, complaintCount: complaints.length, complaints });
+  } catch (e) {
+    console.error('[partner/feedback]', e.message);
+    res.status(500).json({ ok: false, error: 'Failed' });
+  }
+});
+
+// ── ADMIN PARTNER MANAGEMENT ──────────────────────────────────────────────────
+
+// GET /admin/partners — list all partners (never returns passwordHash).
+app.get('/admin/partners', adminLimiter, requireAdmin, async (req, res) => {
+  try {
+    const partners = await db.collection('partners').find({}).sort({ createdAt: -1 }).toArray();
+    res.json({ ok: true, partners: partners.map(p => ({
+      _id: p._id.toString(), name: p.name, username: p.username, createdAt: p.createdAt
+    })) });
+  } catch (e) {
+    console.error('[admin/partners]', e.message);
+    res.status(500).json({ ok: false, error: 'Failed' });
+  }
+});
+
+// POST /admin/add-partner — hash password with bcrypt cost 12, store in partners collection.
+app.post('/admin/add-partner', adminLimiter, requireAdmin, async (req, res) => {
+  const name     = cleanStr(req.body.name, 80);
+  const username = cleanStr(req.body.username, 40);
+  const password = typeof req.body.password === 'string' ? req.body.password : '';
+  if (!name || !username || password.length < 8) {
+    return res.status(400).json({ ok: false, error: 'Name, username, and password (min 8 chars) required' });
+  }
+  if (!/^[a-zA-Z0-9_]{3,40}$/.test(username)) {
+    return res.status(400).json({ ok: false, error: 'Username must be 3-40 chars, letters/numbers/underscores only' });
+  }
+  try {
+    if (await db.collection('partners').findOne({ username })) {
+      return res.status(409).json({ ok: false, error: 'Username already exists' });
+    }
+    const passwordHash = await bcrypt.hash(password, 12);
+    const result = await db.collection('partners').insertOne({ name, username, passwordHash, createdAt: new Date() });
+    console.log('[admin] added partner username=' + username + ' name=' + name);
+    res.json({ ok: true, partnerId: result.insertedId.toString() });
+  } catch (e) {
+    console.error('[admin/add-partner]', e.message);
+    res.status(500).json({ ok: false, error: 'Failed' });
+  }
 });
 
 // express.static ignores dotfiles by default, so /.well-known must be served explicitly.

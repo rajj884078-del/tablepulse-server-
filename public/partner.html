@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>TablePulse Partner</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0f0f0f;color:#fff;padding:1rem;min-height:100vh;}
+.card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:1.2rem;margin-bottom:12px;}
+h1{font-size:18px;font-weight:600;margin-bottom:4px;}
+.sub{font-size:12px;color:#666;margin-bottom:1.5rem;}
+label{display:block;font-size:12px;color:#888;margin-bottom:5px;}
+input,select{width:100%;padding:10px 12px;border:1px solid #333;border-radius:8px;font-size:14px;margin-bottom:12px;background:#111;color:#fff;}
+input::placeholder{color:#444;}
+.btn{width:100%;padding:12px;background:#25D366;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.btn-purple{background:#6e40c9;}
+.btn-outline{background:transparent;border:1px solid #333;color:#aaa;}
+.section-title{font-size:12px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:1px;margin:1.5rem 0 10px;}
+.biz-card{background:#111;border:1px solid #2a2a2a;border-radius:10px;padding:12px;margin-bottom:8px;}
+.biz-name{font-size:15px;font-weight:600;color:#fff;margin-bottom:3px;}
+.biz-meta{font-size:12px;color:#666;margin-bottom:6px;}
+.biz-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+.act{flex:1;min-width:60px;padding:8px;border:1px solid #333;border-radius:8px;background:#1a1a1a;color:#aaa;font-size:12px;cursor:pointer;text-align:center;}
+.act.blue{border-color:#1a2a3a;color:#4a9eff;}
+.act.green{border-color:#1a3a2a;color:#3fb950;}
+.act.amber{border-color:#3a2a1a;color:#d4a017;}
+.toast{padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:10px;display:none;}
+.toast.green{background:#1a3a1a;color:#25D366;}
+.toast.red{background:#3a1a1a;color:#ff5555;}
+/* Login screen */
+#login-screen{max-width:400px;margin:4rem auto 0;}
+/* Dashboard */
+#dashboard{display:none;}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.header h1{font-size:17px;}
+.logout-btn{padding:7px 14px;background:none;border:1px solid #333;border-radius:8px;color:#666;font-size:12px;cursor:pointer;}
+.logout-btn:hover{border-color:#555;color:#aaa;}
+/* Edit modal */
+.modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#0f0f0f;z-index:500;overflow-y:auto;}
+.modal-inner{max-width:640px;margin:0 auto;padding:20px 16px 80px;}
+.modal-header{display:flex;align-items:center;gap:12px;margin-bottom:22px;}
+.back-btn{width:36px;height:36px;border-radius:50%;background:#1a1a1a;border:1px solid #2a2a2a;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+/* Feedback modal */
+.complaint-row{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:10px;margin-bottom:8px;}
+.complaint-text{font-size:13px;color:#ccc;margin-bottom:4px;}
+.complaint-meta{font-size:11px;color:#555;}
+.happy-block{background:#0d1f0d;border:1px solid #1a5a1a;border-radius:8px;padding:14px;text-align:center;margin-bottom:12px;}
+.happy-count{font-size:32px;font-weight:700;color:#3fb950;}
+/* Add form toggle */
+.add-toggle{background:#111;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:14px;font-weight:600;color:#aaa;}
+.add-toggle:hover{border-color:#444;}
+#add-form-body{display:none;}
+</style>
+</head>
+<body>
+
+<div id="toast" class="toast green"></div>
+
+<!-- ── LOGIN SCREEN ── -->
+<div id="login-screen">
+  <div style="text-align:center;margin-bottom:2rem;">
+    <div style="font-size:24px;font-weight:800;margin-bottom:4px;">Table<span style="color:#3fb950;">Pulse</span></div>
+    <div style="font-size:13px;color:#555;">Partner Portal</div>
+  </div>
+  <div class="card">
+    <label>Username</label>
+    <input type="text" id="l-username" placeholder="your_username" autocomplete="username" autocapitalize="none"/>
+    <label>Password</label>
+    <input type="password" id="l-password" placeholder="••••••••" autocomplete="current-password"/>
+    <div id="login-err" style="display:none;color:#ff5555;font-size:13px;margin-bottom:10px;"></div>
+    <button class="btn btn-purple" id="login-btn" onclick="doLogin()">Login</button>
+  </div>
+</div>
+
+<!-- ── DASHBOARD ── -->
+<div id="dashboard">
+  <div class="header">
+    <div>
+      <h1>Table<span style="color:#3fb950;">Pulse</span></h1>
+      <div style="font-size:12px;color:#555;" id="partner-name-label">Partner</div>
+    </div>
+    <button class="logout-btn" onclick="doLogout()">Logout</button>
+  </div>
+
+  <!-- Add Business (collapsible) -->
+  <div class="add-toggle" onclick="toggleAddForm()">
+    <span>+ Add New Business</span>
+    <span id="add-toggle-icon" style="font-size:18px;color:#3fb950;">›</span>
+  </div>
+  <div id="add-form-body" class="card" style="margin-top:-4px;border-radius:0 0 10px 10px;">
+    <label>Business Name</label>
+    <input type="text" id="ab-name" placeholder="e.g. Spice Garden Restaurant"/>
+    <label>PIN (4–6 digits, staff will use this to log in)</label>
+    <input type="number" id="ab-pin" placeholder="e.g. 5678"/>
+    <label>Business Type</label>
+    <select id="ab-btype">
+      <option value="restaurant">Restaurant</option>
+      <option value="cafe">Cafe</option>
+      <option value="salon">Salon</option>
+      <option value="clinic">Clinic</option>
+      <option value="gym">Gym</option>
+      <option value="tattoo">Tattoo Studio</option>
+      <option value="other">Other</option>
+    </select>
+    <label>Owner WhatsApp Number</label>
+    <input type="tel" id="ab-phone" placeholder="91XXXXXXXXXX"/>
+    <label>Google Review Link</label>
+    <input type="text" id="ab-review" placeholder="https://maps.app.goo.gl/..."/>
+    <div id="add-err" style="display:none;color:#ff5555;font-size:13px;margin-bottom:8px;"></div>
+    <button class="btn" id="add-btn" onclick="addBusiness()">Add Business</button>
+  </div>
+
+  <!-- Business list -->
+  <div class="section-title">Your Businesses</div>
+  <div id="biz-list"><div style="color:#444;font-size:13px;text-align:center;padding:2rem;">Loading...</div></div>
+</div>
+
+<!-- ── EDIT MODAL ── -->
+<div class="modal" id="edit-modal">
+  <div class="modal-inner">
+    <div class="modal-header">
+      <button class="back-btn" onclick="closeEdit()">←</button>
+      <div style="font-size:17px;font-weight:700;" id="edit-title">Edit Business</div>
+    </div>
+    <div class="card">
+      <label>Business Name</label>
+      <input type="text" id="e-name" placeholder="Business name"/>
+      <label>Owner WhatsApp Number</label>
+      <input type="tel" id="e-phone" placeholder="91XXXXXXXXXX"/>
+      <label>Google Review Link</label>
+      <input type="text" id="e-review" placeholder="https://maps.app.goo.gl/..."/>
+      <div id="edit-err" style="display:none;color:#ff5555;font-size:13px;margin-bottom:8px;"></div>
+      <button class="btn" id="edit-save-btn" onclick="saveEdit()">Save Changes</button>
+      <button class="btn btn-outline" style="margin-top:8px;" onclick="closeEdit()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── FEEDBACK MODAL ── -->
+<div class="modal" id="feedback-modal">
+  <div class="modal-inner">
+    <div class="modal-header">
+      <button class="back-btn" onclick="closeFeedback()">←</button>
+      <div style="font-size:17px;font-weight:700;" id="feedback-title">Feedback</div>
+    </div>
+    <div id="feedback-body"><div style="color:#444;text-align:center;padding:3rem;">Loading…</div></div>
+  </div>
+</div>
+
+<script>
+var STATE = { token: null, name: '', username: '', editPin: '' };
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toast(msg, cls) {
+  var el = document.getElementById('toast');
+  el.className = 'toast ' + (cls || 'green');
+  el.textContent = msg; el.style.display = 'block';
+  setTimeout(function() { el.style.display = 'none'; }, 4000);
+}
+
+function partnerHeaders() {
+  return { 'Content-Type': 'application/json', 'x-partner-token': STATE.token };
+}
+
+async function pFetch(method, url, body) {
+  var opts = { method: method, headers: partnerHeaders() };
+  if (body) opts.body = JSON.stringify(body);
+  var r = await fetch(url, opts);
+  if (r.status === 401) { doLogout(); return null; }
+  return r.json();
+}
+
+// ── Auth ──
+function showDashboard() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('partner-name-label').textContent = STATE.name + ' · Partner';
+  loadBusinesses();
+}
+
+async function doLogin() {
+  var username = document.getElementById('l-username').value.trim();
+  var password = document.getElementById('l-password').value;
+  var errEl    = document.getElementById('login-err');
+  var btn      = document.getElementById('login-btn');
+  errEl.style.display = 'none';
+  if (!username || !password) { errEl.textContent = 'Username and password required.'; errEl.style.display = ''; return; }
+  btn.disabled = true; btn.textContent = 'Logging in…';
+  try {
+    var r = await fetch('/partner/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    var d = await r.json();
+    btn.disabled = false; btn.textContent = 'Login';
+    if (d.ok) {
+      STATE.token = d.token; STATE.name = d.name; STATE.username = d.username;
+      localStorage.setItem('tp_partner_token', d.token);
+      localStorage.setItem('tp_partner_name', d.name);
+      localStorage.setItem('tp_partner_username', d.username);
+      showDashboard();
+    } else {
+      errEl.textContent = d.error || 'Login failed.';
+      errEl.style.display = '';
+    }
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Login';
+    errEl.textContent = 'Network error. Try again.';
+    errEl.style.display = '';
+  }
+}
+
+document.getElementById('l-password').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doLogin();
+});
+
+function doLogout() {
+  STATE.token = null; STATE.name = ''; STATE.username = '';
+  localStorage.removeItem('tp_partner_token');
+  localStorage.removeItem('tp_partner_name');
+  localStorage.removeItem('tp_partner_username');
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'block';
+  document.getElementById('l-password').value = '';
+}
+
+// ── Businesses ──
+var businesses = [];
+
+async function loadBusinesses() {
+  var d = await pFetch('GET', '/partner/businesses');
+  if (!d) return;
+  businesses = d.businesses || [];
+  renderBusinesses();
+}
+
+var BTYPE_LABELS = { restaurant:'🍽️ Restaurant', salon:'💈 Salon', cafe:'☕ Cafe', clinic:'🏥 Clinic', gym:'🏋️ Gym', tattoo:'🖊️ Tattoo Studio', other:'🏷️ Other' };
+
+function renderBusinesses() {
+  var el = document.getElementById('biz-list');
+  if (!businesses.length) {
+    el.innerHTML = '<div style="color:#444;font-size:13px;text-align:center;padding:2rem;">No businesses yet — add one above.</div>';
+    return;
+  }
+  el.innerHTML = businesses.map(function(b) {
+    var typeLabel = BTYPE_LABELS[b.businessType] || BTYPE_LABELS['restaurant'];
+    var reviewHtml = b.googleReviewLink
+      ? '<a href="' + escHtml(b.googleReviewLink) + '" target="_blank" style="color:#4a9eff;font-size:12px;">🔗 Review link</a>'
+      : '<span style="color:#444;font-size:12px;">No review link set</span>';
+    var phoneHtml = b.ownerPhone
+      ? '<span style="color:#25D366;font-size:12px;">📱 ' + escHtml(b.ownerPhone) + '</span>'
+      : '<span style="color:#444;font-size:12px;">No owner phone set</span>';
+    return '<div class="biz-card">' +
+      '<div class="biz-name">' + escHtml(b.name) + '</div>' +
+      '<div class="biz-meta">' + typeLabel + ' · PIN: ' + escHtml(b.pin) + '</div>' +
+      '<div style="margin-bottom:4px;">' + phoneHtml + '</div>' +
+      '<div>' + reviewHtml + '</div>' +
+      '<div class="biz-actions">' +
+        '<div class="act amber" onclick="openEdit(\'' + escHtml(b.pin) + '\')">✏️ Edit</div>' +
+        '<div class="act blue" onclick="downloadQR(\'' + escHtml(b.pin) + '\')">⬇ QR</div>' +
+        '<div class="act green" onclick="openFeedback(\'' + escHtml(b.pin) + '\',\'' + escHtml(b.name) + '\')">💬 Feedback</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ── Add business ──
+function toggleAddForm() {
+  var body = document.getElementById('add-form-body');
+  var icon = document.getElementById('add-toggle-icon');
+  var open = body.style.display === 'block';
+  body.style.display = open ? 'none' : 'block';
+  icon.textContent = open ? '›' : '↓';
+}
+
+async function addBusiness() {
+  var name   = document.getElementById('ab-name').value.trim();
+  var pin    = document.getElementById('ab-pin').value.trim();
+  var btype  = document.getElementById('ab-btype').value;
+  var phone  = document.getElementById('ab-phone').value.trim();
+  var review = document.getElementById('ab-review').value.trim();
+  var errEl  = document.getElementById('add-err');
+  errEl.style.display = 'none';
+  if (!name || !pin) { errEl.textContent = 'Business name and PIN are required.'; errEl.style.display = ''; return; }
+  var btn = document.getElementById('add-btn');
+  btn.disabled = true; btn.textContent = 'Adding…';
+  var d = await pFetch('POST', '/partner/add-business', { name, pin, businessType: btype, ownerPhone: phone, googleReviewLink: review });
+  btn.disabled = false; btn.textContent = 'Add Business';
+  if (!d) return;
+  if (d.ok) {
+    toast('Business added!', 'green');
+    document.getElementById('ab-name').value = '';
+    document.getElementById('ab-pin').value = '';
+    document.getElementById('ab-phone').value = '';
+    document.getElementById('ab-review').value = '';
+    // Close the form and reload
+    document.getElementById('add-form-body').style.display = 'none';
+    document.getElementById('add-toggle-icon').textContent = '›';
+    loadBusinesses();
+  } else {
+    errEl.textContent = d.error || 'Failed to add business.';
+    errEl.style.display = '';
+  }
+}
+
+// ── Edit business ──
+function openEdit(pin) {
+  var b = businesses.find(function(x) { return x.pin === pin; });
+  if (!b) return;
+  STATE.editPin = pin;
+  document.getElementById('edit-title').textContent = 'Edit — ' + b.name;
+  document.getElementById('e-name').value   = b.name || '';
+  document.getElementById('e-phone').value  = b.ownerPhone || '';
+  document.getElementById('e-review').value = b.googleReviewLink || '';
+  document.getElementById('edit-err').style.display = 'none';
+  document.getElementById('edit-modal').style.display = 'block';
+}
+
+function closeEdit() {
+  document.getElementById('edit-modal').style.display = 'none';
+  STATE.editPin = '';
+}
+
+async function saveEdit() {
+  var name   = document.getElementById('e-name').value.trim();
+  var phone  = document.getElementById('e-phone').value.trim();
+  var review = document.getElementById('e-review').value.trim();
+  var errEl  = document.getElementById('edit-err');
+  errEl.style.display = 'none';
+  if (!name) { errEl.textContent = 'Business name is required.'; errEl.style.display = ''; return; }
+  var btn = document.getElementById('edit-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  var d = await pFetch('POST', '/partner/edit-business', { pin: STATE.editPin, name, ownerPhone: phone, googleReviewLink: review });
+  btn.disabled = false; btn.textContent = 'Save Changes';
+  if (!d) return;
+  if (d.ok) {
+    toast('Updated!', 'green');
+    closeEdit();
+    loadBusinesses();
+  } else {
+    errEl.textContent = d.error || 'Save failed.';
+    errEl.style.display = '';
+  }
+}
+
+// ── QR download ──
+async function downloadQR(pin) {
+  try {
+    var r = await fetch('/partner/qr/' + pin, { headers: { 'x-partner-token': STATE.token } });
+    if (r.status === 401) { doLogout(); return; }
+    if (!r.ok) { toast('QR download failed', 'red'); return; }
+    var blob = await r.blob();
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href = url; a.download = 'qr-' + pin + '.png';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(e) { toast('QR download failed', 'red'); }
+}
+
+// ── Feedback ──
+async function openFeedback(pin, name) {
+  document.getElementById('feedback-title').textContent = name + ' — Feedback';
+  document.getElementById('feedback-body').innerHTML = '<div style="color:#444;text-align:center;padding:3rem;">Loading…</div>';
+  document.getElementById('feedback-modal').style.display = 'block';
+  var d = await pFetch('GET', '/partner/feedback/' + pin);
+  if (!d) return;
+  if (!d.ok) {
+    document.getElementById('feedback-body').innerHTML = '<div style="color:#ff5555;text-align:center;padding:2rem;">' + escHtml(d.error || 'Failed') + '</div>';
+    return;
+  }
+  var html = '<div class="happy-block"><div class="happy-count">😊 ' + d.happyCount + '</div><div style="font-size:13px;color:#3fb950;margin-top:4px;">Happy clicks</div></div>';
+  if (d.complaints.length) {
+    html += '<div style="font-size:12px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">' + d.complaints.length + ' Complaint' + (d.complaints.length !== 1 ? 's' : '') + '</div>';
+    html += d.complaints.map(function(c) {
+      var t = new Date(c.timestamp).toLocaleString('en-IN', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+      return '<div class="complaint-row">' +
+        '<div class="complaint-text">' + escHtml(c.complaintText || '(no text)') + '</div>' +
+        '<div class="complaint-meta">' + (c.customerName ? escHtml(c.customerName) + ' · ' : '') + t + '</div>' +
+      '</div>';
+    }).join('');
+  } else {
+    html += '<div style="color:#444;font-size:13px;text-align:center;padding:1rem;">No complaints</div>';
+  }
+  document.getElementById('feedback-body').innerHTML = html;
+}
+
+function closeFeedback() {
+  document.getElementById('feedback-modal').style.display = 'none';
+}
+
+// ── Boot: restore session from localStorage ──
+(function() {
+  var token    = localStorage.getItem('tp_partner_token');
+  var name     = localStorage.getItem('tp_partner_name');
+  var username = localStorage.getItem('tp_partner_username');
+  if (token && name) {
+    STATE.token = token; STATE.name = name; STATE.username = username || '';
+    showDashboard();
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { MongoClient } = require('mongodb');
+const jwt = require('jsonwebtoken');
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -10,6 +11,8 @@ const AUTH_SECRET = process.env.AUTH_SECRET || process.env.WEBHOOK_VERIFY_TOKEN;
 if (!process.env.AUTH_SECRET) {
   console.warn('[auth] AUTH_SECRET not set — falling back to WEBHOOK_VERIFY_TOKEN. Set AUTH_SECRET in production.');
 }
+
+const PARTNER_JWT_SECRET = process.env.PARTNER_JWT_SECRET;
 
 // Tokens expire after this many days. Staff re-enter PIN after expiry.
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -76,4 +79,33 @@ async function findRestaurantByPin(pin) {
   return database.collection('restaurants').findOne({ pin: pin.trim() });
 }
 
-module.exports = { generateToken, verifyToken, requireAuth, findRestaurantByPin };
+// ── PARTNER AUTH ──────────────────────────────────────────────────────────────
+
+// Issues a signed JWT for a partner. partnerId is stored as a string so the
+// comparison in assertPartnerOwns (server.js) stays type-safe.
+function generatePartnerToken(partnerId, username) {
+  if (!PARTNER_JWT_SECRET) throw new Error('PARTNER_JWT_SECRET not set');
+  return jwt.sign({ partnerId: String(partnerId), username }, PARTNER_JWT_SECRET, { expiresIn: '7d' });
+}
+
+// Express middleware: verifies partner JWT, attaches req.partner = { partnerId, username }.
+// Uses a separate secret (PARTNER_JWT_SECRET) so a compromised partner token
+// cannot be used to forge restaurant auth tokens, and vice-versa.
+function requirePartner(req, res, next) {
+  const token = req.headers['x-partner-token'];
+  if (!token || !PARTNER_JWT_SECRET) {
+    return res.status(401).json({ ok: false, error: 'Not authenticated as partner' });
+  }
+  try {
+    const payload = jwt.verify(token, PARTNER_JWT_SECRET);
+    req.partner = { partnerId: String(payload.partnerId), username: payload.username };
+    next();
+  } catch (e) {
+    return res.status(401).json({ ok: false, error: 'Partner session expired. Please log in again.' });
+  }
+}
+
+module.exports = {
+  generateToken, verifyToken, requireAuth, findRestaurantByPin,
+  generatePartnerToken, requirePartner
+};
