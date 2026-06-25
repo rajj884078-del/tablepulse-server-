@@ -304,8 +304,11 @@ async function addBusiness() {
     document.getElementById('add-toggle-icon').textContent = '›';
     loadBusinesses();
   } else {
-    errEl.textContent = d.error || 'Failed to add business.';
+    errEl.textContent = d.error === 'PIN already exists'
+      ? 'This PIN is already in use. Please choose a different one.'
+      : (d.error || 'Failed to add business.');
     errEl.style.display = '';
+    errEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 }
 

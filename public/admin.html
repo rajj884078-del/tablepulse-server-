@@ -173,6 +173,7 @@ input[type=range]{padding:0;height:6px;}
   <input type="number" id="a-lat" placeholder="e.g. 28.6139" step="any"/>
   <label>Longitude (for GPS geofencing — optional)</label>
   <input type="number" id="a-lng" placeholder="e.g. 77.2090" step="any"/>
+  <div id="a-add-err" style="display:none;color:#ff5555;font-size:13px;margin-bottom:8px;padding:8px 12px;background:#2a1a1a;border:1px solid #3a1a1a;border-radius:8px;"></div>
   <button class="btn" id="add-btn" onclick="addRestaurant()">+ Add Business</button>
 </div>
 
@@ -364,6 +365,8 @@ async function addRestaurant() {
   var captains = document.getElementById('a-captains').value.trim();
   var businessType   = document.getElementById('a-btype').value;
   var suggestionMode = document.getElementById('a-smode').value;
+  var addErrEl = document.getElementById('a-add-err');
+  addErrEl.style.display = 'none';
   if (!name || !pin) { toast('Name and PIN required', 'red'); return; }
   var btn = document.getElementById('add-btn'); btn.disabled = true; btn.textContent = 'Adding...';
   var res = await post('/admin/add-restaurant', { name, pin, ownerPhone: phone, googleReviewLink: review, avgDrinkMins: drink, avgStarterMins: starter, avgMainMins: main, totalTables: tables, lat: lat, lng: lng, captains: captains, businessType: businessType, suggestionMode: suggestionMode });
@@ -401,7 +404,14 @@ async function addRestaurant() {
       }).join('');
       document.getElementById('links-box').style.display = 'block';
     loadRestaurants();
-  } else { toast('Error: ' + (res.error || 'Failed'), 'red'); }
+  } else {
+    var msg = res.error === 'PIN already exists'
+      ? 'This PIN is already in use. Please choose a different one.'
+      : (res.error || 'Failed to add business.');
+    addErrEl.textContent = msg;
+    addErrEl.style.display = '';
+    addErrEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
 }
 var editPin = '';
 function editRestaurant(pin) {
