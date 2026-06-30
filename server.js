@@ -675,8 +675,14 @@ app.get('/admin/restaurants', adminLimiter, requireAdmin, async (req, res) => {
   } catch (e) { console.error('[admin/restaurants]', e.message); res.status(500).json({ error: 'Failed' }); }
 });
 
-const VALID_BUSINESS_TYPES   = ['restaurant','salon','cafe','clinic','gym','tattoo','other'];
+const DEFAULT_BUSINESS_TYPES = ['restaurant','salon','cafe','clinic','gym','tattoo','other'];
 const VALID_SUGGESTION_MODES = ['preready','haiku'];
+
+function sanitizeBusinessType(v) {
+  if (typeof v !== 'string') return 'restaurant';
+  const s = v.trim().toLowerCase().replace(/[^a-z0-9 _-]/g, '').replace(/\s+/g, ' ');
+  return s.length > 0 && s.length <= 50 ? s : 'restaurant';
+}
 
 app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) => {
   const name = cleanStr(req.body.name, 80);
@@ -695,7 +701,7 @@ app.post('/admin/add-restaurant', adminLimiter, requireAdmin, async (req, res) =
   const lng = !isNaN(lngVal) ? lngVal : null;
   const num = (v, d) => Math.min(Math.max(parseInt(v, 10) || d, 1), 240);
   const numTables = (v) => Math.min(Math.max(parseInt(v, 10) || 20, 1), 100);
-  const businessType    = VALID_BUSINESS_TYPES.includes(req.body.businessType)     ? req.body.businessType    : 'restaurant';
+  const businessType    = sanitizeBusinessType(req.body.businessType);
   const suggestionMode  = VALID_SUGGESTION_MODES.includes(req.body.suggestionMode) ? req.body.suggestionMode  : 'preready';
   try {
     if (await db.collection('restaurants').findOne({ pin })) {
@@ -750,8 +756,8 @@ app.post('/admin/update-restaurant', adminLimiter, requireAdmin, async (req, res
     }
     if (req.body.lat !== undefined) { const v = parseFloat(req.body.lat); if (!isNaN(v)) update.lat = v; }
     if (req.body.lng !== undefined) { const v = parseFloat(req.body.lng); if (!isNaN(v)) update.lng = v; }
-    if (req.body.businessType !== undefined && VALID_BUSINESS_TYPES.includes(req.body.businessType)) {
-      update.businessType = req.body.businessType;
+    if (req.body.businessType !== undefined) {
+      update.businessType = sanitizeBusinessType(req.body.businessType);
     }
     if (req.body.suggestionMode !== undefined && VALID_SUGGESTION_MODES.includes(req.body.suggestionMode)) {
       update.suggestionMode = req.body.suggestionMode;
@@ -770,6 +776,61 @@ app.post('/admin/delete-restaurant', adminLimiter, requireAdmin, async (req, res
     await db.collection('restaurants').deleteOne({ _id: oid });
     res.json({ ok: true });
   } catch (e) { console.error('[admin/delete]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
+});
+
+// ── CATEGORY MANAGEMENT ────────────────────────────────────────────────────────
+
+// GET /admin/category-list — distinct category names (DB + defaults) for dropdown population
+app.get('/admin/category-list', adminLimiter, requireAdmin, async (req, res) => {
+  try {
+    const fromDb = await db.collection('category_suggestions').distinct('category');
+    const merged = [...new Set([...DEFAULT_BUSINESS_TYPES, ...fromDb])].sort();
+    res.json({ ok: true, categories: merged });
+  } catch (e) { console.error('[admin/category-list]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
+});
+
+// GET /admin/categories — each category with 5-star and 4-star counts
+app.get('/admin/categories', adminLimiter, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.collection('category_suggestions').aggregate([
+      { $group: {
+          _id: '$category',
+          fiveStarCount: { $sum: { $cond: [{ $eq: ['$stars', 5] }, 1, 0] } },
+          fourStarCount: { $sum: { $cond: [{ $eq: ['$stars', 4] }, 1, 0] } }
+      }},
+      { $sort: { _id: 1 } }
+    ]).toArray();
+    res.json({ ok: true, categories: rows.map(r => ({ name: r._id, fiveStarCount: r.fiveStarCount, fourStarCount: r.fourStarCount })) });
+  } catch (e) { console.error('[admin/categories]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
+});
+
+// POST /admin/save-category — paste in 5-star and 4-star reviews; dedupes exact duplicates
+app.post('/admin/save-category', adminLimiter, requireAdmin, async (req, res) => {
+  const category = sanitizeBusinessType(req.body.category);
+  if (!category) return res.status(400).json({ ok: false, error: 'Category name required' });
+  const fiveLines = String(req.body.fiveStarText || '').split('\n').map(s => s.trim()).filter(Boolean);
+  const fourLines = String(req.body.fourStarText || '').split('\n').map(s => s.trim()).filter(Boolean);
+  try {
+    let fiveSaved = 0, fourSaved = 0;
+    for (const text of fiveLines) {
+      const r = await db.collection('category_suggestions').updateOne(
+        { category, stars: 5, text },
+        { $setOnInsert: { category, stars: 5, text } },
+        { upsert: true }
+      );
+      if (r.upsertedCount) fiveSaved++;
+    }
+    for (const text of fourLines) {
+      const r = await db.collection('category_suggestions').updateOne(
+        { category, stars: 4, text },
+        { $setOnInsert: { category, stars: 4, text } },
+        { upsert: true }
+      );
+      if (r.upsertedCount) fourSaved++;
+    }
+    console.log(`[admin/save-category] ${category}: +${fiveSaved} five-star, +${fourSaved} four-star`);
+    res.json({ ok: true, category, fiveSaved, fourSaved, fiveTotal: fiveLines.length, fourTotal: fourLines.length });
+  } catch (e) { console.error('[admin/save-category]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
 });
 
 app.get('/admin/qr/:pin', adminLimiter, requireAdmin, async (req, res) => {
