@@ -52,6 +52,10 @@ input::placeholder{color:#444;}
 .add-toggle{background:#111;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:14px;font-weight:600;color:#aaa;}
 .add-toggle:hover{border-color:#444;}
 #add-form-body{display:none;}
+textarea{width:100%;padding:10px 12px;border:1px solid #333;border-radius:8px;font-size:13px;margin-bottom:12px;background:#111;color:#fff;resize:vertical;font-family:inherit;line-height:1.5;}
+textarea::placeholder{color:#444;}
+.cat-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:13px;}
+.cat-row:last-child{border-bottom:none;}
 </style>
 </head>
 <body>
@@ -96,13 +100,7 @@ input::placeholder{color:#444;}
     <input type="number" id="ab-pin" placeholder="e.g. 5678"/>
     <label>Business Type</label>
     <select id="ab-btype">
-      <option value="restaurant">Restaurant</option>
-      <option value="cafe">Cafe</option>
-      <option value="salon">Salon</option>
-      <option value="clinic">Clinic</option>
-      <option value="gym">Gym</option>
-      <option value="tattoo">Tattoo Studio</option>
-      <option value="other">Other</option>
+      <option value="restaurant">Loading…</option>
     </select>
     <label>Owner WhatsApp Number</label>
     <input type="tel" id="ab-phone" placeholder="91XXXXXXXXXX"/>
@@ -115,6 +113,23 @@ input::placeholder{color:#444;}
   <!-- Business list -->
   <div class="section-title">Your Businesses</div>
   <div id="biz-list"><div style="color:#444;font-size:13px;text-align:center;padding:2rem;">Loading...</div></div>
+
+  <!-- Manage Categories -->
+  <div class="add-toggle" onclick="toggleCatForm()" style="margin-top:1rem;">
+    <span>📂 Manage Categories</span>
+    <span id="cat-toggle-icon" style="font-size:18px;color:#a78bfa;">›</span>
+  </div>
+  <div id="cat-form-body" style="display:none;" class="card" style="margin-top:-4px;border-radius:0 0 10px 10px;">
+    <div style="font-size:13px;color:#888;margin-bottom:14px;">Add a new business category by pasting in review suggestions. Once saved it appears in the Business Type dropdown for everyone.</div>
+    <label>Category Name</label>
+    <input type="text" id="pc-name" placeholder="e.g. nail salon (stored lowercase)"/>
+    <label>5-Star Reviews (one per line)</label>
+    <textarea id="pc-five" rows="6" placeholder="Paste 5-star reviews here, one per line…"></textarea>
+    <label>4-Star Reviews (one per line)</label>
+    <textarea id="pc-four" rows="6" placeholder="Paste 4-star reviews here, one per line…"></textarea>
+    <div id="pc-err" style="display:none;color:#ff5555;font-size:13px;margin-bottom:8px;padding:8px 12px;background:#2a1a1a;border:1px solid #3a1a1a;border-radius:8px;"></div>
+    <button class="btn btn-purple" id="pc-save-btn" onclick="savePartnerCategory()">Save Category</button>
+  </div>
 </div>
 
 <!-- ── EDIT MODAL ── -->
@@ -181,6 +196,7 @@ function showDashboard() {
   document.getElementById('dashboard').style.display = 'block';
   document.getElementById('partner-name-label').textContent = STATE.name + ' · Partner';
   loadBusinesses();
+  loadPartnerCategoryList();
 }
 
 async function doLogin() {
@@ -397,6 +413,59 @@ async function openFeedback(pin, name) {
 
 function closeFeedback() {
   document.getElementById('feedback-modal').style.display = 'none';
+}
+
+// ── Category management ──
+function prettifyCategory(s) {
+  return s.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+}
+
+async function loadPartnerCategoryList() {
+  try {
+    var r = await fetch('/partner/category-list', { headers: partnerHeaders() });
+    if (r.status === 401) return;
+    var d = await r.json();
+    if (!d.ok) return;
+    var sel = document.getElementById('ab-btype');
+    var cur = sel.value;
+    sel.innerHTML = d.categories.map(function(c) {
+      return '<option value="' + c + '">' + prettifyCategory(c) + '</option>';
+    }).join('');
+    if (cur && sel.querySelector('option[value="' + cur + '"]')) sel.value = cur;
+  } catch(e) { /* leave select as-is on error */ }
+}
+
+function toggleCatForm() {
+  var body = document.getElementById('cat-form-body');
+  var icon = document.getElementById('cat-toggle-icon');
+  var open = body.style.display === 'block';
+  body.style.display = open ? 'none' : 'block';
+  icon.textContent = open ? '›' : '↓';
+}
+
+async function savePartnerCategory() {
+  var name    = document.getElementById('pc-name').value.trim();
+  var fiveTxt = document.getElementById('pc-five').value;
+  var fourTxt = document.getElementById('pc-four').value;
+  var errEl   = document.getElementById('pc-err');
+  var btn     = document.getElementById('pc-save-btn');
+  errEl.style.display = 'none';
+  if (!name) { errEl.textContent = 'Category name is required.'; errEl.style.display = ''; return; }
+  if (!fiveTxt.trim() && !fourTxt.trim()) { errEl.textContent = 'Paste at least one review.'; errEl.style.display = ''; return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  var d = await pFetch('POST', '/partner/save-category', { category: name, fiveStarText: fiveTxt, fourStarText: fourTxt });
+  btn.disabled = false; btn.textContent = 'Save Category';
+  if (!d) return;
+  if (d.ok) {
+    document.getElementById('pc-name').value = '';
+    document.getElementById('pc-five').value = '';
+    document.getElementById('pc-four').value = '';
+    toast('Saved ' + d.fiveSaved + ' five-star and ' + d.fourSaved + ' four-star reviews for \'' + d.category + '\'', 'green');
+    loadPartnerCategoryList();
+  } else {
+    errEl.textContent = d.error || 'Save failed.';
+    errEl.style.display = '';
+  }
 }
 
 // ── Boot: restore session from localStorage ──

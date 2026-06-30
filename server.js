@@ -804,33 +804,65 @@ app.get('/admin/categories', adminLimiter, requireAdmin, async (req, res) => {
   } catch (e) { console.error('[admin/categories]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
 });
 
-// POST /admin/save-category — paste in 5-star and 4-star reviews; dedupes exact duplicates
+// POST /admin/save-category — paste in 5-star and 4-star reviews; bulk upsert, dedupes exact duplicates
 app.post('/admin/save-category', adminLimiter, requireAdmin, async (req, res) => {
   const category = sanitizeBusinessType(req.body.category);
   if (!category) return res.status(400).json({ ok: false, error: 'Category name required' });
   const fiveLines = String(req.body.fiveStarText || '').split('\n').map(s => s.trim()).filter(Boolean);
   const fourLines = String(req.body.fourStarText || '').split('\n').map(s => s.trim()).filter(Boolean);
+  if (!fiveLines.length && !fourLines.length) return res.json({ ok: true, category, fiveSaved: 0, fourSaved: 0, fiveTotal: 0, fourTotal: 0 });
   try {
+    const col = db.collection('category_suggestions');
     let fiveSaved = 0, fourSaved = 0;
-    for (const text of fiveLines) {
-      const r = await db.collection('category_suggestions').updateOne(
-        { category, stars: 5, text },
-        { $setOnInsert: { category, stars: 5, text } },
-        { upsert: true }
-      );
-      if (r.upsertedCount) fiveSaved++;
+    if (fiveLines.length) {
+      const r = await col.bulkWrite(fiveLines.map(text => ({
+        updateOne: { filter: { category, stars: 5, text }, update: { $setOnInsert: { category, stars: 5, text } }, upsert: true }
+      })), { ordered: false });
+      fiveSaved = r.upsertedCount;
     }
-    for (const text of fourLines) {
-      const r = await db.collection('category_suggestions').updateOne(
-        { category, stars: 4, text },
-        { $setOnInsert: { category, stars: 4, text } },
-        { upsert: true }
-      );
-      if (r.upsertedCount) fourSaved++;
+    if (fourLines.length) {
+      const r = await col.bulkWrite(fourLines.map(text => ({
+        updateOne: { filter: { category, stars: 4, text }, update: { $setOnInsert: { category, stars: 4, text } }, upsert: true }
+      })), { ordered: false });
+      fourSaved = r.upsertedCount;
     }
     console.log(`[admin/save-category] ${category}: +${fiveSaved} five-star, +${fourSaved} four-star`);
     res.json({ ok: true, category, fiveSaved, fourSaved, fiveTotal: fiveLines.length, fourTotal: fourLines.length });
   } catch (e) { console.error('[admin/save-category]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
+});
+
+// GET /admin/category-reviews/:category — individual reviews with source (admin vs partner name)
+app.get('/admin/category-reviews/:category', adminLimiter, requireAdmin, async (req, res) => {
+  const category = sanitizeBusinessType(req.params.category);
+  if (!category) return res.status(400).json({ ok: false, error: 'Category required' });
+  try {
+    const docs = await db.collection('category_suggestions').aggregate([
+      { $match: { category } },
+      { $addFields: { partnerOid: { $cond: [{ $ifNull: ['$addedByPartner', false] }, { $toObjectId: '$addedByPartner' }, null] } } },
+      { $lookup: { from: 'partners', localField: 'partnerOid', foreignField: '_id', as: 'partnerDoc' } },
+      { $project: {
+          stars: 1, text: 1,
+          addedBy: { $cond: [
+            { $gt: [{ $size: '$partnerDoc' }, 0] },
+            { $arrayElemAt: ['$partnerDoc.name', 0] },
+            'admin'
+          ]},
+          partnerId: '$addedByPartner'
+      }},
+      { $sort: { stars: -1, _id: 1 } }
+    ]).toArray();
+    res.json({ ok: true, reviews: docs.map(d => ({ id: d._id.toString(), stars: d.stars, text: d.text, addedBy: d.addedBy, partnerId: d.partnerId || null })) });
+  } catch (e) { console.error('[admin/category-reviews]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
+});
+
+// POST /admin/delete-category-review — remove a specific review by _id
+app.post('/admin/delete-category-review', adminLimiter, requireAdmin, async (req, res) => {
+  const oid = toObjectId(req.body.id);
+  if (!oid) return res.status(400).json({ ok: false, error: 'Invalid id' });
+  try {
+    await db.collection('category_suggestions').deleteOne({ _id: oid });
+    res.json({ ok: true });
+  } catch (e) { console.error('[admin/delete-category-review]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
 });
 
 app.get('/admin/qr/:pin', adminLimiter, requireAdmin, async (req, res) => {
@@ -1706,6 +1738,45 @@ app.get('/partner/feedback/:pin', requirePartner, async (req, res) => {
     console.error('[partner/feedback]', e.message);
     res.status(500).json({ ok: false, error: 'Failed' });
   }
+});
+
+// ── PARTNER CATEGORY ROUTES ───────────────────────────────────────────────────
+
+// GET /partner/category-list — merged DB + default category names for dropdown population
+app.get('/partner/category-list', requirePartner, async (req, res) => {
+  try {
+    const fromDb = await db.collection('category_suggestions').distinct('category');
+    const merged = [...new Set([...DEFAULT_BUSINESS_TYPES, ...fromDb])].sort();
+    res.json({ ok: true, categories: merged });
+  } catch (e) { console.error('[partner/category-list]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
+});
+
+// POST /partner/save-category — bulk upsert reviews stamped with addedByPartner
+app.post('/partner/save-category', writeLimiter, requirePartner, async (req, res) => {
+  const category = sanitizeBusinessType(req.body.category);
+  if (!category) return res.status(400).json({ ok: false, error: 'Category name required' });
+  const fiveLines = String(req.body.fiveStarText || '').split('\n').map(s => s.trim()).filter(Boolean);
+  const fourLines = String(req.body.fourStarText || '').split('\n').map(s => s.trim()).filter(Boolean);
+  if (!fiveLines.length && !fourLines.length) return res.json({ ok: true, category, fiveSaved: 0, fourSaved: 0, fiveTotal: 0, fourTotal: 0 });
+  const partnerId = req.partner.partnerId;
+  try {
+    const col = db.collection('category_suggestions');
+    let fiveSaved = 0, fourSaved = 0;
+    if (fiveLines.length) {
+      const r = await col.bulkWrite(fiveLines.map(text => ({
+        updateOne: { filter: { category, stars: 5, text }, update: { $setOnInsert: { category, stars: 5, text, addedByPartner: partnerId } }, upsert: true }
+      })), { ordered: false });
+      fiveSaved = r.upsertedCount;
+    }
+    if (fourLines.length) {
+      const r = await col.bulkWrite(fourLines.map(text => ({
+        updateOne: { filter: { category, stars: 4, text }, update: { $setOnInsert: { category, stars: 4, text, addedByPartner: partnerId } }, upsert: true }
+      })), { ordered: false });
+      fourSaved = r.upsertedCount;
+    }
+    console.log(`[partner/save-category] ${category}: +${fiveSaved}★5 +${fourSaved}★4 by=${req.partner.username}`);
+    res.json({ ok: true, category, fiveSaved, fourSaved, fiveTotal: fiveLines.length, fourTotal: fourLines.length });
+  } catch (e) { console.error('[partner/save-category]', e.message); res.status(500).json({ ok: false, error: 'Failed' }); }
 });
 
 // ── ADMIN PARTNER MANAGEMENT ──────────────────────────────────────────────────
